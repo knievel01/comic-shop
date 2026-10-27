@@ -35,6 +35,13 @@
       {% if tags.status == 'fehler' %}<span class="badge fehler">Fehler</span>{% endif %}</p>
     {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
     {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
+    {% if tags.status == 'fehler' %}
+    <form method="post" action="/review/{{ id }}/neu-erkennen" style="background:none;border:0;padding:0">
+      <p class="calc">Scan unbrauchbar (z. B. falsche Seitenzahl)? Neu scannen und dieses Exemplar ignorieren.
+      Nur vorübergehender Fehler? Dann erneut erkennen lassen:</p>
+      <button type="submit" style="width:auto;padding:.5rem 1rem;background:#6b6b70">Erneut erkennen</button>
+    </form>
+    {% endif %}
   </section>
 
   <form method="post" action="/review/{{ id }}" id="f">

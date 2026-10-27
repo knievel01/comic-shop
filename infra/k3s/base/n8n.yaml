@@ -67,8 +67,6 @@ spec:
             - { name: EXECUTIONS_DATA_PRUNE, value: "true" }
             - { name: EXECUTIONS_DATA_MAX_AGE, value: "720" }
             - { name: N8N_METRICS, value: "true" }
-            # Waiting executions (Wait/Form nodes) are stored in Postgres and resume after restarts.
-            - { name: N8N_RUNNERS_ENABLED, value: "true" }
           readinessProbe:
             httpGet: { path: /healthz/readiness, port: 5678 }
             periodSeconds: 10

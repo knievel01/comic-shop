@@ -28,7 +28,8 @@ for f in sorted(src.glob("*.json")):
         # credential references keep only id+name; never secrets (export is not --decrypted)
         for cred in (node.get("credentials") or {}).values():
             cred.pop("data", None)
-    slug = re.sub(r"[^a-z0-9]+", "-", wf["name"].lower()).strip("-")
+    name = wf["name"].lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    slug = re.sub(r"[^a-z0-9]+", "-", name).strip("-")
     (dst / f"{slug}.json").write_text(json.dumps(wf, indent=2, ensure_ascii=False) + "\n")
     print(f"exported {wf['name']} -> workflows/{slug}.json")
 PY

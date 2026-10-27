@@ -1,0 +1,298 @@
+{
+  "id": "cmxShopify000001",
+  "name": "Comics 02 Bestätigt nach Shopify und aktiv",
+  "active": false,
+  "nodes": [
+    {
+      "id": "8161ecd5-43ac-5bf8-8dec-51390d3649ba",
+      "name": "Webhook vom Review",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "comic-bestaetigt",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "webhookId": "8e014243-af83-5180-90a8-c6a85d8c2b73"
+    },
+    {
+      "id": "a9cdb0ef-1c77-5601-8509-6bc1e6b1220c",
+      "name": "ID aus Webhook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5b4a8e39-2c48-51b2-b3b5-5ad01ddbc7dd",
+              "name": "id",
+              "type": "string",
+              "value": "={{ $json.body.id }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "04c089fe-9a64-5e51-9c5b-0352a4ff7a91",
+      "name": "Alle 15 Minuten (Nachzügler)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0bfef255-fa9c-53a0-9de2-7cada9cc2ed5",
+      "name": "Bestätigte ohne Shop holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        220
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/confirmed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      }
+    },
+    {
+      "id": "b90ccf20-8149-5f0b-bf4f-b1e82f6e5a89",
+      "name": "Einzeln",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        440,
+        220
+      ],
+      "parameters": {
+        "fieldToSplitOut": "ids",
+        "destinationFieldName": "id",
+        "options": {}
+      }
+    },
+    {
+      "id": "16ad98dc-eb25-55fd-9aa2-e03436ca839f",
+      "name": "Shopify: Variante anlegen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $json.id }}/shopify",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 10000
+    },
+    {
+      "id": "4406adf3-1e92-5056-9fa0-435afa0df8ca",
+      "name": "S3: Metadaten und nach aktiv/",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $json.id }}/finalize",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "d3fdf153-b905-58e8-8a1a-c53d728c5d99",
+      "name": "Fertig",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        -100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "9756bbf2-e253-5fbd-a59b-5011982ab2f8",
+      "name": "Später erneut (15-Min-Lauf)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        200
+      ],
+      "parameters": {},
+      "notes": "Fehler bleiben im Status 'bestaetigt' und werden vom 15-Minuten-Lauf erneut versucht. Die Tagesmail zeigt 'Bestätigt, noch nicht im Shop'."
+    }
+  ],
+  "connections": {
+    "Webhook vom Review": {
+      "main": [
+        [
+          {
+            "node": "ID aus Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID aus Webhook": {
+      "main": [
+        [
+          {
+            "node": "Shopify: Variante anlegen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alle 15 Minuten (Nachzügler)": {
+      "main": [
+        [
+          {
+            "node": "Bestätigte ohne Shop holen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bestätigte ohne Shop holen": {
+      "main": [
+        [
+          {
+            "node": "Einzeln",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Einzeln": {
+      "main": [
+        [
+          {
+            "node": "Shopify: Variante anlegen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify: Variante anlegen": {
+      "main": [
+        [
+          {
+            "node": "S3: Metadaten und nach aktiv/",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Später erneut (15-Min-Lauf)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3: Metadaten und nach aktiv/": {
+      "main": [
+        [
+          {
+            "node": "Fertig",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Später erneut (15-Min-Lauf)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "cmxFehlerAlarm01"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

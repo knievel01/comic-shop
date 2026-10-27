@@ -1,0 +1,115 @@
+{
+  "id": "cmxTagesmail0001",
+  "name": "Comics 04 Tagesmail 7 Uhr",
+  "active": false,
+  "nodes": [
+    {
+      "id": "5030192f-8a10-5176-be52-ba9a1687dba3",
+      "name": "Täglich 7:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "aea55b28-4195-561e-88b6-d24bcafe2bbb",
+      "name": "Zahlen holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/report/daily?hours=24",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "638b67ae-d396-5e38-b1a8-31ccd1764ec1",
+      "name": "Mail senden",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "={{ $json.absender }}",
+        "toEmail": "={{ $json.empfaenger }}",
+        "subject": "=Comics: {{ $json.gescannt }} gescannt, {{ $json.gesamt_offen }} offen",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}\nZur Prüfung: {{ $json.review_url }}\n",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "cmxSmtpComics001",
+          "name": "SMTP Comics"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Täglich 7:00": {
+      "main": [
+        [
+          {
+            "node": "Zahlen holen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zahlen holen": {
+      "main": [
+        [
+          {
+            "node": "Mail senden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "cmxFehlerAlarm01"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

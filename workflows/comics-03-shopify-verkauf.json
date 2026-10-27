@@ -1,0 +1,173 @@
+{
+  "id": "cmxVerkauf000001",
+  "name": "Comics 03 Shopify-Verkauf",
+  "active": false,
+  "nodes": [
+    {
+      "id": "6cca51a7-524a-5e94-b1d7-7ce16f5a0dd7",
+      "name": "Shopify Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shopify-orders",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "17689243-558a-5624-897b-87df3091ffb4"
+    },
+    {
+      "id": "eae30db5-5f39-5148-8dcc-d3912c9857ec",
+      "name": "An comic-helper (HMAC-Prüfung)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/shopify/webhook",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Shopify-Hmac-Sha256",
+              "value": "={{ $json.headers['x-shopify-hmac-sha256'] }}"
+            },
+            {
+              "name": "X-Shopify-Topic",
+              "value": "={{ $json.headers['x-shopify-topic'] }}"
+            },
+            {
+              "name": "X-Shopify-Webhook-Id",
+              "value": "={{ $json.headers['x-shopify-webhook-id'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "528ab7d5-8757-571e-b6f2-b3a97434c3f5",
+      "name": "200 an Shopify",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        -100
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "4e368ad8-0147-5cc6-aa21-413cc895e52c",
+      "name": "500 an Shopify (Shopify wiederholt)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "error",
+        "options": {
+          "responseCode": 500
+        }
+      }
+    },
+    {
+      "id": "1d6efabe-5113-587b-b445-942c40d7ae10",
+      "name": "Fehler melden",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "errorMessage": "={{ 'Verkaufs-Webhook fehlgeschlagen: ' + ($json.error?.message || 'unbekannt') }}"
+      }
+    }
+  ],
+  "connections": {
+    "Shopify Webhook": {
+      "main": [
+        [
+          {
+            "node": "An comic-helper (HMAC-Prüfung)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "An comic-helper (HMAC-Prüfung)": {
+      "main": [
+        [
+          {
+            "node": "200 an Shopify",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "500 an Shopify (Shopify wiederholt)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "500 an Shopify (Shopify wiederholt)": {
+      "main": [
+        [
+          {
+            "node": "Fehler melden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "cmxFehlerAlarm01"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

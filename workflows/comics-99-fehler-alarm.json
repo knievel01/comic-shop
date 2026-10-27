@@ -1,0 +1,103 @@
+{
+  "id": "cmxFehlerAlarm01",
+  "name": "Comics 99 Fehler-Alarm",
+  "active": false,
+  "nodes": [
+    {
+      "id": "792de705-7aff-553e-85f0-b4fc1b2a188e",
+      "name": "Bei Workflow-Fehler",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "46d38205-5d1c-59f9-b872-c8acfcb25e19",
+      "name": "Empfänger holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/mail-config",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "7107dfa5-771b-55e2-9e60-f84f73553e6b",
+      "name": "Alarm-Mail",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "fromEmail": "={{ $json.from }}",
+        "toEmail": "={{ $json.alerts }}",
+        "subject": "=Comic-Automatisierung: Fehler in {{ $('Bei Workflow-Fehler').item.json.workflow.name }}",
+        "emailFormat": "text",
+        "text": "=Workflow: {{ $('Bei Workflow-Fehler').item.json.workflow.name }}\nNode: {{ $('Bei Workflow-Fehler').item.json.execution.lastNodeExecuted }}\nFehler: {{ $('Bei Workflow-Fehler').item.json.execution.error.message }}\nAusführung: {{ $('Bei Workflow-Fehler').item.json.execution.url }}\n",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "cmxSmtpComics001",
+          "name": "SMTP Comics"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Bei Workflow-Fehler": {
+      "main": [
+        [
+          {
+            "node": "Empfänger holen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empfänger holen": {
+      "main": [
+        [
+          {
+            "node": "Alarm-Mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

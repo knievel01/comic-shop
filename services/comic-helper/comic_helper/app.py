@@ -301,14 +301,18 @@ async def shopify_webhook(request: Request, store: Store = Depends(get_store), s
 
 @app.get("/api/report/daily", dependencies=[Depends(require_token)])
 def daily_report(hours: int = 24, store: Store = Depends(get_store), s: Settings = Depends(get_settings)):
-    return {**report.daily(store, hours=hours), "empfaenger": s.mail_to_daily,
+    return {**report.daily(store, hours=hours), "empfaenger": s.mail_to_daily, "absender": s.mail_from,
             "review_url": f"{s.review_base_url}/review/"}
 
 
 @app.get("/api/mail-config", dependencies=[Depends(require_token)])
 def mail_config(s: Settings = Depends(get_settings)):
     """Recipients for n8n mail nodes (n8n blocks env access in nodes)."""
-    return {"daily": s.mail_to_daily, "alerts": s.mail_to_alerts or s.mail_to_daily}
+    return {"from": s.mail_from, "daily": s.mail_to_daily, "alerts": s.mail_to_alerts or s.mail_to_daily}
+
+
+EMPTY_PROPOSAL = {"titel": "", "untertitel": "", "ausgabe": "", "verlag": "", "jahr": None, "sprache": "",
+                  "ean_isbn": "", "coverpreis": None, "waehrung": "", "format": "", "auffaelligkeiten": ""}
 
 
 # --- review UI ------------------------------------------------------------------------
@@ -361,7 +365,13 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
     if not store.exists(key):
         raise HTTPException(404, "Exemplar ist nicht (mehr) im Eingang")
     tags = store.get_tags(key)
-    side = store.read_json(store.sidecar_key(EINGANG, copy_id))
+    side_key = store.sidecar_key(EINGANG, copy_id)
+    side = store.read_json(side_key) if store.exists(side_key) else {"id": copy_id}
+    side.setdefault("ki_status", "nachkontrolle")
+    side.setdefault("konfidenz", 0.0)
+    side.setdefault("gescannt_am", "")
+    side.setdefault("vorschlag", EMPTY_PROPOSAL)
+    side.setdefault("preis_vorschlag", None)
     v = side.get("entscheidung") or side["vorschlag"]
     q = quote_plus(" ".join(x for x in (v.get("titel", ""), v.get("ausgabe", "")) if x and x != "-"))
     links = {name: url.replace("{q}", q) for name, url in cfg["suchlinks"].items()}
@@ -374,6 +384,17 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "id": copy_id, "side": side, "v": v, "tags": tags, "cfg": cfg, "links": links,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
     })
+
+
+@app.post("/review/{copy_id}/neu-erkennen", dependencies=[Depends(require_reviewer)])
+def review_retry(copy_id: str, store: Store = Depends(get_store)):
+    """Puts a failed scan back into the queue; n8n picks it up on the next run."""
+    _check_id(copy_id)
+    key = store.pdf_key(EINGANG, copy_id)
+    if not store.exists(key):
+        raise HTTPException(404)
+    store.update_tags(key, status="neu", claimed=None)
+    return RedirectResponse("/review/", status_code=303)
 
 
 def _notify_n8n(s: Settings, copy_id: str) -> None:
@@ -438,7 +459,8 @@ def review_submit(
         price.update(final=round(override, 2), ueberschrieben=True)
 
     side_key = store.sidecar_key(EINGANG, copy_id)
-    side = store.read_json(side_key)
+    side = store.read_json(side_key) if store.exists(side_key) else {"id": copy_id}
+    side.setdefault("vorschlag", EMPTY_PROPOSAL)
     side["entscheidung"] = {
         "titel": titel.strip(), "untertitel": untertitel.strip(), "ausgabe": ausgabe.strip() or "-",
         "verlag": verlag.strip(), "jahr": int(jahr) if jahr.strip().isdigit() else None,

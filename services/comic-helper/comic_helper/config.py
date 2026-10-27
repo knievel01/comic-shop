@@ -35,6 +35,7 @@ class Settings:
     shopify_api_version: str = "2026-07"
     shopify_location_id: str = ""
     shopify_publication_ids: list[str] = field(default_factory=list)
+    mail_from: str = ""
     mail_to_daily: str = ""
     mail_to_alerts: str = ""
 
@@ -57,6 +58,7 @@ class Settings:
             shopify_api_version=env("SHOPIFY_API_VERSION", "2026-07"),
             shopify_location_id=env("SHOPIFY_LOCATION_ID", ""),
             shopify_publication_ids=[p for p in env("SHOPIFY_PUBLICATION_IDS", "").split(",") if p],
+            mail_from=env("MAIL_FROM", ""),
             mail_to_daily=env("MAIL_TO_DAILY", ""),
             mail_to_alerts=env("MAIL_TO_ALERTS", ""),
         )

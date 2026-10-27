@@ -252,6 +252,11 @@ def test_wrong_page_count_goes_to_error_path(env):
     assert r.json()["status"] == "fehler"
     assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "fehler"
     assert env.claude.calls == 0
+    # failed case still opens in the review UI (no AI proposal, no images) and can be re-queued
+    page = c.get(f"/review/{cid}")
+    assert page.status_code == 200 and "Erneut erkennen" in page.text
+    assert c.post(f"/review/{cid}/neu-erkennen", follow_redirects=False).status_code == 303
+    assert c.post("/api/scans/claim", headers=H).json()["ids"] == [cid]
 
 
 def test_low_confidence_needs_recheck(env):

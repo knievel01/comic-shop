@@ -1,0 +1,199 @@
+{
+  "id": "cmxScanIngest001",
+  "name": "Comics 01 Scan-Ingest und Erkennung",
+  "active": false,
+  "nodes": [
+    {
+      "id": "5c2ddbea-c580-52af-9697-538ec434d0ed",
+      "name": "Alle 2 Minuten",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b66227a3-6fd9-51f5-ab34-684b138926dc",
+      "name": "Neue Scans holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/claim?limit=20",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      }
+    },
+    {
+      "id": "b90ccf20-8149-5f0b-bf4f-b1e82f6e5a89",
+      "name": "Einzeln",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "ids",
+        "options": {}
+      }
+    },
+    {
+      "id": "97b42dc2-5482-5f77-b8b1-511e2013bf9d",
+      "name": "Erkennen (Claude)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $json.ids }}/recognize",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "313df2fd-4e05-5f4a-9722-7316c0089923",
+      "name": "Erkannt",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        900,
+        -100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "234cb7bf-fada-5e87-b972-b352ca0c7c4f",
+      "name": "Fehlerpfad: als Fehler markieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $('Einzeln').item.json.ids }}/fail",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ fehler: $json.error?.message || JSON.stringify($json.error || $json) }) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Alle 2 Minuten": {
+      "main": [
+        [
+          {
+            "node": "Neue Scans holen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neue Scans holen": {
+      "main": [
+        [
+          {
+            "node": "Einzeln",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Einzeln": {
+      "main": [
+        [
+          {
+            "node": "Erkennen (Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Erkennen (Claude)": {
+      "main": [
+        [
+          {
+            "node": "Erkannt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fehlerpfad: als Fehler markieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "cmxFehlerAlarm01"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
