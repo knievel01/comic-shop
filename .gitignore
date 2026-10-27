@@ -1,0 +1,43 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+*.pem
+*.key
+age.key
+keys.txt
+kubeconfig*
+*.kubeconfig
+
+# n8n exports that may contain credentials
+workflows/**/credentials*.json
+workflows/**/*credential*.json
+*.decrypted.json
+
+# Terraform
+infra/aws/.terraform/
+infra/aws/*.tfstate
+infra/aws/*.tfstate.*
+infra/aws/*.tfvars
+!infra/aws/*.tfvars.example
+infra/aws/.terraform.lock.hcl.bak
+
+# Build artefacts
+os/build/
+*.iso
+
+# Python / Node
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
+
+# Local test data (real scans stay out of git)
+testdata/
+*.pdf
+!services/comic-helper/tests/fixtures/*.pdf
+
+.DS_Store
