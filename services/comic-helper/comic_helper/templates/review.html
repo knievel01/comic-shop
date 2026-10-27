@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ v.titel }} {{ v.ausgabe }} – prüfen{% endblock %}
+{% block head %}
+<style>
+  .grid { display:grid; grid-template-columns: minmax(0,1.4fr) minmax(360px,1fr); gap:1.2rem; }
+  .pics { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+  .pics img { width:100%; background:#fff; border:1px solid var(--line); cursor:zoom-in; }
+  .pics img.zoom { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:rgba(0,0,0,.9); z-index:9; cursor:zoom-out; }
+  form { background:#fff; border:1px solid var(--line); border-radius:.5rem; padding:1rem 1.2rem; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-top:.7rem; }
+  input, select, textarea { width:100%; font:inherit; padding:.45rem .55rem; border:1px solid var(--line); border-radius:.35rem; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  .row3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:.7rem; }
+  fieldset { border:1px solid var(--line); border-radius:.4rem; margin:.9rem 0 0; padding:.3rem .8rem .8rem; }
+  .zustand label { display:flex; gap:.5rem; align-items:flex-start; color:var(--ink); font-size:.95rem; cursor:pointer; }
+  .zustand input { width:auto; margin-top:.25rem; }
+  .zustand small { color:var(--muted); display:block; }
+  .price { font-size:2rem; font-weight:700; margin:.3rem 0; }
+  .calc { color:var(--muted); font-size:.85rem; }
+  .links a { margin-right:.8rem; }
+  button { margin-top:1rem; width:100%; padding:.8rem; font:inherit; font-weight:700; color:#fff; background:var(--accent); border:0; border-radius:.4rem; cursor:pointer; }
+  .hint { font-size:.85rem; color:var(--warn); }
+</style>
+{% endblock %}
+{% block body %}
+{% if fehler %}<div class="msg err">{{ fehler }}</div>{% endif %}
+<div class="grid">
+  <section>
+    <div class="pics">
+      <img src="/review/bild/{{ id }}/1" alt="Cover" onclick="this.classList.toggle('zoom')">
+      <img src="/review/bild/{{ id }}/2" alt="Rückseite" onclick="this.classList.toggle('zoom')">
+    </div>
+    <p class="calc">Exemplar {{ id }} · gescannt {{ side.gescannt_am }} ·
+      KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)
+      {% if tags.status == 'fehler' %}<span class="badge fehler">Fehler</span>{% endif %}</p>
+    {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
+    {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
+  </section>
+
+  <form method="post" action="/review/{{ id }}" id="f">
+    <div class="row3">
+      <div><label>Titel</label><input name="titel" value="{{ v.titel }}" required></div>
+      <div><label>Ausgabe</label><input name="ausgabe" value="{{ v.ausgabe }}"></div>
+      <div><label>Jahr</label><input name="jahr" value="{{ v.jahr or '' }}" inputmode="numeric"></div>
+    </div>
+    <label>Untertitel</label><input name="untertitel" value="{{ v.untertitel }}">
+    <div class="row3">
+      <div><label>Verlag</label><input name="verlag" value="{{ v.verlag }}"></div>
+      <div><label>Sprache</label><input name="sprache" value="{{ v.sprache }}"></div>
+      <div><label>Format</label><input name="format" value="{{ v.format }}"></div>
+    </div>
+    <label>EAN / ISBN</label><input name="ean_isbn" value="{{ v.ean_isbn }}">
+
+    <fieldset class="zustand"><legend>Zustand (Comicguide-Skala)</legend>
+      {% for z, d in cfg.zustaende|dictsort %}
+      <label><input type="radio" name="zustand" value="{{ z }}" required {% if v.zustand is defined and v.zustand == z %}checked{% endif %}>
+        <span><strong>{{ z }} – {{ d.bezeichnung }}</strong><small>{{ d.hilfe }}</small></span></label>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset><legend>Preis</legend>
+      <div class="row">
+        <div><label>Preis Zustand 1 (€)</label>
+          <input name="basis_z1" id="basis" inputmode="decimal"
+            value="{% if v.preis is defined %}{{ '%.2f' % v.preis.basis_z1 }}{% elif preis_vorschlag %}{{ '%.2f' % preis_vorschlag.basis_z1 }}{% endif %}"></div>
+        <div><label>Quelle</label>
+          <select name="preisquelle" id="quelle">
+            {% set q = v.preis.quelle if v.preis is defined else (preis_vorschlag.quelle if preis_vorschlag else 'comicguide') %}
+            {% for p in cfg.preisquellen %}<option {% if p == q %}selected{% endif %}>{{ p }}</option>{% endfor %}
+          </select></div>
+      </div>
+      {% if preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis {{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }} (noch lieferbar).</p>
+      {% else %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
+      <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>{% endif %}
+      <div class="price" id="preis">–</div>
+      <div class="calc" id="rechnung"></div>
+      <label>Endpreis überschreiben (optional, €)</label>
+      <input name="preis_override" id="override" inputmode="decimal" placeholder="leer = berechneter Preis">
+    </fieldset>
+
+    <label>Notiz</label><textarea name="notiz" rows="2"></textarea>
+    <button type="submit">Bestätigen und in den Shop</button>
+  </form>
+</div>
+
+<script>
+// Live preview only; the server recalculates authoritatively (comic_helper/pricing.py).
+const CFG = {{ js_cfg|safe }};
+const num = s => { s = (s || "").replace("€", "").replace(",", ".").trim(); return s === "" ? null : Number(s); };
+function roundShop(value) {
+  const r = CFG.rundung, endings = r.endungen.map(Number).sort((a, b) => a - b), min = Number(r.mindestpreis || 0);
+  value = Math.max(value, min);
+  const whole = Math.floor(value);
+  let c = [];
+  for (const w of [whole - 1, whole, whole + 1]) for (const e of endings) c.push(w + e);
+  c = c.filter(x => x >= min - 1e-9);
+  if (r.modus === "aufrunden") return Math.min(...c.filter(x => x >= value - 1e-9));
+  return c.reduce((best, x) => {
+    const d = Math.abs(x - value), bd = Math.abs(best - value);
+    return d < bd - 1e-12 || (Math.abs(d - bd) <= 1e-12 && x > best) ? x : best;
+  });
+}
+const eur = x => x.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+function update() {
+  const z = document.querySelector("input[name=zustand]:checked");
+  const basis = num(document.getElementById("basis").value), ov = num(document.getElementById("override").value);
+  const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
+  if (ov) { out.textContent = eur(ov); calc.textContent = "manuell überschrieben"; return; }
+  if (!z || !basis) { out.textContent = "–"; calc.textContent = "Zustand und Preis Z1 eingeben"; return; }
+  const f = CFG.faktoren[z.value], raw = basis * f * CFG.aufschlag;
+  out.textContent = eur(roundShop(raw));
+  calc.textContent = `${eur(basis)} × ${f} (Zustand ${z.value}) × ${CFG.aufschlag} Aufschlag = ${eur(raw)} → gerundet`;
+}
+document.getElementById("f").addEventListener("input", update);
+update();
+</script>
+{% endblock %}

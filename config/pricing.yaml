@@ -1,0 +1,64 @@
+# Zentrale fachliche Konfiguration. Sepp kann diese Werte anhand echter Verkäufe nachjustieren.
+# Änderung: Datei anpassen, committen, auf dem Rechner `sudo comics-update --tags apps`.
+# Herleitung und Quellen: docs/PREISFINDUNG.md
+
+# Comicguide-Zustandsskala 0–4. Faktor bezogen auf den Preis für Zustand 1.
+# Beschreibungen in eigenen Worten (nicht von Comicguide übernommen), werden im Review-Formular
+# und im Shop angezeigt.
+zustaende:
+  0:
+    bezeichnung: perfekt
+    faktor: 1.5
+    hilfe: Wie neu, ungelesen wirkend. Keine Knicke, keine Stoßstellen, Farben voll.
+  1:
+    bezeichnung: sehr gut
+    faktor: 1.0
+    hilfe: Gelesen, aber sehr gepflegt. Höchstens winzige Gebrauchsspuren an Kanten oder Rücken.
+  2:
+    bezeichnung: gut
+    faktor: 0.4
+    hilfe: Deutliche Lesespuren, leichte Knicke oder Rückenbruch, kleine Flecken. Vollständig.
+  3:
+    bezeichnung: noch sammelwürdig
+    faktor: 0.2
+    hilfe: Stärkere Mängel wie Risse, Stempel, Verfärbung, lose Klammern. Vollständig.
+  4:
+    bezeichnung: zum Wegwerfen zu schade
+    faktor: 0.1
+    hilfe: Starke Schäden, aber noch lesbar und vollständig. Unvollständige Hefte nicht über den Shop.
+
+# Sepps Aufschlag auf den Comicguide-Preis
+aufschlag: 1.5
+
+# Noch lieferbare Titel: Basis Z1 = Coverpreis × Faktor (Comicguide-Praxis: 2/3)
+coverpreis:
+  faktor: 0.6667
+  # Regel nur anwenden, wenn der Coverpreis in Euro ist und das Heft höchstens so alt ist
+  waehrung: EUR
+  max_alter_jahre: 3
+
+# Rundung auf glatte Shop-Preise: nächstgelegener Preis mit einer dieser Endungen
+rundung:
+  endungen: [0.50, 0.99]
+  modus: naechste        # naechste | aufrunden
+  mindestpreis: 2.00
+
+# KI-Erkennung: ab dieser Gesamtsicherheit "sicher", darunter "Nachkontrolle"
+konfidenz_schwelle: 0.80
+
+# Erlaubte Preisquellen (werden als S3-Metadatum gespeichert)
+preisquellen: [comicguide, coverpreis, katalog, manuell]
+
+# Direktlinks im Review-Formular. {q} = URL-kodierter Suchtext "Titel Ausgabe".
+# Nur Links für die Fachkraft, kein automatischer Abruf (Comicguide verbietet Data Mining).
+suchlinks:
+  Comicguide: https://www.comicguide.de/search?search={q}
+  ZVAB: https://www.zvab.com/servlet/SearchResults?kn={q}
+  Booklooker: https://www.booklooker.de/B%C3%BCcher/Angebote/titel={q}
+  GCD: https://www.comics.org/searchNew/?q={q}
+
+shopify:
+  # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen
+  produkt_status: ACTIVE
+  produkt_typ: Comic
+  hersteller_aus_verlag: true

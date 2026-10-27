@@ -1,0 +1,19 @@
+# Build context: repository root (needs config/pricing.yaml)
+#   podman build -t localhost/comic-helper:local -f services/comic-helper/Containerfile .
+FROM docker.io/library/python:3.12-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends poppler-utils \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY services/comic-helper/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY services/comic-helper/comic_helper ./comic_helper
+COPY config/pricing.yaml ./config/pricing.yaml
+
+ENV PYTHONUNBUFFERED=1 PRICING_CONFIG=/app/config/pricing.yaml
+USER 10001
+EXPOSE 8080
+CMD ["uvicorn", "comic_helper.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
