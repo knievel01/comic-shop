@@ -11,7 +11,7 @@ BIOS (Schritt 3) und bei den Geheimnissen (Schritt 6) nötig.
 - Der Scanner steht auf der SANE-Liste (https://sane-project.org → „Supported Devices“).
   **Vor dem Kauf prüfen.** Plustek OpticSlim 1180/1680 läuft über das Backend `plustek`
   bzw. `genesys`, der Epson V600 über `epson2`/`epsonscan2`. Ist der Status dort nicht
-  „good“/„complete“, einen separaten Scan-Rechner einplanen (siehe `docs/ARCHITEKTUR.md`).
+  „good“/„complete“, einen separaten Scan-Rechner einplanen (siehe ADR-0001).
 
 ## 0. Einmalig: ISO-Release vorbereiten (nur wer das Repo pflegt)
 
