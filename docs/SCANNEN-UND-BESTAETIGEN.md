@@ -1,0 +1,38 @@
+# Scannen und Bestätigen – auf einer Seite
+
+## Scannen
+
+1. NAPS2 öffnen, Profil **„Comic A3, 2 Seiten“** wählen.
+2. **Cover** auflegen → Scannen. **Rückseite** auflegen → Scannen.
+3. **Speichern als PDF** in den Ordner `Scans/neu` (Name egal).
+   Eine PDF = ein Comic = genau 2 Seiten (erst Cover, dann Rückseite).
+4. Nächster Comic. Hochladen passiert automatisch innerhalb einer Minute.
+
+Hat eine PDF nicht genau 2 Seiten, landet sie in `Scans/fehler`. Dann den Comic einfach neu scannen.
+
+## Bestätigen
+
+Im Browser **https://comics-01/review/** öffnen. Die Liste zeigt alle offenen Comics.
+„Nachkontrolle“ heißt: Die KI ist sich nicht sicher, also genau hinschauen.
+
+Pro Comic:
+
+1. **Titel, Ausgabe, Verlag** mit dem Bild vergleichen und bei Bedarf korrigieren.
+   Auf ein Bild klicken = groß anzeigen.
+2. **Zustand** 0–4 wählen. Die Beschreibung steht unter jeder Stufe. Im Zweifel die schlechtere Stufe.
+3. **Preis Zustand 1**:
+   - Ist er schon ausgefüllt (Quelle „coverpreis“), nur prüfen.
+   - Sonst auf **Comicguide** klicken, den Preis für **Zustand 1** ablesen und eintragen.
+     ZVAB/Booklooker nur zum Vergleichen.
+   - Nicht bei Comicguide? Im gedruckten Katalog nachsehen, Quelle **„katalog“** wählen.
+4. Der Endpreis wird groß angezeigt. Nur überschreiben, wenn Sepp es so will.
+5. **Bestätigen und in den Shop.** Das nächste Exemplar öffnet sich automatisch.
+
+Der Comic kommt danach von selbst in den Shop. Nichts weiter tun.
+
+## Wenn etwas nicht stimmt
+
+- Exemplar mit rotem **„Fehler“**: Steht dort „Seiten statt 2“, neu scannen.
+  Sonst **„Erneut erkennen“** drücken und nach ein paar Minuten wieder schauen.
+- Seite lädt nicht: Rechner an? Netzwerkkabel? Sonst Roman Bescheid geben.
+- Falsch bestätigt: Roman Bescheid geben (Exemplar-Nummer steht unter den Bildern).

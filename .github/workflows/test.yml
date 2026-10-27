@@ -1,0 +1,41 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: System tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils shellcheck
+      - name: comic-helper tests
+        working-directory: services/comic-helper
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest -q
+      - name: Kubernetes manifests render
+        run: kubectl kustomize infra/k3s >/dev/null && kubectl kustomize infra/k3s/optional/cloudflared >/dev/null
+      - name: Ansible syntax and lint
+        working-directory: os/ansible
+        run: |
+          pip install ansible-core ansible-lint
+          ansible-galaxy collection install community.general
+          ansible-playbook -i inventory.ini site.yml --syntax-check
+          ansible-lint --profile basic site.yml
+      - name: Shell scripts
+        run: bash -n os/build-iso.sh os/firstboot/*.sh scripts/*.sh && shellcheck -S warning os/build-iso.sh os/firstboot/*.sh scripts/*.sh
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform validate
+        working-directory: infra/aws
+        run: terraform init -backend=false -input=false && terraform validate && terraform fmt -check
+      - name: Workflows are valid JSON without credentials data
+        run: |
+          for f in workflows/*.json; do
+            python3 -c "import json,sys; w=json.load(open(sys.argv[1])); assert not any('data' in c for n in w['nodes'] for c in (n.get('credentials') or {}).values()), sys.argv[1]" "$f"
+          done

@@ -1,5 +1,34 @@
 # Umsetzungsplan: Comic-Shop-Automatisierung (n8n + S3 + Shopify)
 
+## Umsetzungsstand (27.10.2026)
+
+Legende: ✅ im Repo umgesetzt und automatisch getestet · 🟡 im Repo umgesetzt, Test braucht echte
+Hardware/Konten · ⬜ offen (Entscheidung oder Handarbeit nötig)
+
+| Phase | Stand | Wo | Noch zu tun |
+| --- | --- | --- | --- |
+| 1 Repo | ✅ | `CLAUDE.md`, `.gitignore`, `.env.example` | – |
+| 2 OS/ISO | 🟡 | `os/`, `scripts/verify.sh`, `docs/INSTALL.md` | ISO auf echter Hardware bauen und installieren, Stromausfall-Test, SANE-Prüfung des Scanners (⬜ Kaufentscheidung) |
+| 3 K3s/n8n | 🟡 | `infra/k3s/` | Rollout auf dem Rechner, Cloudflare-Tunnel einrichten |
+| 4 AWS | 🟡 | `infra/aws/` (terraform validate ok) | `terraform apply` mit Admin-Konto |
+| 5 Ingest | ✅ | Rolle `sync`, Workflow 01, `comic-helper` | in n8n 2.46 getestet (Docker) |
+| 6 Erkennung/Preis | 🟡 | `recognition.py`, `pricing.py`, `config/pricing.yaml`, `scripts/vergleichstest.py` | ⬜ Vergleichstest mit 50 Comics, Modellwahl, Schwelle; ⬜ Datenlizenz Star Media, Anfrage AbeBooks |
+| 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (siehe ARCHITEKTUR E2) |
+| 9 Shopify | 🟡 | `shopify.py`, Workflow 02 | gegen Fake-API getestet; ⬜ Testshop, ⬜ Entscheidung Produktoption vs. Produkt je Zustand |
+| 8 Metadaten | ✅ | `finalize`, `storage.py` | – |
+| 10 Verkauf | ✅ | `webhooks.py`, Workflow 03 | in n8n getestet inkl. Doppelzustellung; Webhooks in Shopify registrieren |
+| 11 Tagesmail | ✅ | `report.py`, Workflow 04 | SMTP-Credential anlegen |
+| 12 Betrieb | 🟡 | `docs/BETRIEB.md`, `docs/SCANNEN-UND-BESTAETIGEN.md`, Workflow 99, CI | E2E mit 50 Comics, Restore-Test, Preise nach 100 Verkäufen |
+
+Abweichungen vom Plan und Begründungen: `docs/ARCHITEKTUR.md` (E1–E8). Die wichtigsten:
+Fachlogik im Python-Dienst `comic-helper` statt in n8n-Nodes; Review-Oberfläche dort statt n8n-Form/Wait;
+SKU endet auf 12 Stellen der Exemplar-UUID statt auf a/b/c (der Buchstabe bleibt Shopify-Option).
+
+Offene Punkte aus der Liste unten: 1 und 2 (Architekturdokument liegt nicht im Repo),
+7 und 8 (Hardware), 9 und 10 (Anfragen), 11 (Vergleichstest).
+
+---
+
 Dieser Plan ist als Arbeitsgrundlage für Claude Code gedacht. Jede Phase hat Ziel, Aufgaben und Abnahmekriterien. Phasen der Reihe nach abarbeiten, nach jeder Phase committen.
 
 ## 0. Zielbild
