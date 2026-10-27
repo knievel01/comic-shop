@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: comic-helper
+spec:
+  selector:
+    app: comic-helper
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comic-helper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: comic-helper
+  template:
+    metadata:
+      labels:
+        app: comic-helper
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: comic-helper
+          image: localhost/comic-helper:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: comics-env
+          env:
+            - { name: TZ, value: Europe/Berlin }
+            - { name: N8N_INTERNAL_URL, value: "http://n8n:5678" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

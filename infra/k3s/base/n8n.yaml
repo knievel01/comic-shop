@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-home
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+spec:
+  selector:
+    app: n8n
+  ports:
+    - port: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+spec:
+  replicas: 1          # single instance; queue mode not needed for ~2,000 scans/month
+  strategy:
+    type: Recreate     # RWO volume, never two n8n against one DB
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17.11-alpine
+          command: ["sh", "-c", "until pg_isready -h postgres -U n8n; do sleep 2; done"]
+      containers:
+        - name: n8n
+          image: n8nio/n8n:2.46.0
+          ports:
+            - containerPort: 5678
+          env:
+            - { name: DB_TYPE, value: postgresdb }
+            - { name: DB_POSTGRESDB_HOST, value: postgres }
+            - { name: DB_POSTGRESDB_DATABASE, value: n8n }
+            - { name: DB_POSTGRESDB_USER, value: n8n }
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom: { secretKeyRef: { name: comics-env, key: POSTGRES_PASSWORD } }
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom: { secretKeyRef: { name: comics-env, key: N8N_ENCRYPTION_KEY } }
+            - name: WEBHOOK_URL
+              valueFrom: { secretKeyRef: { name: comics-env, key: WEBHOOK_URL } }
+            - { name: GENERIC_TIMEZONE, value: Europe/Berlin }
+            - { name: TZ, value: Europe/Berlin }
+            - { name: N8N_DEFAULT_LOCALE, value: de }
+            - { name: N8N_PROXY_HOPS, value: "1" }
+            - { name: N8N_DIAGNOSTICS_ENABLED, value: "false" }
+            - { name: N8N_VERSION_NOTIFICATIONS_ENABLED, value: "false" }
+            - { name: N8N_PERSONALIZATION_ENABLED, value: "false" }
+            - { name: EXECUTIONS_DATA_PRUNE, value: "true" }
+            - { name: EXECUTIONS_DATA_MAX_AGE, value: "720" }
+            - { name: N8N_METRICS, value: "true" }
+            # Waiting executions (Wait/Form nodes) are stored in Postgres and resume after restarts.
+            - { name: N8N_RUNNERS_ENABLED, value: "true" }
+          readinessProbe:
+            httpGet: { path: /healthz/readiness, port: 5678 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 5678 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 2Gi }
+          volumeMounts:
+            - name: home
+              mountPath: /home/node/.n8n
+      volumes:
+        - name: home
+          persistentVolumeClaim:
+            claimName: n8n-home

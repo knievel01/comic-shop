@@ -1,0 +1,21 @@
+# LAN access via Traefik (bundled with K3s), self-signed default certificate.
+# Ports 80/443 are only open for LAN ranges (ufw, role base).
+# The public internet reaches ONLY /webhook/* through the Cloudflare tunnel (optional/cloudflared).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: comics
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /review
+            pathType: Prefix
+            backend:
+              service: { name: comic-helper, port: { number: 8080 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: n8n, port: { number: 5678 } }

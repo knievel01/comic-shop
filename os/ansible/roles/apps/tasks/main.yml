@@ -59,7 +59,8 @@
             state: present
         - name: Build image
           ansible.builtin.command:
-            cmd: podman build -t {{ helper_image }} {{ comics_repo_dir }}/services/comic-helper
+            cmd: podman build -t {{ helper_image }} -f services/comic-helper/Containerfile .
+            chdir: "{{ comics_repo_dir }}"
           changed_when: true
         - name: Import image into K3s containerd
           ansible.builtin.shell: |
@@ -101,6 +102,11 @@
       ansible.builtin.command: k3s kubectl apply -k {{ comics_repo_dir }}/infra/k3s
       register: apply_out
       changed_when: "'configured' in apply_out.stdout or 'created' in apply_out.stdout"
+
+    - name: Cloudflare tunnel (only with token)
+      ansible.builtin.command: k3s kubectl apply -k {{ comics_repo_dir }}/infra/k3s/optional/cloudflared
+      when: (comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('')) | length > 0
+      changed_when: false
 
     - name: Restart comic-helper to pick up a freshly built image
       ansible.builtin.command: k3s kubectl -n comics rollout restart deployment/comic-helper
