@@ -1,0 +1,127 @@
+---
+- name: Base packages
+  ansible.builtin.apt:
+    name: [git, curl, unzip, jq, chrony, ufw, unattended-upgrades, python3-venv, python3-boto3, poppler-utils, uuid-runtime]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Secrets directory
+  ansible.builtin.file:
+    path: /etc/comics
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Secrets file exists with mode 600 (filled in by hand, see docs/INSTALL.md)
+  ansible.builtin.file:
+    path: "{{ comics_env_file }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0600"
+    modification_time: preserve
+    access_time: preserve
+
+- name: SSH hardening
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-comics.conf
+    mode: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      AllowUsers {{ comics_admin_user }}
+  notify: Restart ssh
+
+- name: Automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+- name: No automatic reboot during business hours
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/51comics-unattended
+    mode: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "03:30";
+
+- name: Time sync
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Persistent journal (keeps logs across power loss)
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    mode: "2755"
+
+- name: Firewall defaults
+  community.general.ufw:
+    default: "{{ item.policy }}"
+    direction: "{{ item.dir }}"
+  loop:
+    - { dir: incoming, policy: deny }
+    - { dir: outgoing, policy: allow }
+    - { dir: routed, policy: allow }
+
+- name: Firewall – SSH
+  community.general.ufw:
+    rule: limit
+    port: "22"
+    proto: tcp
+
+- name: Firewall – web (n8n, review UI) from LAN only
+  community.general.ufw:
+    rule: allow
+    port: "{{ item[1] }}"
+    proto: tcp
+    from_ip: "{{ item[0] }}"
+  loop: "{{ comics_lan_cidrs | product(['80', '443']) | list }}"
+
+- name: Firewall – K3s pod and service networks
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ item }}"
+  loop: [10.42.0.0/16, 10.43.0.0/16]
+
+- name: Firewall enabled
+  community.general.ufw:
+    state: enabled
+
+- name: AWS CLI v2 present?
+  ansible.builtin.stat:
+    path: /usr/local/bin/aws
+  register: awscli
+
+- name: Install AWS CLI v2 (official installer)
+  when: not awscli.stat.exists
+  block:
+    - name: Download AWS CLI
+      ansible.builtin.get_url:
+        url: "{{ awscli_url }}"
+        dest: /tmp/awscliv2.zip
+        mode: "0644"
+    - name: Unpack AWS CLI
+      ansible.builtin.unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: true
+    - name: Run AWS CLI installer
+      ansible.builtin.command: /tmp/aws/install --update
+      changed_when: true
+
+- name: Helper to re-apply configuration
+  ansible.builtin.file:
+    src: /usr/local/sbin/comics-firstboot
+    dest: /usr/local/sbin/comics-update
+    state: link
+    force: true

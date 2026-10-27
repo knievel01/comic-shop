@@ -1,0 +1,12 @@
+[Unit]
+Description=Comic-Scans nach S3 eingang/ hochladen
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ comics_scan_user }}
+# Upload-only credentials, prepared by the apps role from {{ comics_env_file }}
+EnvironmentFile=-/etc/comics/scan-upload.env
+ExecStart=/usr/local/bin/comics-scan-sync
+Nice=10

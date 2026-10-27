@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Uploads finished scans from {{ comics_scan_dir }}/neu to s3://$S3_BUCKET/eingang/{UUID}.pdf.
+# - only files untouched for >= 30 s (scanner software may still be writing)
+# - exactly 2 pages required, otherwise the file goes to fehler/
+# - the UUID becomes the copy ("Exemplar") id for the whole lifecycle
+set -euo pipefail
+shopt -s nullglob nocaseglob
+
+BASE="{{ comics_scan_dir }}"
+: "${S3_BUCKET:?S3_BUCKET missing in /etc/comics/scan-upload.env}"
+exec 9>"/tmp/comics-scan-sync.lock"
+flock -n 9 || exit 0
+
+for f in "$BASE"/neu/*.pdf; do
+  # skip files that are still being written
+  if [[ -n "$(find "$f" -newermt '-30 seconds')" ]]; then continue; fi
+
+  pages="$(pdfinfo "$f" 2>/dev/null | awk '/^Pages:/ {print $2}')" || pages=""
+  if [[ "$pages" != "2" ]]; then
+    echo "WARN: $(basename "$f") has '${pages:-?}' pages, expected 2 -> fehler/"
+    mv -- "$f" "$BASE/fehler/"
+    continue
+  fi
+
+  id="$(uuidgen | tr 'A-Z' 'a-z')"
+  if aws s3api put-object \
+      --bucket "$S3_BUCKET" \
+      --key "eingang/$id.pdf" \
+      --body "$f" \
+      --content-type application/pdf \
+      --metadata "exemplar-id=$id,original-name=$(basename "$f" | tr -cd 'A-Za-z0-9._-')" \
+      --tagging "status=neu" \
+      --if-none-match '*' >/dev/null; then
+    mv -- "$f" "$BASE/hochgeladen/$id.pdf"
+    echo "uploaded $(basename "$f") -> eingang/$id.pdf"
+  else
+    echo "ERROR: upload of $(basename "$f") failed, retry next run" >&2
+  fi
+done
+
+# Local copies are only a safety net; S3 (versioned) is the source.
+find "$BASE/hochgeladen" -type f -mtime +{{ comics_scan_keep_days }} -delete

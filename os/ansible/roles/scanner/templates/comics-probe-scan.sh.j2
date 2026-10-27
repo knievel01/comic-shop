@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Probe scan: two pages via SANE -> one PDF in {{ comics_scan_dir }}/probe.pdf.
+# Exit code 0 = scanner works under Linux. Used by scripts/verify.sh.
+set -euo pipefail
+OUT="${1:-{{ comics_scan_dir }}/probe.pdf}"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+DEVICE="${SANE_DEVICE:-$(scanimage -f '%d%n' 2>/dev/null | head -1)}"
+if [[ -z "$DEVICE" ]]; then
+  echo "FEHLER: kein Scanner gefunden (scanimage -L)" >&2
+  exit 2
+fi
+echo "Scanner: $DEVICE"
+for page in 1 2; do
+  scanimage -d "$DEVICE" --mode Color --resolution 150 --format=tiff -o "$TMP/p$page.tiff"
+done
+img2pdf "$TMP/p1.tiff" "$TMP/p2.tiff" -o "$OUT"
+pages="$(pdfinfo "$OUT" | awk '/^Pages:/ {print $2}')"
+[[ "$pages" == "2" ]] || { echo "FEHLER: $pages Seiten statt 2" >&2; exit 3; }
+echo "OK: $OUT"

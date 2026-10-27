@@ -1,0 +1,68 @@
+---
+- name: SANE and PDF tools
+  ansible.builtin.apt:
+    name: [sane-utils, libsane1, sane-airscan, img2pdf, poppler-utils, imagemagick]
+    state: present
+
+- name: Scanner group
+  ansible.builtin.group:
+    name: scanner
+    system: true
+
+- name: Scan user exists (also on headless setups)
+  ansible.builtin.user:
+    name: "{{ comics_scan_user }}"
+    shell: /bin/bash
+    groups: [scanner, lp]
+    append: true
+    password: "!"
+
+- name: Udev rule – scanner devices accessible for group scanner
+  ansible.builtin.copy:
+    src: 60-comics-scanner.rules
+    dest: /etc/udev/rules.d/60-comics-scanner.rules
+    mode: "0644"
+  notify: Reload udev
+
+- name: NAPS2 installed?
+  ansible.builtin.command: dpkg-query -W -f='${Version}' naps2
+  register: naps2_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install NAPS2 {{ naps2_version }}
+  when: naps2_installed.stdout is not search(naps2_version)
+  block:
+    - name: Download NAPS2
+      ansible.builtin.get_url:
+        url: "https://github.com/cyanfish/naps2/releases/download/v{{ naps2_version }}/naps2-{{ naps2_version }}-linux-x64.deb"
+        dest: /tmp/naps2.deb
+        mode: "0644"
+    - name: Install NAPS2 package
+      ansible.builtin.apt:
+        deb: /tmp/naps2.deb
+
+- name: Scan directories
+  ansible.builtin.file:
+    path: "{{ comics_scan_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ comics_scan_user }}"
+    group: "{{ comics_scan_user }}"
+    mode: "0775"
+  loop: [neu, hochgeladen, fehler]
+
+- name: Probe scan script
+  ansible.builtin.template:
+    src: comics-probe-scan.sh.j2
+    dest: /usr/local/bin/comics-probe-scan
+    mode: "0755"
+
+- name: Desktop shortcut to the scan folder
+  ansible.builtin.copy:
+    dest: "/home/{{ comics_scan_user }}/Schreibtisch-Hinweis.txt"
+    owner: "{{ comics_scan_user }}"
+    mode: "0644"
+    content: |
+      NAPS2: Profil "Comic A3, 2 Seiten" verwenden.
+      Speichern als PDF in {{ comics_scan_dir }}/neu  (Dateiname egal, der Upload vergibt die ID).
+      Pro Comic genau eine PDF mit 2 Seiten: Seite 1 Cover, Seite 2 Rueckseite.

@@ -1,0 +1,14 @@
+---
+# Full configuration of the comic machine. Runs via ansible-pull on first boot
+# and can be re-run any time: sudo comics-firstboot
+- name: Comic-Rechner
+  hosts: comics
+  become: true
+  roles:
+    - { role: base, tags: [base] }
+    - { role: desktop, tags: [desktop], when: comics_desktop_enabled | bool }
+    - { role: scanner, tags: [scanner], when: comics_scanner_enabled | bool }
+    - { role: sync, tags: [sync], when: comics_scanner_enabled | bool }
+    - { role: k3s, tags: [k3s] }
+    - { role: apps, tags: [apps] }
+    - { role: backup, tags: [backup] }

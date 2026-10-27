@@ -1,0 +1,21 @@
+---
+- name: Sync script
+  ansible.builtin.template:
+    src: comics-scan-sync.sh.j2
+    dest: /usr/local/bin/comics-scan-sync
+    mode: "0755"
+
+- name: Sync service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop: [comics-scan-sync.service, comics-scan-sync.timer]
+  notify: Reload systemd
+
+- name: Sync timer active
+  ansible.builtin.systemd_service:
+    name: comics-scan-sync.timer
+    enabled: true
+    state: started
+    daemon_reload: true

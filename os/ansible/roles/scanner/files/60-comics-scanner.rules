@@ -1,0 +1,5 @@
+# Plustek (07b3) and Epson (04b8) USB scanners: readable for group "scanner".
+# libsane1 ships generic rules too; these make sure the candidate models work
+# even if the shipped list lags behind.
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="07b3", MODE="0664", GROUP="scanner", ENV{libsane_matched}="yes"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", MODE="0664", GROUP="scanner", ENV{libsane_matched}="yes"

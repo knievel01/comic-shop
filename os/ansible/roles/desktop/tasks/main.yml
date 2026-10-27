@@ -1,0 +1,47 @@
+---
+- name: Minimal XFCE desktop
+  ansible.builtin.apt:
+    name: [xfce4, xfce4-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg]
+    state: present
+    install_recommends: false
+
+- name: Scanner group (normally created by libsane1)
+  ansible.builtin.group:
+    name: scanner
+    system: true
+
+- name: Scan user
+  ansible.builtin.user:
+    name: "{{ comics_scan_user }}"
+    shell: /bin/bash
+    groups: [scanner, lp]
+    append: true
+    password: "!"
+
+- name: Graphical boot target
+  ansible.builtin.file:
+    src: /lib/systemd/system/graphical.target
+    dest: /etc/systemd/system/default.target
+    state: link
+
+- name: LightDM drop-in directory
+  ansible.builtin.file:
+    path: /etc/lightdm/lightdm.conf.d
+    state: directory
+    mode: "0755"
+
+- name: Auto-login for the scan user
+  ansible.builtin.copy:
+    dest: /etc/lightdm/lightdm.conf.d/50-comics-autologin.conf
+    mode: "0644"
+    content: |
+      [Seat:*]
+      autologin-user={{ comics_scan_user }}
+      autologin-session=xfce
+  when: comics_scan_autologin | bool
+
+- name: No auto-login
+  ansible.builtin.file:
+    path: /etc/lightdm/lightdm.conf.d/50-comics-autologin.conf
+    state: absent
+  when: not (comics_scan_autologin | bool)

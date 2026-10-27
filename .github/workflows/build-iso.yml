@@ -1,0 +1,59 @@
+name: build-iso
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y xorriso gnupg
+
+      - name: Free disk space (base ISO + output are ~4 GB each)
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Build ISO
+        env:
+          # Public keys only (repo variable, not a secret). One key per line.
+          ADMIN_SSH_KEYS: ${{ vars.ADMIN_SSH_KEYS }}
+          REPO_URL: ${{ vars.COMICS_REPO_URL || format('{0}/{1}.git', github.server_url, github.repository) }}
+          REPO_BRANCH: main
+        run: |
+          test -n "$ADMIN_SSH_KEYS" || { echo "Repo variable ADMIN_SSH_KEYS missing"; exit 1; }
+          printf '%s\n' "$ADMIN_SSH_KEYS" > /tmp/keys.pub
+          SSH_KEYS_FILE=/tmp/keys.pub os/build-iso.sh
+          rm -f os/build/ubuntu-*.iso
+
+      # GitHub release assets are limited to 2 GiB, the ISO is ~4 GB -> split.
+      # Re-assemble: cat comics-01.iso.part-* > comics-01.iso && sha256sum -c comics-01.iso.sha256
+      - name: Split ISO
+        run: |
+          cd os/build
+          for iso in comics-*.iso; do split -b 1900M -d "$iso" "$iso.part-"; rm "$iso"; done
+          ls -lh
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" os/build/comics-*.iso.part-* os/build/comics-*.iso.sha256 --clobber
+
+      - name: Artifact (manual runs)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: comics-iso
+          path: |
+            os/build/comics-*.iso.part-*
+            os/build/comics-*.iso.sha256
+          retention-days: 7

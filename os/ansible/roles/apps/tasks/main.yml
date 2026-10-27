@@ -1,0 +1,113 @@
+---
+- name: Read secrets file
+  ansible.builtin.slurp:
+    src: "{{ comics_env_file }}"
+  register: comics_env_raw
+
+- name: Parse secrets file
+  ansible.builtin.set_fact:
+    comics_env: >-
+      {{ dict((comics_env_raw.content | b64decode).splitlines()
+         | map('trim') | reject('match', '^(#|$)') | select('search', '=')
+         | map('split', '=', 1)) }}
+  no_log: true
+
+- name: Secrets present?
+  ansible.builtin.set_fact:
+    comics_secrets_ready: "{{ (comics_env.N8N_ENCRYPTION_KEY | default('')) | length > 0 }}"
+
+- name: Note missing secrets
+  ansible.builtin.debug:
+    msg: >-
+      {{ comics_env_file }} is not filled in yet. K3s is running, but apps are only deployed after
+      the secrets are in place (docs/INSTALL.md step 6) and `sudo comics-update` is run.
+  when: not comics_secrets_ready
+
+- name: Deploy apps
+  when: comics_secrets_ready
+  block:
+    - name: Upload-only credentials for the scan sync
+      ansible.builtin.copy:
+        dest: /etc/comics/scan-upload.env
+        owner: root
+        mode: "0600"
+        content: |
+          AWS_ACCESS_KEY_ID={{ comics_env.SCAN_UPLOAD_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY={{ comics_env.SCAN_UPLOAD_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION={{ comics_env.AWS_REGION | default('eu-central-1') }}
+          S3_BUCKET={{ comics_env.S3_BUCKET }}
+      no_log: true
+
+    - name: Backup credentials (same IAM user as the app)
+      ansible.builtin.copy:
+        dest: /etc/comics/backup.env
+        owner: root
+        mode: "0600"
+        content: |
+          AWS_ACCESS_KEY_ID={{ comics_env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY={{ comics_env.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION={{ comics_env.AWS_REGION | default('eu-central-1') }}
+          S3_BUCKET={{ comics_env.S3_BUCKET }}
+      no_log: true
+
+    - name: Build comic-helper image locally
+      when: helper_build_local | bool
+      block:
+        - name: Podman for local image builds
+          ansible.builtin.apt:
+            name: podman
+            state: present
+        - name: Build image
+          ansible.builtin.command:
+            cmd: podman build -t {{ helper_image }} {{ comics_repo_dir }}/services/comic-helper
+          changed_when: true
+        - name: Import image into K3s containerd
+          ansible.builtin.shell: |
+            set -o pipefail
+            podman save {{ helper_image }} | k3s ctr images import -
+          args:
+            executable: /bin/bash
+          changed_when: true
+
+    - name: Namespace
+      ansible.builtin.command: k3s kubectl apply -f {{ comics_repo_dir }}/infra/k3s/base/namespace.yaml
+      changed_when: false
+
+    - name: Kubernetes secret from env file
+      ansible.builtin.shell: |
+        set -o pipefail
+        k3s kubectl -n comics create secret generic comics-env \
+          --from-env-file={{ comics_env_file }} --dry-run=client -o yaml \
+          | k3s kubectl apply -f -
+      args:
+        executable: /bin/bash
+      changed_when: false
+      no_log: true
+
+    - name: Cloudflare tunnel token as its own secret
+      ansible.builtin.shell: |
+        set -o pipefail
+        k3s kubectl -n comics create secret generic cloudflared \
+          --from-literal=token="$TOKEN" --dry-run=client -o yaml | k3s kubectl apply -f -
+      args:
+        executable: /bin/bash
+      environment:
+        TOKEN: "{{ comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('') }}"
+      when: (comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('')) | length > 0
+      changed_when: false
+      no_log: true
+
+    - name: Apply manifests (kustomize)
+      ansible.builtin.command: k3s kubectl apply -k {{ comics_repo_dir }}/infra/k3s
+      register: apply_out
+      changed_when: "'configured' in apply_out.stdout or 'created' in apply_out.stdout"
+
+    - name: Restart comic-helper to pick up a freshly built image
+      ansible.builtin.command: k3s kubectl -n comics rollout restart deployment/comic-helper
+      when: helper_build_local | bool
+      changed_when: true
+
+    - name: Wait for rollouts
+      ansible.builtin.command: k3s kubectl -n comics rollout status {{ item }} --timeout=600s
+      loop: [statefulset/postgres, deployment/n8n, deployment/comic-helper]
+      changed_when: false

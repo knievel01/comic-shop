@@ -1,0 +1,36 @@
+---
+# Central versions and switches. Secrets do NOT belong here (see /etc/comics/comics.env).
+comics_repo_dir: /opt/comic-shop
+comics_env_file: /etc/comics/comics.env
+comics_admin_user: comicadmin
+
+# Single machine for everything (decision 1). Set to false on a headless server.
+comics_desktop_enabled: true
+comics_scanner_enabled: true
+
+# Scan station
+comics_scan_user: scan
+comics_scan_autologin: true
+comics_scan_dir: /srv/scans
+naps2_version: "8.6.0"
+comics_sync_interval: 1min
+comics_scan_keep_days: 30
+
+# AWS CLI v2 (official installer)
+awscli_url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+
+# K3s – pinned, update deliberately
+k3s_version: v1.36.5+k3s1
+
+# comic-helper image: build locally (no registry needed) or pull a published image
+helper_build_local: true
+helper_image: localhost/comic-helper:local
+
+# Firewall: web UI (n8n editor, review UI) only from these networks
+comics_lan_cidrs:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+
+# Backup
+comics_backup_time: "*-*-* 02:30:00"

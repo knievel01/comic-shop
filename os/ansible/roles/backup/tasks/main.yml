@@ -1,0 +1,44 @@
+---
+- name: Backup script
+  ansible.builtin.copy:
+    src: comics-backup.sh
+    dest: /usr/local/sbin/comics-backup
+    mode: "0750"
+
+- name: Backup service and timer
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.name }}"
+    mode: "0644"
+    content: "{{ item.content }}"
+  loop:
+    - name: comics-backup.service
+      content: |
+        [Unit]
+        Description=Comic-Backup: pg_dump und n8n-Workflows nach S3
+        After=k3s.service network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=oneshot
+        EnvironmentFile=/etc/comics/backup.env
+        Environment=KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        ExecStart=/usr/local/sbin/comics-backup
+    - name: comics-backup.timer
+      content: |
+        [Unit]
+        Description=Taegliches Comic-Backup
+
+        [Timer]
+        OnCalendar={{ comics_backup_time }}
+        Persistent=true
+        RandomizedDelaySec=10min
+
+        [Install]
+        WantedBy=timers.target
+
+- name: Backup timer active
+  ansible.builtin.systemd_service:
+    name: comics-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

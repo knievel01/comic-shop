@@ -1,0 +1,67 @@
+#cloud-config
+# Ubuntu Server 24.04 autoinstall for the comic workstation/server.
+# Placeholders (double-at markers) are replaced by os/build-iso.sh. No secrets in here:
+# the resulting ISO is a public release artefact.
+autoinstall:
+  version: 1
+  interactive-sections: []
+  locale: de_DE.UTF-8
+  keyboard:
+    layout: de
+  timezone: Europe/Berlin
+  refresh-installer:
+    update: true
+  network:
+    version: 2
+    ethernets:
+      any-wired:
+        match:
+          name: "e*"
+        dhcp4: true
+        optional: true
+  storage:
+    # Whole (largest) disk, LVM so the root volume can be grown later.
+    layout:
+      name: lvm
+      sizing-policy: all
+  ssh:
+    install-server: true
+    allow-pw: false
+  apt:
+    geoip: true
+  packages:
+    - openssh-server
+    - git
+    - curl
+    - unzip
+    - ansible
+    - python3-venv
+    - python3-boto3
+    - sane-utils
+    - poppler-utils
+    - imagemagick
+    - unattended-upgrades
+    - ufw
+    - chrony
+    - jq
+  user-data:
+    hostname: @@HOSTNAME@@
+    disable_root: true
+    users:
+      - name: comicadmin
+        gecos: Comic Admin
+        groups: [adm, sudo]
+        shell: /bin/bash
+        lock_passwd: true
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        ssh_authorized_keys:
+@@SSH_KEYS@@
+  late-commands:
+    # Repo location for ansible-pull (not secret).
+    - mkdir -p /target/etc/comics
+    - printf 'REPO_URL=%s\nREPO_BRANCH=%s\n' '@@REPO_URL@@' '@@REPO_BRANCH@@' > /target/etc/comics/repo.conf
+    - cp /cdrom/nocloud/comics-firstboot.service /target/etc/systemd/system/comics-firstboot.service
+    - cp /cdrom/nocloud/comics-firstboot.sh /target/usr/local/sbin/comics-firstboot
+    - chmod 0755 /target/usr/local/sbin/comics-firstboot
+    - curtin in-target --target=/target -- systemctl enable comics-firstboot.service
+  shutdown: reboot

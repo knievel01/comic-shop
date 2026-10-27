@@ -1,0 +1,10 @@
+[Unit]
+Description=Comic-Scans regelmaessig hochladen
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ comics_sync_interval }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
