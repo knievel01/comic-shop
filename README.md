@@ -10,6 +10,8 @@ den Scan in S3 nach `verkauft/`, jeden Morgen um 7 Uhr kommt eine Sammel-Mail.
 | [docs/PLAN.md](docs/PLAN.md) | Umsetzungsplan mit Status je Phase |
 | [docs/adr/](docs/adr/README.md) | **Architekturentscheidungen (ADRs) – verbindliche Grundlage** |
 | [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md) | Komponenten, Datenfluss, Zustände |
+| [hardware/](hardware/README.md) | Hardware-Empfehlung, Scanner unter Linux |
+| [future-improvements/](future-improvements/README.md) | Ausbaupläne, u. a. Skalierung auf 1 Mio. Comics |
 | [docs/INSTALL.md](docs/INSTALL.md) | Rechner von leerer SSD bis grünem `verify.sh` |
 | [docs/BETRIEB.md](docs/BETRIEB.md) | Backup, Restore, Monitoring, Kosten |
 | [docs/PREISFINDUNG.md](docs/PREISFINDUNG.md) | Zustandsskala, Preisformel, Quellen |

@@ -19,6 +19,7 @@ Comic-Shop-Automatisierung: Scan → S3 → Erkennung (Claude) → Review → Sh
 5. In Commit-Messages und PRs die betroffenen ADRs nennen (z. B. „gemäß ADR-0004“).
 
 Weitere Doku: `docs/ARCHITEKTUR.md` (Datenfluss, Zustände), `docs/PLAN.md` (Plan und Status).
+`future-improvements/` enthält nur Ideen und Ausbaupläne; daraus wird erst nach einem akzeptierten ADR umgesetzt.
 
 ## Regeln
 
@@ -44,6 +45,8 @@ workflows/          exportierte n8n-Workflows (JSON)
 scripts/            Hilfsskripte (verify.sh, n8n-export.sh, Vergleichstest)
 config/             fachliche Konfiguration (pricing.yaml)
 docs/               ADRs (docs/adr/), Architektur, Betrieb, INSTALL.md
+hardware/           Hardware-Empfehlung und Linux-Kompatibilität (aktueller Ausbau)
+future-improvements/  Spätere Ausbaustufen, nicht verbindlich bis als ADR akzeptiert
 ```
 
 ## Prüfen vor dem Commit

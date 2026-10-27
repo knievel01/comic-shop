@@ -6,11 +6,12 @@ BIOS (Schritt 3) und bei den Geheimnissen (Schritt 6) nötig.
 ## Voraussetzungen
 
 - Rechner: 64-Bit, 4 Kerne, 8 GB RAM, SSD ≥ 120 GB, Gigabit-LAN per Kabel (WLAN wird nicht eingerichtet).
+  Empfehlung und Einkaufsliste: `hardware/README.md`.
 - USB-Stick ≥ 8 GB.
 - Zugriff auf den Passwort-Manager (Eintrag „Comic-Rechner comics.env“).
 - Der Scanner steht auf der SANE-Liste (https://sane-project.org → „Supported Devices“).
-  **Vor dem Kauf prüfen.** Plustek OpticSlim 1180/1680 läuft über das Backend `plustek`
-  bzw. `genesys`, der Epson V600 über `epson2`/`epsonscan2`. Ist der Status dort nicht
+  **Vor dem Kauf prüfen**, Ergebnis der Recherche in `hardware/scanner-linux.md`
+  (Plustek OpticSlim 1180 läuft laut Recherche nicht unter Linux). Ist der Status nicht
   „good“/„complete“, einen separaten Scan-Rechner einplanen (siehe ADR-0001).
 
 ## 0. Einmalig: ISO-Release vorbereiten (nur wer das Repo pflegt)
