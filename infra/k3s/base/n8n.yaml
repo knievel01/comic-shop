@@ -35,6 +35,8 @@ spec:
       labels:
         app: n8n
     spec:
+      # Service "n8n" would inject N8N_PORT=tcp://..., which n8n reads as its own port setting.
+      enableServiceLinks: false
       securityContext:
         fsGroup: 1000
       initContainers:
