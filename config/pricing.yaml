@@ -49,7 +49,7 @@ konfidenz_schwelle: 0.80
 # Erlaubte Preisquellen (werden als S3-Metadatum gespeichert)
 preisquellen: [comicguide, coverpreis, katalog, manuell]
 
-# Direktlinks im Review-Formular. {q} = URL-kodierter Suchtext "Titel Ausgabe".
+# Direktlinks im Review-Formular. {q} = URL-kodierter Suchtext "Titel Untertitel".
 # Nur Links für die Fachkraft, kein automatischer Abruf (Comicguide verbietet Data Mining).
 suchlinks:
   Comicguide: https://www.comicguide.de/search?search={q}
