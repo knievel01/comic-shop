@@ -327,6 +327,30 @@ def _open_cases(store: Store) -> list[dict]:
     return cases
 
 
+# Status tag -> label for the review UI (lifecycle in storage.py)
+STATUS_LABELS = {
+    "neu": "Neu",
+    "in-arbeit": "Wird erkannt",
+    "offen": "Zu prüfen",
+    "bestaetigt": "Bestätigt, wartet auf Shop",
+    "fehler": "Fehler",
+}
+REVIEWABLE = ("offen", "fehler")
+# Group order on the list page: work to do first, then what is still in the pipeline
+GROUP_ORDER = ("offen", "fehler", "bestaetigt", "in-arbeit", "neu")
+
+
+def _inbox_cases(store: Store) -> list[dict]:
+    """All scans still in eingang/, whatever their status, oldest first."""
+    cases = []
+    for obj in store.list_scans(EINGANG):
+        tags = store.get_tags(obj.key)
+        cases.append({"id": obj.copy_id, "status": tags.get("status", "neu"), "ki": tags.get("ki", ""),
+                      "gescannt": obj.last_modified})
+    cases.sort(key=lambda c: c["gescannt"])
+    return cases
+
+
 @app.get("/review", include_in_schema=False)
 def review_root():
     return RedirectResponse("/review/", status_code=307)
@@ -334,15 +358,22 @@ def review_root():
 
 @app.get("/review/", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
 def review_list(request: Request, store: Store = Depends(get_store)):
-    cases = _open_cases(store)
+    cases = _inbox_cases(store)
     details = {}
     for c in cases:
-        if c["status"] == "offen":
+        if c["status"] in ("offen", "bestaetigt"):
             try:
-                details[c["id"]] = store.read_json(store.sidecar_key(EINGANG, c["id"]))["vorschlag"]
+                side = store.read_json(store.sidecar_key(EINGANG, c["id"]))
+                details[c["id"]] = side.get("entscheidung") or side["vorschlag"]
             except storage.NotFound:
                 pass
-    return templates.TemplateResponse(request, "liste.html", {"cases": cases, "details": details})
+    open_count = sum(c["status"] in REVIEWABLE for c in cases)
+    order = list(GROUP_ORDER) + sorted({c["status"] for c in cases} - set(GROUP_ORDER))
+    groups = [(st, [c for c in cases if c["status"] == st]) for st in order]
+    return templates.TemplateResponse(request, "liste.html", {
+        "groups": [(st, cs) for st, cs in groups if cs], "details": details, "open_count": open_count,
+        "labels": STATUS_LABELS, "reviewable": REVIEWABLE,
+    })
 
 
 @app.get("/review/bild/{copy_id}/{page}", dependencies=[Depends(require_reviewer)])
@@ -373,7 +404,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
     side.setdefault("vorschlag", EMPTY_PROPOSAL)
     side.setdefault("preis_vorschlag", None)
     v = side.get("entscheidung") or side["vorschlag"]
-    q = quote_plus(" ".join(x for x in (v.get("titel", ""), v.get("ausgabe", "")) if x and x != "-"))
+    q = quote_plus(" ".join(x for x in (v.get("titel", ""), v.get("untertitel", "")) if x and x != "-"))
     links = {name: url.replace("{q}", q) for name, url in cfg["suchlinks"].items()}
     js_cfg = {
         "faktoren": {str(z): d["faktor"] for z, d in cfg["zustaende"].items()},
@@ -381,7 +412,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "rundung": cfg["rundung"],
     }
     return templates.TemplateResponse(request, "review.html", {
-        "id": copy_id, "side": side, "v": v, "tags": tags, "cfg": cfg, "links": links,
+        "id": copy_id, "side": side, "v": v, "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
     })
 

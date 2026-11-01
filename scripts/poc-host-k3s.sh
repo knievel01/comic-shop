@@ -107,9 +107,17 @@ cmd_status() {
 
 cmd_forward() {
   echo "n8n on http://localhost:$N8N_PORT/, review UI on http://localhost:$HELPER_PORT/review/ (Ctrl-C to stop)"
-  kubectl -n "$NS" port-forward --address 127.0.0.1 svc/n8n "$N8N_PORT:5678" &
-  kubectl -n "$NS" port-forward --address 127.0.0.1 svc/comic-helper "$HELPER_PORT:8080" &
-  trap 'kill $(jobs -p) 2>/dev/null' EXIT INT TERM
+  # port-forward sticks to one pod; reconnect after rollouts (deploy restarts the pods)
+  local svc
+  for svc in "n8n $N8N_PORT:5678" "comic-helper $HELPER_PORT:8080"; do
+    set -- $svc
+    while true; do
+      kubectl -n "$NS" port-forward --address 127.0.0.1 "svc/$1" "$2" || true
+      sleep 2
+    done &
+  done
+  # kill the whole process group, including the kubectl children of the loops
+  trap 'trap - EXIT INT TERM; kill 0' EXIT INT TERM
   wait
 }
 

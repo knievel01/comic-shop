@@ -1,24 +1,26 @@
 {% extends "base.html" %}
 {% block body %}
 {% if request.query_params.get('fertig') %}<div class="msg ok">Alles bestätigt – keine offenen Comics mehr.</div>{% endif %}
-<h1>Offene Comics ({{ cases|length }})</h1>
-{% if cases %}
+<h1>Offene Comics ({{ open_count }})</h1>
+{% for status, cases in groups %}
+{% set link = status in reviewable %}
+<h2 id="status-{{ status }}"><span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> {{ cases|length }}</h2>
 <table>
   <thead><tr><th></th><th>Titel</th><th>Ausgabe</th><th>Verlag</th><th>KI</th><th>Gescannt</th></tr></thead>
   <tbody>
   {% for c in cases %}
     {% set d = details.get(c.id, {}) %}
     <tr>
-      <td><a href="/review/{{ c.id }}"><img src="/review/bild/{{ c.id }}/1" alt="" height="70" loading="lazy"></a></td>
-      <td><a href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}</a></td>
+      <td>{% if status in ('offen', 'bestaetigt') %}{% if link %}<a href="/review/{{ c.id }}">{% endif %}<img src="/review/bild/{{ c.id }}/1" alt="" height="70" loading="lazy">{% if link %}</a>{% endif %}{% endif %}</td>
+      <td>{% if link %}<a href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}</a>{% else %}{{ d.get('titel') or '–' }}{% endif %}</td>
       <td>{{ d.get('ausgabe', '') }}</td>
       <td>{{ d.get('verlag', '') }}</td>
-      <td>{% if c.status == 'fehler' %}<span class="badge fehler">Fehler</span>
-          {% else %}<span class="badge {{ c.ki }}">{{ 'sicher' if c.ki == 'sicher' else 'Nachkontrolle' }}</span>{% endif %}</td>
+      <td>{% if c.ki %}<span class="badge {{ c.ki }}">{{ 'sicher' if c.ki == 'sicher' else 'Nachkontrolle' }}</span>{% endif %}</td>
       <td>{{ c.gescannt.strftime('%d.%m. %H:%M') }}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
-{% else %}<p>Nichts zu tun.</p>{% endif %}
+{% else %}<p>Nichts zu tun.</p>
+{% endfor %}
 {% endblock %}

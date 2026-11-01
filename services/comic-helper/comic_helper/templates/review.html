@@ -30,9 +30,10 @@
       <img src="/review/bild/{{ id }}/1" alt="Cover" onclick="this.classList.toggle('zoom')">
       <img src="/review/bild/{{ id }}/2" alt="Rückseite" onclick="this.classList.toggle('zoom')">
     </div>
+    {% set status = tags.get('status', 'neu') %}
     <p class="calc">Exemplar {{ id }} · gescannt {{ side.gescannt_am }} ·
-      KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)
-      {% if tags.status == 'fehler' %}<span class="badge fehler">Fehler</span>{% endif %}</p>
+      Status <span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> ·
+      KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)</p>
     {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
     {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
     {% if tags.status == 'fehler' %}

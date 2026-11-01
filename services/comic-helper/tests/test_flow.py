@@ -156,9 +156,9 @@ def test_full_lifecycle(env):
 
     # review UI
     page = c.get("/review/")
-    assert page.status_code == 200 and "Asterix" in page.text
+    assert page.status_code == 200 and "Asterix" in page.text and "Zu prüfen" in page.text
     form = c.get(f"/review/{cid}")
-    assert form.status_code == 200 and "4.66" in form.text
+    assert form.status_code == 200 and "4.66" in form.text and "Zu prüfen" in form.text
     assert c.get(f"/review/bild/{cid}/1").headers["content-type"] == "image/jpeg"
     r = c.post(f"/review/{cid}", data=review_form(), follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/review/?fertig=1"
@@ -166,6 +166,11 @@ def test_full_lifecycle(env):
     assert side["entscheidung"]["preis"]["final"] == 5.99   # 10 x 0.4 x 1.5 = 6.00 -> 5.99
     assert side["entscheidung"]["korrigiert"] is False
     assert c.get("/api/scans/confirmed", headers=H).json()["ids"] == [cid]
+    # confirmed copy stays visible with its status until Shopify, but no longer counts as open
+    page = c.get("/review/?fertig=1")
+    assert "Offene Comics (0)" in page.text and 'id="status-bestaetigt"' in page.text
+    assert 'id="status-offen"' not in page.text   # empty groups are not shown
+    assert f'href="/review/{cid}"' not in page.text
     # second submit is rejected
     assert c.post(f"/review/{cid}", data=review_form(), follow_redirects=False).status_code == 409
 
@@ -299,3 +304,37 @@ def test_daily_report(env):
     # nothing in a window that ended before the scans
     old = report.daily(env.store, now=datetime(2020, 1, 1, tzinfo=timezone.utc))
     assert old["gescannt"] == 0
+
+
+def test_review_list_grouped_by_status(env):
+    c = env.client
+    offen, neu, fehler = (str(uuid.uuid4()) for _ in range(3))
+    upload_scan(env.s3, offen)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{offen}/recognize", headers=H)
+    upload_scan(env.s3, fehler)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{fehler}/fail", headers=H, json={"fehler": "kaputt"})
+    upload_scan(env.s3, neu)
+
+    page = c.get("/review/").text
+    assert "Offene Comics (2)" in page
+    # work first (offen, fehler), then what is still in the pipeline (neu)
+    pos = [page.index(f'id="status-{s}"') for s in ("offen", "fehler", "neu")]
+    assert pos == sorted(pos)
+    assert page.index(offen) < pos[1] < page.index(fehler) < pos[2]
+    assert f'href="/review/{neu}"' not in page and 'id="status-bestaetigt"' not in page
+
+
+def test_lookup_links_use_title_and_subtitle(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    # links are only shown without a cover price proposal (e.g. out of print)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    side["preis_vorschlag"] = None
+    env.store.write_json(f"eingang/{cid}.json", side)
+    page = c.get(f"/review/{cid}").text
+    assert "comicguide.de/search?search=Asterix+Asterix+bei+den+Olympischen+Spielen" in page
+    assert "search?search=Asterix+12" not in page
