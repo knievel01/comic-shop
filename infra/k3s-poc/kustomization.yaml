@@ -4,11 +4,25 @@
 #   in front of it (ADR-0008/0009 assume the dedicated machine). Access only via
 #   `scripts/poc-host-k3s.sh forward` (kubectl port-forward on localhost).
 # - namespace label, so `poc-host-k3s.sh delete` only removes the PoC namespace.
+# - comic-helper comes from the local registry on localhost:5000 (no sudo needed),
+#   pulled on every start so a rebuilt image with the same tag is picked up.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: comics
 resources:
   - ../k3s
+  - registry.yaml
+images:
+  - name: localhost/comic-helper
+    newName: localhost:5000/comic-helper
 patches:
+  - target:
+      kind: Deployment
+      name: comic-helper
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
   - target:
       kind: Ingress
       name: comics

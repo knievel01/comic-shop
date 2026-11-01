@@ -23,7 +23,11 @@ Bestandteile:
   steht keine ufw davor (ADR-0008/0009). Ein n8n ohne Owner-Konto und eine Review-Oberfläche, die
   nach Shopify veröffentlichen kann, wären sonst für jeden im Netz offen. Außerdem bekommt der
   Namespace das Label `app.kubernetes.io/part-of=comics-poc`, und n8n wird für reines http auf
-  localhost eingestellt (`N8N_SECURE_COOKIE=false`, `N8N_PROXY_HOPS=0`).
+  localhost eingestellt (`N8N_SECURE_COOKIE=false`, `N8N_PROXY_HOPS=0`). `comic-helper` kommt aus
+  der lokalen Registry `localhost:5000` und wird bei jedem Start neu gezogen (`imagePullPolicy: Always`).
+- `infra/k3s-poc/registry.yaml`: Image-Registry (`registry:2.8.3`) mit Host-Netz, gebunden nur an
+  `127.0.0.1:5000`, ohne Anmeldung und ohne Persistenz. Damit gelangt das Image ohne `sudo` in K3s
+  (`k3s ctr images import` bräuchte root); containerd zieht von `localhost` per http.
 - `scripts/poc-host-k3s.sh`: Hilfsskript mit den Unterbefehlen `env`, `build`, `deploy`, `status`,
   `forward`, `delete`.
 
@@ -38,7 +42,7 @@ Bestandteile:
 | Zugriff | `https://comics-01/` im LAN über Traefik, ufw nur für LAN-Netze | kein Ingress; nur `kubectl port-forward` auf `127.0.0.1` (`http://localhost:5678/`, `:8080/review/`) |
 | Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Test-PDF von Hand nach `eingang/` hochladen |
 | Backup | `comics-backup.timer` (pg_dump, Workflow-Export nach S3) | kein Backup; PoC-Daten sind Wegwerfdaten |
-| Image | per Ansible gebaut und importiert | per `docker build` gebaut, Import in K3s-containerd mit `sudo` |
+| Image | per Ansible gebaut und importiert | per `docker build` gebaut, Push in die PoC-Registry `localhost:5000`, kein `sudo` |
 
 Unverändert gelten S3 als einziger Zustandsspeicher (ADR-0004), die Fachlogik im `comic-helper`
 (ADR-0005), die Review-Oberfläche dort (ADR-0006) und n8n als Einzelinstanz mit Postgres (ADR-0008).
@@ -47,9 +51,12 @@ Unverändert gelten S3 als einziger Zustandsspeicher (ADR-0004), die Fachlogik i
 
 - `kubectl` mit Zugriff auf das lokale K3s über `~/.kube/config` (das Skript setzt `KUBECONFIG`
   standardmäßig darauf).
-- `docker`, `openssl`, `curl`; für den Image-Import `sudo` (siehe Schritt 2).
+- `docker` (Benutzer in der Gruppe `docker`), `openssl`, `curl`. Port 5000 auf localhost frei.
 - Ein S3-Bucket mit Zugangsschlüssel (`infra/aws/`, ADR-0004) und ein Anthropic-API-Key. Für den PoC
   empfiehlt sich ein eigener Test-Bucket bzw. -Präfix, nicht der spätere Produktiv-Bucket.
+  Stand 01.11.2026: per AWS CLI nach `infra/aws/main.tf` und `iam.tf` angelegt (Bucket
+  `comics-scans-roman-0001`, IAM-User `comics-app` und `comics-scan-upload`, eu-central-1).
+  **Nicht im Terraform-State**; für den Betrieb per `terraform import` übernehmen oder neu anlegen.
 - Optional ein Shopify-Entwicklungsshop (`docs/BETRIEB.md`, Abschnitt Shopify), sonst bleibt
   Workflow 02 ungetestet.
 
@@ -74,16 +81,16 @@ optional die Shopify-Werte, **nur für einen Entwicklungsshop**. Format wie `.en
 `NAME=wert`, keine Anführungszeichen; `deploy` bricht bei anderen Zeilen ab. Werte nicht in Terminal-Ausgaben, Chats oder
 Tickets kopieren. Andere Pfade sind über `COMICS_ENV_FILE=…` möglich.
 
-### 2. Image bauen und importieren
+### 2. Image bauen und bereitstellen
 
 ```bash
 scripts/poc-host-k3s.sh build
 ```
 
-Baut `localhost/comic-helper:local` mit Docker, speichert es in eine temporäre Datei, importiert
-es per `sudo k3s ctr -n k8s.io images import` in das containerd von K3s und prüft den Import.
-**Diesen Schritt in einem normalen Terminal ausführen**, weil `sudo` innerhalb der Claude-App
-gesperrt ist. Nach jeder Codeänderung am `comic-helper` wiederholen, danach Schritt 3.
+Startet die PoC-Registry, baut `localhost/comic-helper:local` mit Docker und pusht es als
+`localhost:5000/comic-helper:local`. Kein `sudo` nötig, läuft auch innerhalb der Claude-App.
+Nach jeder Codeänderung am `comic-helper` und nach einem Neustart der Registry (keine Persistenz)
+wiederholen, danach Schritt 3.
 
 ### 3. Ausrollen
 
@@ -167,6 +174,6 @@ wenn er das PoC-Label trägt. Andere Namespaces des K3s bleiben unberührt. Bewu
 
 - `~/.config/comics/comics.env`: bei Bedarf selbst löschen (`rm ~/.config/comics/comics.env`).
   Darin stehende echte Schlüssel (AWS, Anthropic, Shopify) nach dem PoC gegebenenfalls widerrufen.
-- das Image in K3s-containerd: `sudo k3s ctr -n k8s.io images rm localhost/comic-helper:local`, lokal in
-  Docker: `docker image rm localhost/comic-helper:local`.
+- das lokale Image in Docker: `docker image rm localhost/comic-helper:local localhost:5000/comic-helper:local`.
+  Die Registry selbst verschwindet mit dem Namespace.
 - Testdaten im S3-Bucket (`eingang/`, `aktiv/`, `verkauft/`) und Testprodukte im Shopify-Entwicklungsshop.

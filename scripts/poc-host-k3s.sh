@@ -4,7 +4,7 @@
 #
 # Usage: scripts/poc-host-k3s.sh env|build|deploy|status|forward|delete
 #   env      create the secrets file (internal secrets generated, AWS/Anthropic left empty)
-#   build    build the comic-helper image with docker and import it into K3s (asks for sudo)
+#   build    build the comic-helper image and push it to the PoC registry on localhost:5000
 #   deploy   create the Kubernetes secret from the env file and apply infra/k3s-poc
 #   status   show pods and volumes
 #   forward  port-forward n8n and the review UI to localhost (Ctrl-C to stop)
@@ -21,6 +21,7 @@ ENV_FILE="${COMICS_ENV_FILE:-$HOME/.config/comics/comics.env}"
 N8N_PORT="${N8N_PORT:-5678}"
 HELPER_PORT="${HELPER_PORT:-8080}"
 IMAGE=localhost/comic-helper:local
+REGISTRY_IMAGE=localhost:5000/comic-helper:local
 NS=comics
 POC_LABEL=app.kubernetes.io/part-of=comics-poc
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
@@ -45,15 +46,14 @@ cmd_env() {
 }
 
 cmd_build() {
-  local tmp
-  tmp="$(mktemp --suffix=.tar)"
-  trap 'rm -f "$tmp"' RETURN
+  # Local registry on 127.0.0.1:5000 (infra/k3s-poc/registry.yaml), no sudo needed.
+  kubectl apply -f "$ROOT/infra/k3s/base/namespace.yaml" >/dev/null
+  kubectl apply -n "$NS" -f "$ROOT/infra/k3s-poc/registry.yaml"
+  kubectl -n "$NS" rollout status deployment/registry --timeout=180s
   docker build -t "$IMAGE" -f "$ROOT/services/comic-helper/Containerfile" "$ROOT"
-  docker save -o "$tmp" "$IMAGE"
-  echo "Importing $IMAGE into K3s containerd (needs sudo) ..."
-  sudo k3s ctr -n k8s.io images import "$tmp"
-  sudo k3s ctr -n k8s.io images ls -q | grep -qx "$IMAGE" || die "import of $IMAGE failed"
-  echo "Imported $IMAGE. Run '$0 deploy' to (re)start comic-helper."
+  docker tag "$IMAGE" "$REGISTRY_IMAGE"
+  docker push "$REGISTRY_IMAGE"
+  echo "Pushed $REGISTRY_IMAGE. Run '$0 deploy' to (re)start comic-helper."
 }
 
 check_env_file() {
@@ -93,7 +93,7 @@ cmd_deploy() {
     kubectl -n "$NS" rollout status "$res" --timeout=600s
   done
   kubectl -n "$NS" rollout status deployment/comic-helper --timeout=180s \
-    || die "comic-helper not ready; image missing? run '$0 build' in a normal terminal (sudo)"
+    || die "comic-helper not ready; image missing? run '$0 build'"
   cmd_status
 }
 
