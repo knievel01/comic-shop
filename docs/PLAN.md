@@ -20,6 +20,10 @@ Hardware/Konten · ⬜ offen (Entscheidung oder Handarbeit nötig)
 | 11 Tagesmail | ✅ | `report.py`, Workflow 04 | SMTP-Credential anlegen |
 | 12 Betrieb | 🟡 | `docs/BETRIEB.md`, `docs/SCANNEN-UND-BESTAETIGEN.md`, Workflow 99, CI | E2E mit 50 Comics, Restore-Test, Preise nach 100 Verkäufen |
 
+PoC (01.11.2026): Machbarkeitstest von Postgres, n8n und `comic-helper` im vorhandenen K3s des
+Entwickler-Rechners (`infra/k3s-poc/`, `scripts/poc-host-k3s.sh`, Anleitung `docs/POC.md`). Vorübergehende
+Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den Rollout aus Phase 2/3.
+
 Abweichungen vom Plan und Begründungen: ADRs in `docs/adr/` (v. a. 0005, 0006, 0013). Die wichtigsten:
 Fachlogik im Python-Dienst `comic-helper` statt in n8n-Nodes; Review-Oberfläche dort statt n8n-Form/Wait;
 SKU endet auf 12 Stellen der Exemplar-UUID statt auf a/b/c (der Buchstabe bleibt Shopify-Option).

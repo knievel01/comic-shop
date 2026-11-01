@@ -1,0 +1,45 @@
+# Feasibility PoC on an existing, shared K3s (not the comic machine, see docs/POC.md).
+# Differences to the base:
+# - no ingress: the shared Traefik is reachable from the whole LAN and there is no ufw
+#   in front of it (ADR-0008/0009 assume the dedicated machine). Access only via
+#   `scripts/poc-host-k3s.sh forward` (kubectl port-forward on localhost).
+# - namespace label, so `poc-host-k3s.sh delete` only removes the PoC namespace.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../k3s
+patches:
+  - target:
+      kind: Ingress
+      name: comics
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: comics
+  # Plain http on localhost through port-forward, no proxy in front of n8n.
+  - target:
+      kind: Deployment
+      name: n8n
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: n8n
+      spec:
+        template:
+          spec:
+            containers:
+              - name: n8n
+                env:
+                  - { name: N8N_PROXY_HOPS, value: "0" }
+                  - { name: N8N_SECURE_COOKIE, value: "false" }
+  - target:
+      kind: Namespace
+      name: comics
+    patch: |-
+      - op: add
+        path: /metadata/labels
+        value:
+          app.kubernetes.io/part-of: comics-poc
