@@ -80,9 +80,10 @@
           </select></div>
       </div>
       <label>Beleg (Link auf das Angebot, bei Booklooker Pflicht)</label>
-      <input name="preis_beleg" id="beleg" type="url" maxlength="300" value="{{ v.preis.beleg if v.preis is defined and v.preis.beleg else '' }}"
+      <input name="preis_beleg" id="beleg" type="url" maxlength="300" value="{{ v.preis.beleg if v.preis is defined and v.preis.beleg else (preis_vorschlag.beleg if prefill and preis_vorschlag.beleg else '') }}"
         placeholder="{{ links.get('Booklooker', 'https://…') }}">
-      {% if preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis: Z1 {{ '%.2f' % preis_vorschlag.basis_z1 }} € ({{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar){% if not prefill %}, Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
+      {% if preis_vorschlag and preis_vorschlag.quelle != 'coverpreis' %}<p class="calc">Vorschlag ({{ preis_vorschlag.quelle }}): Z1 {{ '%.2f' % preis_vorschlag.basis_z1 }} €{% if preis_vorschlag.hinweis %} – {{ preis_vorschlag.hinweis }}{% endif %}</p>
+      {% elif preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis: Z1 {{ '%.2f' % preis_vorschlag.basis_z1 }} € ({{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar){% if not prefill %}, Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
       {% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
       <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>
       <div class="price" id="preis">–</div>

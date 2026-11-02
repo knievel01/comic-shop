@@ -409,3 +409,16 @@ def test_review_list_has_upload_dialog(env):
     page = env.client.get("/review/").text
     assert page.count('id="plus"') == 1 and page.count('<dialog class="hochladen"') == 1
     assert 'action="/review/hochladen"' in page and 'name="rueckseite"' in page
+
+
+def test_booklooker_proposal_prefills_price_and_evidence(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    link = "https://www.booklooker.de/B%C3%BCcher/Angebote/titel=Asterix"
+    side["preis_vorschlag"] = {"basis_z1": 7.95, "quelle": "booklooker", "beleg": link, "hinweis": "Median aus 4 Angeboten"}
+    env.store.write_json(f"eingang/{cid}.json", side)
+    page = c.get(f"/review/{cid}").text
+    assert 'value="7.95"' in page and f'value="{link}"' in page and "Median aus 4 Angeboten" in page
