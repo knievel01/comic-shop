@@ -1,4 +1,16 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  main { padding-bottom:6rem; }
+  .plus { position:fixed; right:1.5rem; bottom:1.5rem; width:4.2rem; height:4.2rem; border-radius:50%; border:0;
+          background:var(--accent); color:#fff; font-size:2.6rem; line-height:1; cursor:pointer;
+          box-shadow:0 4px 14px rgba(0,0,0,.25); }
+  .plus:hover { filter:brightness(1.1); }
+  dialog.hochladen { border:0; border-radius:.6rem; padding:1.2rem 1.4rem; width:min(36rem, calc(100vw - 2rem)); box-shadow:0 10px 40px rgba(0,0,0,.3); }
+  dialog.hochladen::backdrop { background:rgba(0,0,0,.4); }
+  dialog.hochladen h2 { margin:0 0 .3rem; color:var(--ink); font-size:1.2rem; }
+</style>
+{% endblock %}
 {% block body %}
 {% if request.query_params.get('hochgeladen') %}<div class="msg ok">Hochgeladen als {{ request.query_params.get('hochgeladen')[:8] }} – die Erkennung startet innerhalb von 2 Minuten, danach erscheint das Comic unter „Zu prüfen“.</div>{% endif %}
 {% if request.query_params.get('fertig') %}<div class="msg ok">Alles bestätigt – keine offenen Comics mehr.</div>{% endif %}
@@ -24,4 +36,18 @@
 </table>
 {% else %}<p>Nichts zu tun.</p>
 {% endfor %}
+<button class="plus" id="plus" type="button" title="Comic hochladen" aria-label="Comic hochladen">+</button>
+<dialog class="hochladen" id="dlg-hochladen" aria-labelledby="dlg-titel">
+  <h2 id="dlg-titel">Comic hochladen</h2>
+  {% with abbrechen=true %}{% include "_hochladen_form.html" %}{% endwith %}
+</dialog>
+<script>
+const dlg = document.getElementById("dlg-hochladen");
+document.getElementById("plus").addEventListener("click", () => dlg.showModal());
+document.getElementById("abbrechen").addEventListener("click", () => dlg.close());
+dlg.addEventListener("click", e => {  // click on the backdrop (outside the dialog box) closes it
+  const r = dlg.getBoundingClientRect();
+  if (e.target === dlg && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dlg.close();
+});
+</script>
 {% endblock %}

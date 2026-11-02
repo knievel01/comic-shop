@@ -1,0 +1,34 @@
+{# Upload form, used on /review/hochladen and in the "+" dialog of the list (ADR-0018) #}
+<style>
+  form.upload label { display:block; font-weight:600; margin:1rem 0 .3rem; }
+  form.upload input[type=file] { width:100%; font-size:1rem; }
+  form.upload small { color:var(--muted); display:block; margin-top:.2rem; }
+  form.upload .aktionen { display:flex; gap:.8rem; margin-top:1.4rem; }
+  form.upload button { padding:.7rem 1.4rem; font-size:1rem; font-weight:600; border:0; border-radius:.4rem; background:var(--accent); color:#fff; }
+  form.upload button.zweit { background:#ececf0; color:var(--ink); }
+  .vorschau { display:flex; gap:1rem; margin-top:1rem; }
+  .vorschau img { max-height:160px; max-width:45%; border:1px solid var(--line); }
+</style>
+<form class="upload" method="post" action="/review/hochladen" enctype="multipart/form-data" id="upload">
+  <label for="cover">Cover (Seite 1)</label>
+  <input type="file" name="cover" id="cover" accept="{{ upload_typen }}" required>
+  <label for="rueckseite">Rückseite (Seite 2)</label>
+  <input type="file" name="rueckseite" id="rueckseite" accept="{{ upload_typen }}" required>
+  <small>JPEG, PNG, WebP oder AVIF, höchstens 25 MB je Bild. Möglichst gerade von oben und ohne Spiegelungen.</small>
+  <div class="vorschau"><img id="v-cover" alt="" hidden><img id="v-rueckseite" alt="" hidden></div>
+  <div class="aktionen">
+    <button type="submit" id="senden">Hochladen</button>
+    {% if abbrechen %}<button type="button" class="zweit" id="abbrechen">Abbrechen</button>{% endif %}
+  </div>
+</form>
+<script>
+for (const id of ["cover", "rueckseite"]) {
+  document.getElementById(id).addEventListener("change", e => {
+    const img = document.getElementById("v-" + id), f = e.target.files[0];
+    if (f) { img.src = URL.createObjectURL(f); img.hidden = false; } else { img.hidden = true; }
+  });
+}
+document.getElementById("upload").addEventListener("submit", () => {
+  const b = document.getElementById("senden"); b.disabled = true; b.textContent = "Wird hochgeladen …";
+});
+</script>

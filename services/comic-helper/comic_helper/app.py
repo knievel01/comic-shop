@@ -402,11 +402,12 @@ def review_list(request: Request, store: Store = Depends(get_store)):
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp", "image/avif")
+templates.env.globals["upload_typen"] = ",".join(UPLOAD_TYPES)
 
 
 @app.get("/review/hochladen", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
 def upload_form(request: Request, fehler: str = ""):
-    return templates.TemplateResponse(request, "hochladen.html", {"fehler": fehler, "typen": ",".join(UPLOAD_TYPES)})
+    return templates.TemplateResponse(request, "hochladen.html", {"fehler": fehler})
 
 
 @app.post("/review/hochladen", dependencies=[Depends(require_reviewer)])

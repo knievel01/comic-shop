@@ -403,3 +403,9 @@ def test_photo_upload_rejects_non_images(env):
     r = env.client.post("/review/hochladen", files=files, follow_redirects=False)
     assert "fehler=" in r.headers["location"] and "Cover" in unquote_plus(r.headers["location"])
     assert not list(env.store.list_scans("eingang"))
+
+
+def test_review_list_has_upload_dialog(env):
+    page = env.client.get("/review/").text
+    assert page.count('id="plus"') == 1 and page.count('<dialog class="hochladen"') == 1
+    assert 'action="/review/hochladen"' in page and 'name="rueckseite"' in page
