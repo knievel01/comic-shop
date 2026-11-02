@@ -45,6 +45,23 @@ app = FastAPI(title="comic-helper", docs_url=None, redoc_url=None)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
+def _local_time(value: datetime | str | None, fmt: str = "%d.%m.%Y %H:%M") -> str:
+    """Render a UTC timestamp (datetime or ISO string) in the shop's local time."""
+    if not value:
+        return ""
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(report.TZ).strftime(fmt)
+
+
+templates.env.filters["lokalzeit"] = _local_time
+
+
 # --- dependencies (overridden in tests) ---------------------------------------
 @lru_cache
 def _s3():

@@ -1,7 +1,19 @@
 # PoC only: local image registry so comic-helper can be loaded into K3s without sudo
 # (`k3s ctr images import` needs root). Host network, bound to 127.0.0.1:5000 only:
 # docker on the host pushes there, K3s containerd pulls from localhost:5000 over plain http.
-# No auth, no persistence; after a restart run `scripts/poc-host-k3s.sh build` again.
+# No auth. Images survive pod restarts on a local-path volume.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: registry-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,4 +50,5 @@ spec:
               mountPath: /var/lib/registry
       volumes:
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: registry-data

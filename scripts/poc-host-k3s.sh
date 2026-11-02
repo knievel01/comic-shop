@@ -2,18 +2,20 @@
 # Feasibility PoC: deploys postgres, n8n and comic-helper into an EXISTING K3s
 # (e.g. a developer machine) instead of the comic machine. See docs/POC.md.
 #
-# Usage: scripts/poc-host-k3s.sh env|build|deploy|status|forward|delete
+# Usage: scripts/poc-host-k3s.sh env|build|deploy|status|forward|forward-lan|delete
 #   env      create the secrets file (internal secrets generated, AWS/Anthropic left empty)
 #   build    build the comic-helper image and push it to the PoC registry on localhost:5000
 #   deploy   create the Kubernetes secret from the env file and apply infra/k3s-poc
 #   status   show pods and volumes
 #   forward  port-forward n8n and the review UI to localhost (Ctrl-C to stop)
+#   forward-lan  like forward, additionally on the LAN IP (plain http, every LAN device can connect)
 #   delete   remove the PoC namespace comics including volumes (env file is kept)
 #
 # Env:
 #   COMICS_ENV_FILE  default: ~/.config/comics/comics.env (mode 600, never commit)
 #   N8N_PORT         default: 5678
 #   HELPER_PORT      default: 8080
+#   LAN_IP           default: source address of the default route (forward-lan only)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -106,19 +108,33 @@ cmd_status() {
 }
 
 cmd_forward() {
+  local address="${1:-127.0.0.1}"
   echo "n8n on http://localhost:$N8N_PORT/, review UI on http://localhost:$HELPER_PORT/review/ (Ctrl-C to stop)"
   # port-forward sticks to one pod; reconnect after rollouts (deploy restarts the pods)
   local svc
   for svc in "n8n $N8N_PORT:5678" "comic-helper $HELPER_PORT:8080"; do
     set -- $svc
     while true; do
-      kubectl -n "$NS" port-forward --address 127.0.0.1 "svc/$1" "$2" || true
+      kubectl -n "$NS" port-forward --address "$address" "svc/$1" "$2" || true
       sleep 2
     done &
   done
   # kill the whole process group, including the kubectl children of the loops
   trap 'trap - EXIT INT TERM; kill 0' EXIT INT TERM
   wait
+}
+
+cmd_forward_lan() {
+  local ip="${LAN_IP:-$(ip -4 route get 1.1.1.1 | grep -oP 'src \K[0-9.]+')}"
+  [[ -n "$ip" ]] || die "no LAN IP found, set LAN_IP"
+  # Without an owner account the first visitor would become n8n owner.
+  kubectl -n "$NS" exec deploy/n8n -c n8n -- wget -qO- http://127.0.0.1:5678/rest/settings \
+    | grep -q '"showSetupOnFirstLoad":false' \
+    || die "n8n has no owner account yet, create it via '$0 forward' first"
+  echo "LAN (plain http, reachable by every device in the network):"
+  echo "  n8n:       http://$ip:$N8N_PORT/"
+  echo "  Review-UI: http://$ip:$HELPER_PORT/review/"
+  cmd_forward "127.0.0.1,$ip"
 }
 
 cmd_delete() {
@@ -133,5 +149,6 @@ cmd_delete() {
 
 case "${1:-}" in
   env|build|deploy|status|forward|delete) "cmd_$1" ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  forward-lan) cmd_forward_lan ;;
+  *) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

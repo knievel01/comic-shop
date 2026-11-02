@@ -16,7 +16,7 @@
       <td>{{ d.get('ausgabe', '') }}</td>
       <td>{{ d.get('verlag', '') }}</td>
       <td>{% if c.ki %}<span class="badge {{ c.ki }}">{{ 'sicher' if c.ki == 'sicher' else 'Nachkontrolle' }}</span>{% endif %}</td>
-      <td>{{ c.gescannt.strftime('%d.%m. %H:%M') }}</td>
+      <td>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</td>
     </tr>
   {% endfor %}
   </tbody>

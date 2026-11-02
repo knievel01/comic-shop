@@ -28,8 +28,9 @@ Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den 
 - **Noch lieferbar:** Claude liest Coverpreis, Währung und Jahr. Ist der Preis in Euro und das Heft
   höchstens 3 Jahre alt (`coverpreis.max_alter_jahre`), ist Z1 mit Coverpreis × 2/3 vorausgefüllt,
   Quelle `coverpreis`. Alte DM-Preise werden nie verwendet.
-- **Alle anderen:** Direktlinks zu Comicguide, ZVAB, Booklooker und GCD mit Titel und Untertitel.
-  Die Fachkraft trägt nur den Comicguide-Preis für Zustand 1 ein.
+- **Immer:** Direktlinks zu Comicguide, ZVAB, Booklooker und GCD mit Titel und Untertitel,
+  auch bei Coverpreis-Vorschlag zur Kontrolle.
+- **Alle anderen:** Die Fachkraft trägt nur den Comicguide-Preis für Zustand 1 ein.
 - **Kein Comicguide-Eintrag:** gedruckten Katalog prüfen, Quelle `katalog`.
 - ZVAB und Booklooker dienen nur der Plausibilitätsprüfung (Angebots-, keine Verkaufspreise).
 - Der Endpreis wird live angezeigt und kann überschrieben werden (wird als `preis-ueberschrieben=ja` gespeichert).

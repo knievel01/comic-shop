@@ -26,10 +26,10 @@ Bestandteile:
   localhost eingestellt (`N8N_SECURE_COOKIE=false`, `N8N_PROXY_HOPS=0`). `comic-helper` kommt aus
   der lokalen Registry `localhost:5000` und wird bei jedem Start neu gezogen (`imagePullPolicy: Always`).
 - `infra/k3s-poc/registry.yaml`: Image-Registry (`registry:2.8.3`) mit Host-Netz, gebunden nur an
-  `127.0.0.1:5000`, ohne Anmeldung und ohne Persistenz. Damit gelangt das Image ohne `sudo` in K3s
+  `127.0.0.1:5000`, ohne Anmeldung, Images auf einem local-path-Volume (5 GiB). Damit gelangt das Image ohne `sudo` in K3s
   (`k3s ctr images import` bräuchte root); containerd zieht von `localhost` per http.
 - `scripts/poc-host-k3s.sh`: Hilfsskript mit den Unterbefehlen `env`, `build`, `deploy`, `status`,
-  `forward`, `delete`.
+  `forward`, `forward-lan`, `delete`.
 
 ## Unterschiede zum Zielaufbau
 
@@ -89,7 +89,7 @@ scripts/poc-host-k3s.sh build
 
 Startet die PoC-Registry, baut `localhost/comic-helper:local` mit Docker und pusht es als
 `localhost:5000/comic-helper:local`. Kein `sudo` nötig, läuft auch innerhalb der Claude-App.
-Nach jeder Codeänderung am `comic-helper` und nach einem Neustart der Registry (keine Persistenz)
+Nach jeder Codeänderung am `comic-helper`
 wiederholen, danach Schritt 3.
 
 ### 3. Ausrollen
@@ -113,7 +113,7 @@ scripts/poc-host-k3s.sh forward      # läuft, bis Strg-C
 
 ## Zugriff
 
-Nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN nicht erreichbar):
+Standardmäßig nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN nicht erreichbar):
 
 - **n8n:** <http://localhost:5678/>. **Gleich nach dem ersten Deploy** das Owner-Konto anlegen
   (nur für den PoC, nicht das spätere Produktivkonto).
@@ -122,6 +122,21 @@ Nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN nicht erreichbar)
 - Andere Ports: `N8N_PORT=… HELPER_PORT=… scripts/poc-host-k3s.sh forward` (dann vorher
   `WEBHOOK_URL`/`REVIEW_BASE_URL` in der Datei anpassen und `deploy`).
 - Logs: `kubectl -n comics logs deploy/comic-helper` bzw. `deploy/n8n`.
+
+### Vom Handy im WLAN
+
+`scripts/poc-host-k3s.sh forward-lan` lauscht zusätzlich auf der LAN-IP des Rechners
+(automatisch ermittelt, sonst `LAN_IP=…`) und zeigt die Adressen an, z. B.
+`http://192.168.40.123:5678/` und `http://192.168.40.123:8080/review/`.
+
+- Nur unverschlüsseltes http: Review-Passwort und n8n-Anmeldung gehen im Klartext durchs WLAN,
+  und jedes Gerät im Netz kann die Seiten aufrufen. Nur im eigenen, vertrauten WLAN verwenden
+  und nach dem Test mit Strg-C beenden.
+- Startet nur, wenn n8n schon ein Owner-Konto hat (sonst würde der erste Besucher Owner).
+- Ist ufw aktiv, die Ports einmalig für das LAN freigeben (braucht root, selbst ausführen):
+  `sudo ufw allow from 192.168.40.0/24 to any port 5678,8080 proto tcp`.
+  Nach dem PoC wieder entfernen: `sudo ufw delete allow from 192.168.40.0/24 to any port 5678,8080 proto tcp`.
+- Links in n8n-Mails und Webhook-Adressen zeigen weiter auf `localhost`.
 
 ## Workflows einspielen
 

@@ -31,7 +31,7 @@
       <img src="/review/bild/{{ id }}/2" alt="Rückseite" onclick="this.classList.toggle('zoom')">
     </div>
     {% set status = tags.get('status', 'neu') %}
-    <p class="calc">Exemplar {{ id }} · gescannt {{ side.gescannt_am }} ·
+    <p class="calc">Exemplar {{ id }} · gescannt {{ side.gescannt_am|lokalzeit }} ·
       Status <span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> ·
       KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)</p>
     {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
@@ -78,8 +78,8 @@
           </select></div>
       </div>
       {% if preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis {{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }} (noch lieferbar).</p>
-      {% else %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
-      <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>{% endif %}
+      {% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
+      <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>
       <div class="price" id="preis">–</div>
       <div class="calc" id="rechnung"></div>
       <label>Endpreis überschreiben (optional, €)</label>

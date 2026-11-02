@@ -331,10 +331,20 @@ def test_lookup_links_use_title_and_subtitle(env):
     upload_scan(env.s3, cid)
     c.post("/api/scans/claim", headers=H)
     c.post(f"/api/scans/{cid}/recognize", headers=H)
-    # links are only shown without a cover price proposal (e.g. out of print)
-    side = env.store.read_json(f"eingang/{cid}.json")
-    side["preis_vorschlag"] = None
-    env.store.write_json(f"eingang/{cid}.json", side)
-    page = c.get(f"/review/{cid}").text
-    assert "comicguide.de/search?search=Asterix+Asterix+bei+den+Olympischen+Spielen" in page
-    assert "search?search=Asterix+12" not in page
+    # shown with and without a cover price proposal
+    for _ in range(2):
+        page = c.get(f"/review/{cid}").text
+        assert "comicguide.de/search?search=Asterix+Asterix+bei+den+Olympischen+Spielen" in page
+        assert "search?search=Asterix+12" not in page
+        side = env.store.read_json(f"eingang/{cid}.json")
+        side["preis_vorschlag"] = None
+        env.store.write_json(f"eingang/{cid}.json", side)
+
+
+def test_scan_time_in_local_time():
+    from datetime import datetime, timezone
+
+    from comic_helper.app import _local_time
+    assert _local_time("2026-07-01T10:05:00Z") == "01.07.2026 12:05"  # CEST
+    assert _local_time(datetime(2026, 1, 1, 10, 5, tzinfo=timezone.utc), "%d.%m. %H:%M") == "01.01. 11:05"
+    assert _local_time("") == ""
