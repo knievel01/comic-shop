@@ -22,12 +22,18 @@
   table { border-collapse:collapse; width:100%; background:#fff; }
   th, td { text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--line); vertical-align:middle; }
   .msg { padding:.7rem 1rem; border-radius:.4rem; margin-bottom:1rem; }
+  header { flex-wrap:wrap; }
+  @media (max-width: 640px) {
+    header { padding:.55rem .8rem; gap:.9rem; position:sticky; top:0; z-index:5; }
+    header .tagline { display:none; }
+    th, td { padding:.45rem .5rem; }
+  }
   .msg.err { background:#fde7e5; color:var(--bad); } .msg.ok { background:#e3f3e7; color:var(--ok); }
 </style>
 {% block head %}{% endblock %}
 </head>
 <body>
-<header><a href="/review/">Offene Comics</a><a href="/review/hochladen">Hochladen</a><span style="color:var(--muted)">Scannen → Prüfen → Shop</span></header>
+<header><a href="/review/">Offene Comics</a><a href="/review/hochladen">Hochladen</a><span class="tagline" style="color:var(--muted)">Scannen → Prüfen → Shop</span></header>
 <main>{% block body %}{% endblock %}</main>
 </body>
 </html>

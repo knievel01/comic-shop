@@ -20,6 +20,32 @@
   .links a { margin-right:.8rem; }
   button { margin-top:1rem; width:100%; padding:.8rem; font:inherit; font-weight:700; color:#fff; background:var(--accent); border:0; border-radius:.4rem; cursor:pointer; }
   .hint { font-size:.85rem; color:var(--warn); }
+  .links { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .links a { margin:0; padding:.35rem .7rem; border:1px solid var(--line); border-radius:1rem; text-decoration:none; color:var(--accent); background:#fff; }
+  .zustand label { padding:.45rem .5rem; border-radius:.4rem; }
+  .zustand label:has(input:checked) { background:#e4ebfa; }
+  .absenden { position:sticky; bottom:0; display:flex; align-items:center; gap:.8rem; background:#fff;
+              margin:1rem -1.2rem -1rem; padding:.7rem 1.2rem; border-top:1px solid var(--line); border-radius:0 0 .5rem .5rem; }
+  .absenden button { margin:0; flex:1; }
+  .absenden .mini { font-size:1.25rem; font-weight:700; white-space:nowrap; }
+  /* tablets and phones: one column, pictures first */
+  @media (max-width: 900px) {
+    .grid { grid-template-columns:1fr; }
+  }
+  /* phones */
+  @media (max-width: 560px) {
+    main { padding:.7rem; }
+    form { padding:.8rem .9rem; }
+    .absenden { margin:1rem -.9rem -.8rem; padding:.6rem .9rem calc(.6rem + env(safe-area-inset-bottom)); }
+    .row { grid-template-columns:1fr; }
+    .row3 { grid-template-columns:1fr 1fr; }
+    .row3 > div:first-child { grid-column:1 / -1; }
+    input, select, textarea { min-height:2.75rem; font-size:16px; }  /* 16px: no zoom-in on iOS */
+    .zustand input { min-height:0; transform:scale(1.3); margin:.35rem .3rem 0 .2rem; }
+    .zustand label { padding:.6rem .5rem; }
+    .price { font-size:1.6rem; }
+    .calc { font-size:.8rem; }
+  }
 </style>
 {% endblock %}
 {% block body %}
@@ -55,7 +81,7 @@
     <div class="row3">
       <div><label>Titel</label><input name="titel" value="{{ v.titel }}" required></div>
       <div><label>Ausgabe</label><input name="ausgabe" value="{{ v.ausgabe }}"></div>
-      <div><label>Jahr</label><input name="jahr" value="{{ v.jahr or '' }}" inputmode="numeric"></div>
+      <div><label>Jahr</label><input name="jahr" value="{{ v.jahr or '' }}" inputmode="numeric" maxlength="4"></div>
     </div>
     <label>Untertitel</label><input name="untertitel" value="{{ v.untertitel }}">
     <div class="row3">
@@ -63,7 +89,7 @@
       <div><label>Sprache</label><input name="sprache" value="{{ v.sprache }}"></div>
       <div><label>Format</label><input name="format" value="{{ v.format }}"></div>
     </div>
-    <label>EAN / ISBN</label><input name="ean_isbn" value="{{ v.ean_isbn }}">
+    <label>EAN / ISBN</label><input name="ean_isbn" value="{{ v.ean_isbn }}" inputmode="numeric" autocomplete="off">
 
     <fieldset class="zustand"><legend>Zustand (Comicguide-Skala)</legend>
       {% for z, d in cfg.zustaende|dictsort %}
@@ -99,7 +125,7 @@
     </fieldset>
 
     <label>Notiz</label><textarea name="notiz" rows="2"></textarea>
-    <button type="submit">Bestätigen und in den Shop</button>
+    <div class="absenden"><span class="mini" id="preis-mini">–</span><button type="submit">Bestätigen und in den Shop</button></div>
   </form>
 </div>
 
@@ -122,6 +148,10 @@ function roundShop(value) {
 }
 const eur = x => x.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
 function update() {
+  show();
+  document.getElementById("preis-mini").textContent = document.getElementById("preis").textContent;
+}
+function show() {
   const z = document.querySelector("input[name=zustand]:checked");
   const basis = num(document.getElementById("basis").value), ov = num(document.getElementById("override").value);
   const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
