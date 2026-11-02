@@ -1,4 +1,4 @@
-"""PDF (2 pages: cover, back) -> JPEG images via poppler's pdftoppm."""
+"""PDF (2 pages: cover, back) -> JPEG images via poppler's pdftoppm, and photos -> scan PDF."""
 
 from __future__ import annotations
 
@@ -7,10 +7,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 SHOP_MAX_EDGE = 2400     # stored in S3, used for Shopify media
 MODEL_MAX_EDGE = 1568    # recommended max long edge for Claude vision input
+SCAN_DPI = 200           # same resolution render_pages uses, so photos survive the round trip
+A4_PX = (1654, 2339)     # A4 at SCAN_DPI
 
 
 class PdfError(Exception):
@@ -55,4 +57,22 @@ def to_jpeg(image: Image.Image, max_edge: int, quality: int = 85) -> bytes:
     im.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=quality, optimize=True)
+    return buf.getvalue()
+
+
+def photos_to_scan_pdf(cover: bytes, back: bytes) -> bytes:
+    """Build the scanner's format from two photos: 2-page A4 PDF, page 1 cover, page 2 back."""
+    pages = []
+    for name, data in (("Cover", cover), ("Rückseite", back)):
+        try:
+            with Image.open(io.BytesIO(data)) as im:
+                im = ImageOps.exif_transpose(im).convert("RGB")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
+            raise PdfError(f"{name}: kein lesbares Bild ({e.__class__.__name__})") from e
+        im.thumbnail(A4_PX, Image.Resampling.LANCZOS)
+        page = Image.new("RGB", A4_PX, "white")
+        page.paste(im, ((A4_PX[0] - im.width) // 2, (A4_PX[1] - im.height) // 2))
+        pages.append(page)
+    buf = io.BytesIO()
+    pages[0].save(buf, "PDF", resolution=SCAN_DPI, save_all=True, append_images=pages[1:], quality=90)
     return buf.getvalue()

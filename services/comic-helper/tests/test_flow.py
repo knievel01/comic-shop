@@ -4,18 +4,20 @@ scan -> claim -> recognize -> review -> Shopify -> finalize -> sale webhook -> c
 import base64
 import hashlib
 import hmac
+import io
 import json
 import re
 import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from urllib.parse import unquote_plus
 
 import httpx2
 import pytest
 from fastapi.testclient import TestClient
 
 from comic_helper import app as app_module
-from comic_helper import report, storage
+from comic_helper import pdf, report, storage
 from comic_helper.config import Settings, load_pricing
 from comic_helper.recognition import Erkennung, Feld
 from comic_helper.shopify import Shopify
@@ -369,3 +371,35 @@ def test_booklooker_price_requires_evidence_link(env):
     assert r.status_code == 303 and "fehler=" not in r.headers["location"]
     p = env.store.read_json(f"eingang/{cid}.json")["entscheidung"]["preis"]
     assert (p["quelle"], p["aufschlag"], p["final"], p["beleg"]) == ("booklooker", 1.0, 4.5, link)
+
+
+def _photo(color: str, size=(3000, 4000), fmt="JPEG") -> bytes:
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", size, color).save(buf, fmt)
+    return buf.getvalue()
+
+
+def test_photo_upload_creates_scan_like_the_scanner(env):
+    c = env.client
+    assert "Comic hochladen" in c.get("/review/hochladen").text
+    files = {"cover": ("c.jpg", _photo("red"), "image/jpeg"),
+             "rueckseite": ("r.webp", _photo("blue", (800, 600), "WEBP"), "image/webp")}
+    r = c.post("/review/hochladen", files=files, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/review/?hochgeladen=")
+    cid = r.headers["location"].split("=", 1)[1]
+    key = f"eingang/{cid}.pdf"
+    assert env.store.get_tags(key) == {"status": "neu"}
+    assert env.store.head(key)["ContentType"] == "application/pdf"
+    assert pdf.page_count(env.store.get_bytes(key)) == 2
+    # from here on it is an ordinary scan
+    assert cid in c.post("/api/scans/claim", headers=H).json()["ids"]
+    assert c.post(f"/api/scans/{cid}/recognize", headers=H).status_code == 200
+    assert "Hochgeladen als" in c.get(f"/review/?hochgeladen={cid}").text
+
+
+def test_photo_upload_rejects_non_images(env):
+    files = {"cover": ("c.txt", b"no image", "text/plain"), "rueckseite": ("r.jpg", _photo("blue"), "image/jpeg")}
+    r = env.client.post("/review/hochladen", files=files, follow_redirects=False)
+    assert "fehler=" in r.headers["location"] and "Cover" in unquote_plus(r.headers["location"])
+    assert not list(env.store.list_scans("eingang"))

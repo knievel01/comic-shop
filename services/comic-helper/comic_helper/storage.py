@@ -119,6 +119,13 @@ class Store:
     def put_bytes(self, key: str, data: bytes, content_type: str) -> None:
         self.s3.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
 
+    def put_new_scan(self, copy_id: str, pdf: bytes) -> str:
+        """Same contract as comics-scan-sync: never overwrite, tagged status=neu in one call."""
+        key = self.pdf_key(EINGANG, copy_id)
+        self.s3.put_object(Bucket=self.bucket, Key=key, Body=pdf, ContentType="application/pdf",
+                           Tagging="status=neu", IfNoneMatch="*")
+        return key
+
     def get_tags(self, key: str) -> dict[str, str]:
         resp = self.s3.get_object_tagging(Bucket=self.bucket, Key=key)
         return {t["Key"]: t["Value"] for t in resp["TagSet"]}

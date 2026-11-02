@@ -11,7 +11,7 @@ Internal API (header X-Helper-Token), orchestrated by n8n:
     GET  /api/report/daily                numbers for the 7 o'clock mail
     GET  /api/mail-config                 mail recipients for n8n
 
-Review UI (LAN only, optional password): /review/
+Review UI (LAN only, optional password): /review/, photo upload: /review/hochladen
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import json
 import logging
 import secrets
 import threading
+import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -29,7 +30,7 @@ import anthropic
 import boto3
 import httpx2
 from botocore.config import Config
-from fastapi import Depends, FastAPI, Form, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
@@ -397,6 +398,41 @@ def review_list(request: Request, store: Store = Depends(get_store)):
         "groups": [(st, cs) for st, cs in groups if cs], "details": details, "open_count": open_count,
         "labels": STATUS_LABELS, "reviewable": REVIEWABLE,
     })
+
+
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp", "image/avif")
+
+
+@app.get("/review/hochladen", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
+def upload_form(request: Request, fehler: str = ""):
+    return templates.TemplateResponse(request, "hochladen.html", {"fehler": fehler, "typen": ",".join(UPLOAD_TYPES)})
+
+
+@app.post("/review/hochladen", dependencies=[Depends(require_reviewer)])
+def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(...),
+                  store: Store = Depends(get_store)):
+    """Second intake besides the scanner (ADR-0018): two photos -> eingang/{uuid}.pdf, status=neu."""
+    def back(msg: str):
+        return RedirectResponse(f"/review/hochladen?fehler={quote_plus(msg)}", status_code=303)
+
+    images = []
+    for name, f in (("Cover", cover), ("Rückseite", rueckseite)):
+        data = f.file.read(MAX_UPLOAD_BYTES + 1)
+        if not data:
+            return back(f"{name} fehlt")
+        if len(data) > MAX_UPLOAD_BYTES:
+            return back(f"{name} ist größer als 25 MB")
+        images.append(data)
+    with _render_slot:
+        try:
+            scan = pdf.photos_to_scan_pdf(*images)
+        except pdf.PdfError as e:
+            return back(f"{e}. Erlaubt: JPEG, PNG, WebP, AVIF")
+    copy_id = str(uuid.uuid4())
+    store.put_new_scan(copy_id, scan)
+    log.info("uploaded photos as %s (%d bytes)", copy_id, len(scan))
+    return RedirectResponse(f"/review/?hochgeladen={copy_id}", status_code=303)
 
 
 @app.get("/review/bild/{copy_id}/{page}", dependencies=[Depends(require_reviewer)])

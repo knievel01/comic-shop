@@ -7,7 +7,7 @@
                          │  comics-scan-sync (systemd-Timer, 1 min)
                          │  prüft 2 Seiten, vergibt UUID, nur PutObject-Recht
                          ▼
- S3  eingang/<id>.pdf  (Tag status=neu)
+ S3  eingang/<id>.pdf  (Tag status=neu)  <── oder Foto-Upload /review/hochladen (ADR-0018)
                          │
  n8n 01 Scan-Ingest (alle 2 min) ──> comic-helper
                          │  claim -> PDF->JPEG -> Claude -> Vorschlag + Preisvorschlag

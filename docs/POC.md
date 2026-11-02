@@ -40,7 +40,7 @@ Bestandteile:
 | Öffentliche Webhooks | nur `/webhook/*` über Cloudflare-Tunnel (ADR-0009) | **kein Tunnel**; Shopify-Webhooks kommen nicht an, nur lokale Tests per `curl` |
 | Geheimnisse | `/etc/comics/comics.env`, Rechte 600, oder SOPS (ADR-0003) | `~/.config/comics/comics.env`, Rechte 600 (Benutzer statt root). Grundsatz von ADR-0003 gilt unverändert: nichts davon ins Repo |
 | Zugriff | `https://comics-01/` im LAN über Traefik, ufw nur für LAN-Netze | kein Ingress; nur `kubectl port-forward` auf `127.0.0.1` (`http://localhost:5678/`, `:8080/review/`) |
-| Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Test-PDF von Hand nach `eingang/` hochladen |
+| Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Fotos über `/review/hochladen` (ADR-0018) oder Test-PDF von Hand nach `eingang/` |
 | Backup | `comics-backup.timer` (pg_dump, Workflow-Export nach S3) | kein Backup; PoC-Daten sind Wegwerfdaten |
 | Image | per Ansible gebaut und importiert | per `docker build` gebaut, Push in die PoC-Registry `localhost:5000`, kein `sudo` |
 | Preisquelle | Comicguide Z1 × Zustand × 1,5 (ADR-0011) | Booklooker-Angebot vorausgewählt, mit Pflicht-Beleg (Link), Aufschlag 1,0 (ADR-0017); vor dem Zielbetrieb `standard_preisquelle` zurücksetzen |
@@ -167,7 +167,11 @@ Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „3. n8n“, mit folgenden 
 
 ## Erster Test
 
-Ohne Scanner und Sync-Skript wird eine zweiseitige Test-PDF von Hand so abgelegt, wie es
+Am einfachsten über die Review-Oberfläche: **Hochladen** (`/review/hochladen`), ein Foto vom Cover
+und eins von der Rückseite wählen (auf dem Handy aus Kamera oder Galerie). Der comic-helper legt
+daraus die zweiseitige PDF unter `eingang/{UUID}.pdf` mit `status=neu` ab (ADR-0018).
+
+Alternativ wird eine zweiseitige Test-PDF von Hand so abgelegt, wie es
 `comics-scan-sync` tun würde (ADR-0007: Name `{UUID}.pdf`, Tag `status=neu`):
 
 ```bash
