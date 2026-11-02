@@ -13,7 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY services/comic-helper/comic_helper ./comic_helper
 COPY config/pricing.yaml ./config/pricing.yaml
 
-ENV PYTHONUNBUFFERED=1 PRICING_CONFIG=/app/config/pricing.yaml
+# Few malloc arenas: otherwise every worker thread keeps the memory of its last rendered scan
+ENV PYTHONUNBUFFERED=1 PRICING_CONFIG=/app/config/pricing.yaml MALLOC_ARENA_MAX=2
 USER 10001
 EXPOSE 8080
 CMD ["uvicorn", "comic_helper.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]

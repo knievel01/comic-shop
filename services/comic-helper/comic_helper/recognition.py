@@ -7,6 +7,7 @@ cover and back scans. Unreadable fields stay empty - nothing is guessed.
 from __future__ import annotations
 
 import base64
+import re
 from typing import Literal
 
 import anthropic
@@ -29,8 +30,10 @@ Regeln:
 - sicherheit ist deine Einschätzung von 0.0 bis 1.0, dass der Wert exakt stimmt.
 - titel: Serien- bzw. Reihentitel, wie gedruckt (z. B. "Asterix", "Micky Maus", "Fix und Foxi").
 - untertitel: Titel des einzelnen Bandes/der Geschichte, falls vorhanden.
-- ausgabe: Heft- bzw. Bandnummer nur als Zahl/Kennung (z. B. "12", "1987/23", "Sonderheft 3").
-  Hat das Exemplar sichtbar keine Nummer, wert = "-" mit entsprechender Sicherheit.
+- ausgabe: Heft- bzw. Bandnummer nur als arabische Zahl, ohne Wörter (z. B. "12"; bei Jahrgang
+  und Heft "1987/23"). Römische oder ausgeschriebene Zahlen übersetzen ("II" und "Zwei" werden "2").
+  Zusätze wie "Band", "Nr.", "Sonderheft", "Großer Sonderband" gehören nicht in ausgabe, sondern
+  in auffaelligkeiten. Hat das Exemplar sichtbar keine Nummer, wert = "-" mit entsprechender Sicherheit.
 - jahr: Erscheinungsjahr (vierstellig), nur wenn gedruckt oder eindeutig ableitbar.
 - sprache: ISO-639-1-Code der Sprache des Comics (de, en, fr, ja, ...).
 - ean_isbn: nur Ziffern (und ggf. X), ohne Bindestriche; vom Barcode oder ISBN-Aufdruck.
@@ -131,6 +134,35 @@ def classify(confidence: float, threshold: float) -> Literal["sicher", "nachkont
     return "sicher" if confidence >= threshold else "nachkontrolle"
 
 
+_ROMAN = re.compile(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})")
+_ROMAN_VALUES = {"M": 1000, "D": 500, "C": 100, "L": 50, "X": 10, "V": 5, "I": 1}
+_ISSUE_TOKEN = re.compile(r"\d+(?:/\d+)?|\b[IVXLCDM]+\b")
+
+
+def _roman_to_int(numeral: str) -> int:
+    total = 0
+    for ch, nxt in zip(numeral, numeral[1:] + " "):
+        value = _ROMAN_VALUES[ch]
+        total += -value if nxt != " " and _ROMAN_VALUES[nxt] > value else value
+    return total
+
+
+def normalize_issue(value: str) -> str:
+    """Reduce an issue to a plain number ("Grosser Sonderband II" -> "2", "Nr. 012" -> "12").
+
+    Keeps year/issue ("1987/23") and "-" (no number). Ambiguous values (several or no
+    numbers) are returned unchanged for the reviewer.
+    """
+    value = value.strip()
+    tokens = [t for t in _ISSUE_TOKEN.findall(value) if t[0].isdigit() or _ROMAN.fullmatch(t)]
+    if value in ("", "-") or len(tokens) != 1:
+        return value
+    token = tokens[0]
+    if token[0].isdigit():
+        return "/".join(str(int(part)) for part in token.split("/"))
+    return str(_roman_to_int(token))
+
+
 def to_proposal(e: Erkennung) -> dict:
     """Flat dict for the review form."""
     def v(f: Feld) -> str:
@@ -147,7 +179,7 @@ def to_proposal(e: Erkennung) -> dict:
     return {
         "titel": v(e.titel),
         "untertitel": v(e.untertitel),
-        "ausgabe": v(e.ausgabe),
+        "ausgabe": normalize_issue(v(e.ausgabe)),
         "verlag": v(e.verlag),
         "jahr": year,
         "sprache": v(e.sprache).lower(),

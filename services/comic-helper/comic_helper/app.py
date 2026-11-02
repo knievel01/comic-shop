@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+import threading
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -42,6 +43,7 @@ log = logging.getLogger("comic_helper")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 app = FastAPI(title="comic-helper", docs_url=None, redoc_url=None)
+_render_slot = threading.Lock()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
@@ -145,21 +147,24 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         return _summary(copy_id, store.read_json(side_key), s, already=True)
 
     data = store.get_bytes(key)
-    try:
-        pages = pdf.page_count(data)
-        if pages != 2:
-            raise pdf.PdfError(f"{pages} Seiten statt 2")
-        cover, back = pdf.render_pages(data)[:2]
-    except pdf.PdfError as e:
-        raise HTTPException(422, f"PDF: {e}")
-
-    for page, im in ((1, cover), (2, back)):
-        store.put_bytes(store.image_key(copy_id, page), pdf.to_jpeg(im, pdf.SHOP_MAX_EDGE), "image/jpeg")
+    # n8n sends a whole batch at once; rendered pages are large, so render one scan at a time
+    # and keep only the small JPEGs while waiting for Claude.
+    with _render_slot:
+        try:
+            pages = pdf.page_count(data)
+            if pages != 2:
+                raise pdf.PdfError(f"{pages} Seiten statt 2")
+            cover, back = pdf.render_pages(data)[:2]
+        except pdf.PdfError as e:
+            raise HTTPException(422, f"PDF: {e}")
+        for page, im in ((1, cover), (2, back)):
+            store.put_bytes(store.image_key(copy_id, page), pdf.to_jpeg(im, pdf.SHOP_MAX_EDGE), "image/jpeg")
+        model_images = [pdf.to_jpeg(im, pdf.MODEL_MAX_EDGE) for im in (cover, back)]
+        del cover, back
 
     try:
         result, info = recognition.recognize(
-            claude, pdf.to_jpeg(cover, pdf.MODEL_MAX_EDGE), pdf.to_jpeg(back, pdf.MODEL_MAX_EDGE),
-            model=s.anthropic_model, effort=s.anthropic_effort)
+            claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort)
     except recognition.RecognitionError as e:
         raise HTTPException(503 if e.retryable else 502, f"Erkennung: {e}")
 
