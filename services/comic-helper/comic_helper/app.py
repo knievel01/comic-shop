@@ -165,7 +165,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
 
     try:
         result, info = recognition.recognize(
-            claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort)
+            claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort, zustaende=cfg["zustaende"])
     except recognition.RecognitionError as e:
         raise HTTPException(503 if e.retryable else 502, f"Erkennung: {e}")
 
@@ -281,6 +281,7 @@ def final_metadata(copy_id: str, side: dict) -> dict:
         "ean": d.get("ean_isbn", ""),
         "ki-konfidenz": side.get("konfidenz", ""),
         "ki-status": side.get("ki_status", ""),
+        "ki-zustand": (side.get("vorschlag") or {}).get("zustand_ki", ""),
         "zustand": d["zustand"],
         "preis-basis-z1": f"{p['basis_z1']:.2f}",
         "preis-quelle": p["quelle"],
@@ -336,7 +337,8 @@ def mail_config(s: Settings = Depends(get_settings)):
 
 
 EMPTY_PROPOSAL = {"titel": "", "untertitel": "", "ausgabe": "", "verlag": "", "jahr": None, "sprache": "",
-                  "ean_isbn": "", "coverpreis": None, "waehrung": "", "format": "", "auffaelligkeiten": ""}
+                  "ean_isbn": "", "coverpreis": None, "waehrung": "", "format": "", "auffaelligkeiten": "",
+                  "zustand_ki": None, "zustand_ki_begruendung": ""}
 
 
 # --- review UI ------------------------------------------------------------------------

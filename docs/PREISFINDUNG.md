@@ -23,6 +23,11 @@ Beispiel: Comicguide Z1 = 10,00 €, Zustand 2 → 10 × 0,4 × 1,5 = 6,00 € �
 
 Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den Shop.
 
+**KI-Zustandsempfehlung:** Claude schlägt anhand der Bilder eine Stufe 0–4 mit kurzer Begründung vor
+(Skala aus `pricing.yaml`). Das Formular zeigt sie an und markiert die Stufe, wählt sie aber nicht vor:
+den Zustand legt die Fachkraft am Exemplar fest. Gespeichert als S3-Metadatum `ki-zustand`, damit sich
+die Trefferquote später auswerten lässt.
+
 ## Ablauf im Formular
 
 > **PoC (ADR-0017):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den

@@ -35,6 +35,12 @@
       Status <span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> ·
       KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)</p>
     {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
+    {% set zki = side.vorschlag.get('zustand_ki') %}
+    <p id="ki-zustand"><strong>KI-Zustandsempfehlung:</strong>
+      {% if zki is not none and zki in cfg.zustaende %}<span class="badge zki">{{ zki }} – {{ cfg.zustaende[zki].bezeichnung }}</span>
+        {% if side.vorschlag.zustand_ki_begruendung %}{{ side.vorschlag.zustand_ki_begruendung }}{% endif %}
+        <small class="calc">Nur nach den Bildern; den Zustand bitte am Exemplar prüfen.</small>
+      {% else %}keine (nicht aus den Bildern beurteilbar){% endif %}</p>
     {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
     {% if tags.status == 'fehler' %}
     <form method="post" action="/review/{{ id }}/neu-erkennen" style="background:none;border:0;padding:0">
@@ -62,7 +68,7 @@
     <fieldset class="zustand"><legend>Zustand (Comicguide-Skala)</legend>
       {% for z, d in cfg.zustaende|dictsort %}
       <label><input type="radio" name="zustand" value="{{ z }}" required {% if v.zustand is defined and v.zustand == z %}checked{% endif %}>
-        <span><strong>{{ z }} – {{ d.bezeichnung }}</strong><small>{{ d.hilfe }}</small></span></label>
+        <span><strong>{{ z }} – {{ d.bezeichnung }}</strong>{% if zki == z %} <span class="badge zki">KI-Empfehlung</span>{% endif %}<small>{{ d.hilfe }}</small></span></label>
       {% endfor %}
     </fieldset>
 

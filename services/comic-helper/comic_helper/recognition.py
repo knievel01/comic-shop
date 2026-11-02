@@ -42,8 +42,14 @@ Regeln:
   Gibt es mehrere Preise (z. B. D/A/CH), nimm den deutschen.
 - format: Heft, Album, Taschenbuch, Manga oder Sonstiges.
 - auffaelligkeiten: kurze sachliche Notiz zu sichtbaren Schäden, Stempeln, fehlenden Teilen
-  oder Besonderheiten (Erstauflage, Beilage). Leer, wenn nichts auffällt. Keine Zustandsnote vergeben.
+  oder Besonderheiten (Erstauflage, Beilage). Leer, wenn nichts auffällt.
+- zustand_empfehlung: Empfehlung für die Zustandsstufe nach der Skala unten (nur ganze Stufen),
+  allein nach dem, was auf den Bildern sichtbar ist. Fehlt eine echte Rückseite oder ist der Zustand
+  nicht beurteilbar, null. Die Fachkraft entscheidet am Exemplar; die Empfehlung ist nur ein Hinweis.
+- zustand_begruendung: ein Satz mit den sichtbaren Merkmalen, auf die sich die Empfehlung stützt.
 """
+
+CONDITION_SCALE_HEADER = "\nZustandsskala (Comicguide-Stufen):\n"
 
 
 class Feld(BaseModel):
@@ -63,6 +69,8 @@ class Erkennung(BaseModel):
     waehrung: Feld
     format: Feld
     auffaelligkeiten: str | None
+    zustand_empfehlung: int | None = Field(description="0 bis 4 oder null")
+    zustand_begruendung: str | None
 
 
 class RecognitionError(Exception):
@@ -78,7 +86,16 @@ def _image_block(jpeg: bytes) -> dict:
     }
 
 
-def recognize(client: anthropic.Anthropic, cover_jpeg: bytes, back_jpeg: bytes, model: str, effort: str = "low") -> tuple[Erkennung, dict]:
+def system_prompt(zustaende: dict | None = None) -> str:
+    """Rules plus the condition scale from config/pricing.yaml (single source, ADR-0011)."""
+    if not zustaende:
+        return SYSTEM_PROMPT
+    scale = "".join(f"- {z} {d['bezeichnung']}: {d['hilfe']}\n" for z, d in sorted(zustaende.items()))
+    return SYSTEM_PROMPT + CONDITION_SCALE_HEADER + scale
+
+
+def recognize(client: anthropic.Anthropic, cover_jpeg: bytes, back_jpeg: bytes, model: str, effort: str = "low",
+              zustaende: dict | None = None) -> tuple[Erkennung, dict]:
     """Returns (parsed result, usage/model info). Raises RecognitionError."""
     extra = {}
     if model in FALLBACK_MODELS:
@@ -89,7 +106,7 @@ def recognize(client: anthropic.Anthropic, cover_jpeg: bytes, back_jpeg: bytes, 
             max_tokens=16000,
             thinking={"type": "adaptive"},
             output_config={"effort": effort},
-            system=SYSTEM_PROMPT,
+            system=system_prompt(zustaende),
             messages=[{
                 "role": "user",
                 "content": [
@@ -188,4 +205,6 @@ def to_proposal(e: Erkennung) -> dict:
         "waehrung": v(e.waehrung).upper(),
         "format": v(e.format),
         "auffaelligkeiten": (e.auffaelligkeiten or "").strip(),
+        "zustand_ki": e.zustand_empfehlung if e.zustand_empfehlung in (0, 1, 2, 3, 4) else None,
+        "zustand_ki_begruendung": (e.zustand_begruendung or "").strip() if e.zustand_empfehlung in (0, 1, 2, 3, 4) else "",
     }

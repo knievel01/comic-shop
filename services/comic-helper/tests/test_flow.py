@@ -50,6 +50,7 @@ class FakeClaude:
             ausgabe=feld("12"), verlag=feld("Ehapa"), jahr=feld(str(datetime.now().year)), sprache=feld("de"),
             ean_isbn=feld("978-3-7704-0012-3"), coverpreis=feld("6.99"), waehrung=feld("EUR"),
             format=feld("Album"), auffaelligkeiten="leichter Knick oben rechts",
+            zustand_empfehlung=1, zustand_begruendung="Kanten minimal bestoßen, sonst sauber.",
         )
         return SimpleNamespace(stop_reason=self.stop_reason, parsed_output=out, model=kwargs["model"],
                                usage=SimpleNamespace(input_tokens=3000, output_tokens=400))
@@ -422,3 +423,22 @@ def test_booklooker_proposal_prefills_price_and_evidence(env):
     env.store.write_json(f"eingang/{cid}.json", side)
     page = c.get(f"/review/{cid}").text
     assert 'value="7.95"' in page and f'value="{link}"' in page and "Median aus 4 Angeboten" in page
+
+
+def test_condition_recommendation_shown_not_preselected(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert (side["vorschlag"]["zustand_ki"], side["vorschlag"]["zustand_ki_begruendung"]) == (1, "Kanten minimal bestoßen, sonst sauber.")
+    page = c.get(f"/review/{cid}").text
+    assert "KI-Zustandsempfehlung:" in page and "1 – sehr gut" in page and "KI-Empfehlung</span>" in page
+    assert 'name="zustand" value="1" required >' in page or 'name="zustand" value="1" required>' in page  # not checked
+
+
+def test_condition_prompt_uses_scale_from_config():
+    from comic_helper.config import load_pricing
+    from comic_helper.recognition import system_prompt
+    p = system_prompt(load_pricing()["zustaende"])
+    assert "zustand_empfehlung" in p and "- 1 sehr gut: Gelesen, aber sehr gepflegt." in p
