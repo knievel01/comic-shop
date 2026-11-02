@@ -22,3 +22,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0014](0014-reihenfolge-erst-shopify-dann-s3-metadaten.md) | Reihenfolge: erst Shopify, dann S3-Metadaten | Akzeptiert |
 | [0015](0015-iso-als-release-artefakt-in-teilen.md) | ISO als Release-Artefakt in Teilen | Akzeptiert |
 | [0016](0016-verkauf-ueber-order-webhooks-idempotent.md) | Verkauf über Order-Webhooks, idempotent | Akzeptiert |
+| [0017](0017-poc-booklooker-angebotspreis-als-standardquelle.md) | PoC: Booklooker-Angebotspreis als Standard-Preisquelle, mit Beleg | Akzeptiert (nur PoC), ergänzt 0011 |

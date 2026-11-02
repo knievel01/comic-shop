@@ -287,6 +287,7 @@ def final_metadata(copy_id: str, side: dict) -> dict:
         "preis-aufschlag": p["aufschlag"],
         "preis-final": f"{p['final']:.2f}",
         "preis-ueberschrieben": "ja" if p.get("ueberschrieben") else "",
+        "preis-beleg": p.get("beleg", ""),
         "sku": sh["sku"],
         "shopify-product-id": sh["product_id"].rsplit("/", 1)[-1],
         "shopify-variant-id": sh["variant_id"].rsplit("/", 1)[-1],
@@ -431,6 +432,8 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
     js_cfg = {
         "faktoren": {str(z): d["faktor"] for z, d in cfg["zustaende"].items()},
         "aufschlag": cfg["aufschlag"],
+        "aufschlag_je_quelle": cfg.get("aufschlag_je_quelle") or {},
+        "beleg_pflicht": cfg.get("beleg_pflicht") or [],
         "rundung": cfg["rundung"],
     }
     return templates.TemplateResponse(request, "review.html", {
@@ -477,6 +480,7 @@ def review_submit(
     basis_z1: str = Form(""),
     preisquelle: str = Form(...),
     preis_override: str = Form(""),
+    preis_beleg: str = Form(""),
     notiz: str = Form(""),
 ):
     _check_id(copy_id)
@@ -501,11 +505,20 @@ def review_submit(
     if not titel.strip():
         return back("Titel fehlt")
     if basis is None:
-        return back("Zustand-1-Preis fehlt (Comicguide, Katalog oder Coverpreis)")
+        return back("Zustand-1-Preis fehlt (Booklooker, Comicguide, Katalog oder Coverpreis)")
     try:
         price = pricing.calculate(basis, zustand, preisquelle, cfg).as_dict()
     except ValueError as e:
         return back(str(e))
+    beleg = preis_beleg.strip()
+    if beleg and not beleg.startswith(("https://", "http://")):
+        return back("Beleg bitte als Link angeben (https://…)")
+    if len(beleg) > 300:
+        return back("Beleg-Link ist zu lang (max. 300 Zeichen)")
+    if not beleg and preisquelle in (cfg.get("beleg_pflicht") or []):
+        return back(f"Beleg fehlt: Link auf das {preisquelle}-Angebot eintragen")
+    if beleg:
+        price["beleg"] = beleg
     if override is not None:
         if override <= 0:
             return back("Überschriebener Preis muss größer 0 sein")

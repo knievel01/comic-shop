@@ -69,15 +69,20 @@
     <fieldset><legend>Preis</legend>
       <div class="row">
         <div><label>Preis Zustand 1 (€)</label>
+          {% set standard = cfg.get('standard_preisquelle', 'comicguide') %}
+          {% set prefill = preis_vorschlag and preis_vorschlag.quelle == standard %}
           <input name="basis_z1" id="basis" inputmode="decimal"
-            value="{% if v.preis is defined %}{{ '%.2f' % v.preis.basis_z1 }}{% elif preis_vorschlag %}{{ '%.2f' % preis_vorschlag.basis_z1 }}{% endif %}"></div>
+            value="{% if v.preis is defined %}{{ '%.2f' % v.preis.basis_z1 }}{% elif prefill %}{{ '%.2f' % preis_vorschlag.basis_z1 }}{% endif %}"></div>
         <div><label>Quelle</label>
           <select name="preisquelle" id="quelle">
-            {% set q = v.preis.quelle if v.preis is defined else (preis_vorschlag.quelle if preis_vorschlag else 'comicguide') %}
+            {% set q = v.preis.quelle if v.preis is defined else standard %}
             {% for p in cfg.preisquellen %}<option {% if p == q %}selected{% endif %}>{{ p }}</option>{% endfor %}
           </select></div>
       </div>
-      {% if preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis {{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }} (noch lieferbar).</p>
+      <label>Beleg (Link auf das Angebot, bei Booklooker Pflicht)</label>
+      <input name="preis_beleg" id="beleg" type="url" maxlength="300" value="{{ v.preis.beleg if v.preis is defined and v.preis.beleg else '' }}"
+        placeholder="{{ links.get('Booklooker', 'https://…') }}">
+      {% if preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis: Z1 {{ '%.2f' % preis_vorschlag.basis_z1 }} € ({{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar){% if not prefill %}, Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
       {% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
       <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>
       <div class="price" id="preis">–</div>
@@ -115,11 +120,14 @@ function update() {
   const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
   if (ov) { out.textContent = eur(ov); calc.textContent = "manuell überschrieben"; return; }
   if (!z || !basis) { out.textContent = "–"; calc.textContent = "Zustand und Preis Z1 eingeben"; return; }
-  const f = CFG.faktoren[z.value], raw = basis * f * CFG.aufschlag;
+  const q = document.getElementById("quelle").value, a = CFG.aufschlag_je_quelle[q] ?? CFG.aufschlag;
+  document.getElementById("beleg").required = CFG.beleg_pflicht.includes(q);
+  const f = CFG.faktoren[z.value], raw = basis * f * a;
   out.textContent = eur(roundShop(raw));
-  calc.textContent = `${eur(basis)} × ${f} (Zustand ${z.value}) × ${CFG.aufschlag} Aufschlag = ${eur(raw)} → gerundet`;
+  calc.textContent = `${eur(basis)} × ${f} (Zustand ${z.value}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
 }
 document.getElementById("f").addEventListener("input", update);
+document.getElementById("quelle").addEventListener("change", update);
 update();
 </script>
 {% endblock %}

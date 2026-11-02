@@ -1,7 +1,8 @@
 """Price calculation following Sepp's practice (docs/PREISFINDUNG.md).
 
-    base (condition 1) = Comicguide price Z1, or cover price x 2/3 for titles still in print
-    price              = base x condition factor x markup, rounded to shop price endings
+    base (condition 1) = Comicguide price Z1, Booklooker offer (PoC, ADR-0017),
+                         or cover price x 2/3 for titles still in print
+    price              = base x condition factor x markup (per source), rounded to shop price endings
 
 The review UI repeats this formula in JavaScript for the live preview; this module is
 authoritative and recalculates on submit. Keep both in sync (tests/test_pricing.py).
@@ -63,6 +64,10 @@ def cover_rule_applies(currency: str | None, year: int | None, cfg: dict, today:
     return today.year - int(year) <= int(rule["max_alter_jahre"])
 
 
+def markup_for(quelle: str, cfg: dict) -> float:
+    return float((cfg.get("aufschlag_je_quelle") or {}).get(quelle, cfg["aufschlag"]))
+
+
 def calculate(basis_z1: float, zustand: int, quelle: str, cfg: dict) -> PriceResult:
     if quelle not in cfg["preisquellen"]:
         raise ValueError(f"unknown price source {quelle!r}")
@@ -71,7 +76,7 @@ def calculate(basis_z1: float, zustand: int, quelle: str, cfg: dict) -> PriceRes
     if basis_z1 <= 0:
         raise ValueError("base price must be positive")
     faktor = float(cfg["zustaende"][zustand]["faktor"])
-    aufschlag = float(cfg["aufschlag"])
+    aufschlag = markup_for(quelle, cfg)
     roh = basis_z1 * faktor * aufschlag
     return PriceResult(
         basis_z1=_money(basis_z1),

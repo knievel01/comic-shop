@@ -348,3 +348,24 @@ def test_scan_time_in_local_time():
     assert _local_time("2026-07-01T10:05:00Z") == "01.07.2026 12:05"  # CEST
     assert _local_time(datetime(2026, 1, 1, 10, 5, tzinfo=timezone.utc), "%d.%m. %H:%M") == "01.01. 11:05"
     assert _local_time("") == ""
+
+
+def test_booklooker_price_requires_evidence_link(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    page = c.get(f"/review/{cid}").text
+    assert "<option selected>booklooker</option>" in page and 'name="preis_beleg"' in page
+    # cover price proposal is shown but does not prefill a booklooker base
+    assert 'id="basis" inputmode="decimal"\n            value=""' in page
+    form = review_form(basis_z1="4,50", zustand="1", preisquelle="booklooker")
+    r = c.post(f"/review/{cid}", data=form, follow_redirects=False)
+    assert "Beleg+fehlt" in r.headers["location"]
+    r = c.post(f"/review/{cid}", data={**form, "preis_beleg": "ftp://x"}, follow_redirects=False)
+    assert "fehler=" in r.headers["location"]
+    link = "https://www.booklooker.de/B%C3%BCcher/Asterix-25/id/A02xyz"
+    r = c.post(f"/review/{cid}", data={**form, "preis_beleg": link}, follow_redirects=False)
+    assert r.status_code == 303 and "fehler=" not in r.headers["location"]
+    p = env.store.read_json(f"eingang/{cid}.json")["entscheidung"]["preis"]
+    assert (p["quelle"], p["aufschlag"], p["final"], p["beleg"]) == ("booklooker", 1.0, 4.5, link)

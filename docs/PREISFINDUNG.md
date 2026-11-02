@@ -25,6 +25,12 @@ Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den 
 
 ## Ablauf im Formular
 
+> **PoC (ADR-0017):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den
+> Booklooker-Link, wählt ein vergleichbares Angebot (gleiche Ausgabe, Zustand 1) und trägt dessen
+> Preis als Z1 ein, dazu als **Beleg** den Link auf das Angebot (Pflicht). Aufschlag für diese Quelle
+> 1,0 (`aufschlag_je_quelle`), weil Angebote schon Endkundenpreise sind. Kein automatischer Abruf:
+> Booklooker sperrt Programme per `robots.txt`. Zielbetrieb: `standard_preisquelle: comicguide`.
+
 - **Noch lieferbar:** Claude liest Coverpreis, Währung und Jahr. Ist der Preis in Euro und das Heft
   höchstens 3 Jahre alt (`coverpreis.max_alter_jahre`), ist Z1 mit Coverpreis × 2/3 vorausgefüllt,
   Quelle `coverpreis`. Alte DM-Preise werden nie verwendet.
@@ -36,7 +42,7 @@ Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den 
 - Der Endpreis wird live angezeigt und kann überschrieben werden (wird als `preis-ueberschrieben=ja` gespeichert).
 
 Gespeichert werden als S3-Metadaten: `preis-basis-z1`, `preis-quelle`, `preis-faktor`,
-`preis-aufschlag`, `preis-final`, dazu `zustand`.
+`preis-aufschlag`, `preis-final`, `preis-beleg` (Link, falls angegeben), dazu `zustand`.
 
 ## Nachjustieren
 

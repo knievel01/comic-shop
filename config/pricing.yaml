@@ -29,6 +29,9 @@ zustaende:
 
 # Sepps Aufschlag auf den Comicguide-Preis
 aufschlag: 1.5
+# Abweichender Aufschlag je Preisquelle. Booklooker-Angebote sind bereits Endkundenpreise (ADR-0017).
+aufschlag_je_quelle:
+  booklooker: 1.0
 
 # Noch lieferbare Titel: Basis Z1 = Coverpreis × Faktor (Comicguide-Praxis: 2/3)
 coverpreis:
@@ -47,7 +50,11 @@ rundung:
 konfidenz_schwelle: 0.80
 
 # Erlaubte Preisquellen (werden als S3-Metadatum gespeichert)
-preisquellen: [comicguide, coverpreis, katalog, manuell]
+preisquellen: [booklooker, comicguide, coverpreis, katalog, manuell]
+# Im Formular vorausgewählt. PoC: booklooker (ADR-0017), Zielbetrieb: comicguide (ADR-0011)
+standard_preisquelle: booklooker
+# Quellen, bei denen ein Beleg (Link auf das Angebot) Pflicht ist
+beleg_pflicht: [booklooker]
 
 # Direktlinks im Review-Formular. {q} = URL-kodierter Suchtext "Titel Untertitel".
 # Nur Links für die Fachkraft, kein automatischer Abruf (Comicguide verbietet Data Mining).
