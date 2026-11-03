@@ -310,6 +310,17 @@ def test_review_reopen_confirmed_copy(env):
     assert "Schon in Shopify angelegt" in c.get(f"/review/{cid}").text
 
 
+def test_review_pages_are_never_cached(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    for url in ("/review/", f"/review/{cid}", "/review/hochladen"):
+        r = c.get(url)
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-store", url
+    assert "pageshow" in c.get("/review/").text  # bfcache restore triggers a reload
+
+
 def test_low_confidence_needs_recheck(env):
     env.claude.titel_sicherheit = 0.5
     c, cid = env.client, str(uuid.uuid4())

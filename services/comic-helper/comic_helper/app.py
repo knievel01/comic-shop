@@ -46,6 +46,15 @@ log = logging.getLogger("comic_helper")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 app = FastAPI(title="comic-helper", docs_url=None, redoc_url=None)
+
+
+@app.middleware("http")
+async def no_cache_review_pages(request: Request, call_next):
+    """Review pages are computed live (groups, status): never serve them from the browser cache or bfcache."""
+    response = await call_next(request)
+    if request.url.path.startswith("/review") and response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 _render_slot = threading.Lock()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # Fonts for the review UI, served locally so the pages make no external requests

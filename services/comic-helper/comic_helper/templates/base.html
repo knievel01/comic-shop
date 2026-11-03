@@ -114,5 +114,10 @@
   <span class="tagline">Scannen → Prüfen → Shop</span>
 </header>
 <main>{% block body %}{% endblock %}</main>
+<script>
+// Back/forward may restore a page from the browser's memory (bfcache) without asking the server:
+// reload so groups and status are always computed live.
+window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
+</script>
 </body>
 </html>
