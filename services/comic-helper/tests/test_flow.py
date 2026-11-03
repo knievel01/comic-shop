@@ -434,7 +434,8 @@ def test_condition_recommendation_shown_not_preselected(env):
     assert (side["vorschlag"]["zustand_ki"], side["vorschlag"]["zustand_ki_begruendung"]) == (1, "Kanten minimal bestoßen, sonst sauber.")
     page = c.get(f"/review/{cid}").text
     assert "KI-Zustandsempfehlung:" in page and "1 – sehr gut" in page and "KI-Empfehlung</span>" in page
-    assert 'name="zustand" value="1" required >' in page or 'name="zustand" value="1" required>' in page  # not checked
+    radio = re.search(r'<input type="radio" name="zustand" value="1"[^>]*>', page).group(0)
+    assert "checked" not in radio  # recommendation is shown, not preselected
 
 
 def test_condition_prompt_uses_scale_from_config():
