@@ -21,6 +21,7 @@
   .fall .meta { margin-top:auto; padding-top:.4rem; display:flex; flex-direction:column; color:var(--muted); font-size:.92rem; line-height:1.3; }
   .fall .meta .verlag { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fall a.ganz::after { content:""; position:absolute; inset:0; }  /* whole panel clickable */
+  .fall .meta .entwurf-info { color:var(--ink); font-weight:800; }
   .leerzustand { padding:1.2rem 1.4rem; max-width:34rem; font-size:1.15rem; }
 
   /* "+" as a starburst sound effect */
@@ -62,7 +63,7 @@
 <ul class="faelle">
   {% for c in cases %}
   {% set d = details.get(c.id, {}) %}
-  <li class="fall panel">
+  <li class="fall panel" data-id="{{ c.id }}">
     <div class="bild">
       {% if status in ('offen', 'bestaetigt') %}<img src="/review/bild/{{ c.id }}/1" alt="" loading="lazy">
       {% else %}<div class="leer"><span>{{ labels.get(status, status) }}</span></div>{% endif %}
@@ -86,6 +87,37 @@
   {% with abbrechen=true %}{% include "_hochladen_form.html" %}{% endwith %}
 </dialog>
 <script>
+// Copies with condition and price in the browser draft (review form) move from "Zu prüfen" to their own
+// group. Drafts live only in this browser (localStorage); the server knows them only after "Bestätigen".
+(() => {
+  const kopf = document.getElementById("status-offen");
+  if (!kopf) return;
+  const liste = kopf.nextElementSibling, geprueft = [];
+  try {
+    for (const li of liste.querySelectorAll("li[data-id]")) {
+      const e = JSON.parse(localStorage.getItem("comics-entwurf:" + li.dataset.id));
+      const f = e?.felder;
+      if (e && !e.gesendet && f && f.zustand != null && ((f.basis_z1 || "").trim() || (f.preis_override || "").trim())) {
+        const notiz = document.createElement("span");
+        notiz.className = "entwurf-info";
+        notiz.textContent = "Zustand " + f.zustand + (f.preis_override?.trim() ? " · " + f.preis_override.trim() + " €" : "");
+        li.querySelector(".meta").prepend(notiz);
+        geprueft.push(li);
+      }
+    }
+  } catch { return; }
+  if (!geprueft.length) return;
+  const h2 = document.createElement("h2"), ul = document.createElement("ul");
+  h2.id = "status-geprueft";
+  h2.innerHTML = '<span class="badge status-geprueft">Geprüft – noch nicht bestätigt</span><span class="zahl"></span>';
+  h2.querySelector(".zahl").textContent = geprueft.length;
+  ul.className = "faelle";
+  ul.append(...geprueft);
+  liste.after(h2, ul);
+  const rest = liste.children.length;
+  if (rest) kopf.querySelector(".zahl").textContent = rest; else { kopf.remove(); liste.remove(); }
+})();
+
 const dlg = document.getElementById("dlg-hochladen");
 document.getElementById("plus").addEventListener("click", () => dlg.showModal());
 document.getElementById("abbrechen").addEventListener("click", () => dlg.close());
