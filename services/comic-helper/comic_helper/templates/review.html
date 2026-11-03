@@ -54,6 +54,7 @@
   .stufe .badge { margin-left:auto; }
   .stufe-hilfe { margin:.7rem 0 0; min-height:2.6em; color:var(--muted); line-height:1.3; }
 
+  .link-knopf { font:inherit; background:none; border:0; padding:0; color:var(--blue); text-decoration:underline; cursor:pointer; box-shadow:none; }
   .vorschlag { margin:.9rem 0 0; padding:.55rem .75rem; background:#fff6c7; border:var(--strich); border-left:6px solid var(--red); font-size:.98rem; line-height:1.35; }
   .beleg-kopf { display:flex; align-items:flex-end; justify-content:space-between; gap:.6rem; margin-top:.8rem; }
   .beleg-kopf label { margin-top:0; }
@@ -160,7 +161,7 @@
       </div>
       <div class="row">
         <div><label>EAN / ISBN</label><input name="ean_isbn" value="{{ v.ean_isbn }}" inputmode="numeric" autocomplete="off"></div>
-        <div><label>Notiz <small>(intern)</small></label><input name="notiz"></div>
+        <div><label>Notiz <small>(intern)</small></label><textarea name="notiz" rows="3">{% if v.notiz is defined %}{{ v.notiz }}{% elif preis_vorschlag and preis_vorschlag.notiz %}{{ preis_vorschlag.notiz }}{% endif %}</textarea></div>
       </div>
     </section>
 
@@ -195,7 +196,7 @@
         placeholder="{{ links.get('Booklooker', 'https://…') }}">
       {% if preis_vorschlag and preis_vorschlag.quelle != 'coverpreis' %}<p class="vorschlag"><strong>Vorschlag {{ preis_vorschlag.quelle }}: {{ '%.2f' % preis_vorschlag.basis_z1 }} €</strong>{% if preis_vorschlag.hinweis %}<br>{{ preis_vorschlag.hinweis }}{% endif %}</p>
       {% elif preis_vorschlag %}<p class="vorschlag"><strong>Vorschlag aus Coverpreis: {{ '%.2f' % preis_vorschlag.basis_z1 }} €</strong><br>{{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar{% if not prefill %}; Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
-      {% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
+      {% endif %}{% if side.get('preis_suche') and not (preis_vorschlag and preis_vorschlag.quelle == 'booklooker') %}<p class="vorschlag">Automatische Preissuche: keine passenden Angebote bei Booklooker/ZVAB gefunden. Bitte über die Links suchen.</p>{% endif %}{% if not gesperrt %}<p class="links"><button type="submit" form="preissuche" class="link-knopf">Preis automatisch neu suchen</button> <small>dauert etwa eine halbe Minute</small></p>{% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
       <div class="ergebnis"><div class="price burst" aria-live="polite"><span id="preis">?</span></div>
         <div class="calc" id="rechnung"></div></div>
       <label>Endpreis überschreiben <small>(optional, €)</small></label>
@@ -207,6 +208,7 @@
       {% elif not side.get('shopify') %}<button type="submit" form="zurueckholen">Zurückholen und ändern</button>{% endif %}</div>
   </form>
   <form method="post" action="/review/{{ id }}/loeschen" id="loeschen" hidden></form>
+  <form method="post" action="/review/{{ id }}/preis-suchen" id="preissuche" hidden></form>
   <form method="post" action="/review/{{ id }}/zurueckholen" id="zurueckholen" hidden></form>
 </div>
 

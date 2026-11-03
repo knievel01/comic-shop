@@ -37,7 +37,16 @@ class FakeClaude:
         self.calls = 0
         self.titel_sicherheit = titel_sicherheit
         self.stop_reason = stop_reason
+        self.offers = []  # (price, url) the fake web search "finds"
+        self.search_calls = []
         self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
+        self.messages = SimpleNamespace(create=self.search)
+
+    def search(self, **kwargs):
+        self.search_calls.append(kwargs)
+        assert kwargs["tools"][0]["allowed_domains"] == ["booklooker.de", "zvab.com"]
+        body = {"angebote": [{"preis": p, "beschreibung": "gut", "url": u} for p, u in self.offers]}
+        return SimpleNamespace(content=[SimpleNamespace(type="text", text="Hier: " + json.dumps(body))])
 
     def parse(self, **kwargs):
         self.calls += 1

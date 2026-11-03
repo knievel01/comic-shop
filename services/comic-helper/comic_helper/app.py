@@ -37,7 +37,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import pdf, pricing, recognition, report, storage, webhooks
+from . import marktpreis, pdf, pricing, recognition, report, storage, webhooks
 from .config import Settings, pricing_config, settings
 from .shopify import Shopify, ShopifyError, make_sku
 from .storage import AKTIV, EINGANG, Store
@@ -186,8 +186,9 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     proposal = recognition.to_proposal(result)
     confidence = recognition.overall_confidence(result)
     ki_status = recognition.classify(confidence, float(cfg["konfidenz_schwelle"]))
-    price_hint = None
-    if proposal["coverpreis"] and pricing.cover_rule_applies(proposal["waehrung"], proposal["jahr"], cfg):
+    price_hint = marktpreis.suggest(claude, proposal, cfg, s.anthropic_model)
+    if price_hint is None and proposal["coverpreis"] and pricing.cover_rule_applies(
+            proposal["waehrung"], proposal["jahr"], cfg):
         price_hint = {"basis_z1": pricing.base_from_cover_price(proposal["coverpreis"], cfg), "quelle": "coverpreis"}
 
     sidecar = {
@@ -198,6 +199,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         "konfidenz": confidence,
         "ki_status": ki_status,
         "preis_vorschlag": price_hint,
+        "preis_suche": _utc(),
         "ki_roh": result.model_dump(),
         "ki_info": info,
     }
@@ -501,6 +503,28 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "id": copy_id, "side": side, "v": v, "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
     })
+
+
+@app.post("/review/{copy_id}/preis-suchen", dependencies=[Depends(require_reviewer)])
+def review_search_price(copy_id: str, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
+                        s: Settings = Depends(get_settings), claude: anthropic.Anthropic = Depends(get_claude)):
+    """Runs the automatic price search again for an open copy (ADR-0022)."""
+    _check_id(copy_id)
+    key = store.pdf_key(EINGANG, copy_id)
+    side_key = store.sidecar_key(EINGANG, copy_id)
+    if not store.exists(key) or not store.exists(side_key):
+        raise HTTPException(404)
+    if store.get_tags(key).get("status") not in REVIEWABLE:
+        raise HTTPException(409, "Nur offene oder fehlerhafte Exemplare")
+    side = store.read_json(side_key)
+    hint = marktpreis.suggest(claude, side["vorschlag"], cfg, s.anthropic_model)
+    if hint is None:
+        return RedirectResponse(f"/review/{copy_id}?fehler=" + quote_plus(
+            "Keine passenden Angebote gefunden. Bitte von Hand über die Links suchen."), status_code=303)
+    side["preis_vorschlag"] = hint
+    side["preis_suche"] = _utc()
+    store.write_json(side_key, side)
+    return RedirectResponse(f"/review/{copy_id}", status_code=303)
 
 
 @app.post("/review/{copy_id}/neu-erkennen", dependencies=[Depends(require_reviewer)])

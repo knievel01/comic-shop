@@ -64,6 +64,13 @@ suchlinks:
   Booklooker: https://www.booklooker.de/B%C3%BCcher/Angebote/titel={q}
   GCD: https://www.comics.org/searchNew/?q={q}
 
+# Automatischer Preisvorschlag (ADR-0022): Median gebrauchter Angebote bei Booklooker/ZVAB, gefunden per
+# Anthropic-Websuche (kein eigener Abruf dieser Seiten, ADR-0017). Aus = nur Coverpreis-Vorschlag.
+marktpreis:
+  aktiv: true
+  min_angebote: 2     # weniger belegte Angebote -> kein Vorschlag
+  max_suchen: 4       # Websuchen je Comic (Kostenbremse)
+
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
   # PoC im echten Shop (ADR-0021): DRAFT, bis der Ablauf geprüft ist.

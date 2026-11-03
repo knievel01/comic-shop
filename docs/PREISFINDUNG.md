@@ -35,6 +35,12 @@ die Trefferquote später auswerten lässt.
 > Preis als Z1 ein, dazu als **Beleg** den Link auf das Angebot (Pflicht). Aufschlag für diese Quelle
 > 1,0 (`aufschlag_je_quelle`), weil Angebote schon Endkundenpreise sind. Kein automatischer Abruf:
 > Booklooker sperrt Programme per `robots.txt`. Zielbetrieb: `standard_preisquelle: comicguide`.
+>
+> **Automatischer Vorschlag (ADR-0022):** Bei der Erkennung sucht die Anthropic-Websuche gebrauchte
+> Angebote bei Booklooker und ZVAB (der Dienst ruft die Seiten nicht selbst ab). Der **Median** der
+> gefundenen Preise (ohne Versand, mindestens 2 Angebote) füllt Preis, Beleg-Link und die Notiz vor.
+> Die Notiz nennt Datum, alle Preise, Vorgehen und Links. Ändern geht jederzeit, der Knopf „Preis
+> automatisch neu suchen“ wiederholt die Suche. Schalter und Grenzen: `marktpreis` in `pricing.yaml`.
 
 - **Noch lieferbar:** Claude liest Coverpreis, Währung und Jahr. Ist der Preis in Euro und das Heft
   höchstens 3 Jahre alt (`coverpreis.max_alter_jahre`), ist Z1 mit Coverpreis × 2/3 vorausgefüllt,
