@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Comic hochladen{% endblock %}
 {% block head %}
-<style>form.upload { background:#fff; border:1px solid var(--line); border-radius:.5rem; padding:1rem 1.2rem; max-width:40rem; }</style>
+<style>
+  form.upload { background:var(--paper); border:var(--panel); box-shadow:var(--pop); padding:.4rem 1.4rem 1.4rem; max-width:40rem; }
+  main > p { max-width:40rem; font-size:1.1rem; }
+</style>
 {% endblock %}
 {% block body %}
 <h1>Comic hochladen</h1>

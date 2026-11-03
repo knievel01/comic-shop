@@ -2,38 +2,98 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{% block title %}Comics prüfen{% endblock %}</title>
 <style>
-  :root { --ink:#1d1d1f; --muted:#6b6b70; --line:#d9d9de; --ok:#1f7a3a; --warn:#a15c00; --bad:#b3261e; --accent:#2350a8; }
-  * { box-sizing: border-box; }
-  body { margin:0; font: 16px/1.45 system-ui, sans-serif; color:var(--ink); background:#f6f6f8; }
-  header { background:#fff; border-bottom:1px solid var(--line); padding:.6rem 1.2rem; display:flex; gap:1rem; align-items:center; }
-  header a { color:var(--accent); text-decoration:none; font-weight:600; }
-  main { padding:1.2rem; max-width:1500px; margin:0 auto; }
-  .badge { display:inline-block; padding:.05rem .5rem; border-radius:1rem; font-size:.8rem; font-weight:600; }
-  .sicher { background:#e3f3e7; color:var(--ok); } .nachkontrolle { background:#fff0d9; color:var(--warn); }
-  .fehler, .status-fehler { background:#fde7e5; color:var(--bad); }
-  h2 { font-size:1rem; margin:1.6rem 0 .4rem; color:var(--muted); font-weight:600; }
-  h2 .badge { font-size:.95rem; margin-right:.3rem; }
-  .status-neu, .status-in-arbeit { background:#ececf0; color:var(--muted); }
-  .zki { background:#efe7fa; color:#5b2a9e; }
-  .status-offen { background:#e4ebfa; color:var(--accent); } .status-bestaetigt { background:#e3f3e7; color:var(--ok); }
-  table { border-collapse:collapse; width:100%; background:#fff; }
-  th, td { text-align:left; padding:.5rem .7rem; border-bottom:1px solid var(--line); vertical-align:middle; }
-  .msg { padding:.7rem 1rem; border-radius:.4rem; margin-bottom:1rem; }
-  header { flex-wrap:wrap; }
-  @media (max-width: 640px) {
-    header { padding:.55rem .8rem; gap:.9rem; position:sticky; top:0; z-index:5; }
-    header .tagline { display:none; }
-    th, td { padding:.45rem .5rem; }
+  /* Fonts are served locally (no external requests): Bangers + Barlow Condensed, SIL OFL 1.1 */
+  @font-face { font-family:"Bangers"; src:url("/review/static/fonts/Bangers-Regular.ttf") format("truetype"); font-display:swap; }
+  @font-face { font-family:"Barlow Condensed"; font-weight:500; src:url("/review/static/fonts/BarlowCondensed-Medium.ttf") format("truetype"); font-display:swap; }
+  @font-face { font-family:"Barlow Condensed"; font-weight:700; src:url("/review/static/fonts/BarlowCondensed-Bold.ttf") format("truetype"); font-display:swap; }
+  @font-face { font-family:"Barlow Condensed"; font-weight:800; src:url("/review/static/fonts/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-display:swap; }
+
+  :root {
+    --ink:#000; --paper:#fff; --red:#e62429; --yellow:#ffd600; --blue:#1d4fd8; --green:#12823b;
+    --muted:#55555c; --line:#000; --soft:#f2f2f2;
+    --ok:var(--green); --warn:#9a5a00; --bad:var(--red); --accent:var(--red);
+    --display:"Bangers", "Impact", "Arial Black", sans-serif;
+    --text:"Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+    --panel:3px solid var(--ink); --pop:6px 6px 0 var(--ink);
+    --dots:radial-gradient(var(--ink) 1.1px, transparent 1.4px) 0 0 / 7px 7px;
+    /* 12-point "POW" starburst */
+    --burst:polygon(50% 0%, 59.3% 15.2%, 75% 6.7%, 75.5% 24.5%, 93.3% 25%, 84.8% 40.7%, 100% 50%, 84.8% 59.3%, 93.3% 75%, 75.5% 75.5%, 75% 93.3%, 59.3% 84.8%, 50% 100%, 40.7% 84.8%, 25% 93.3%, 24.5% 75.5%, 6.7% 75%, 15.2% 59.3%, 0% 50%, 15.2% 40.7%, 6.7% 25%, 24.5% 24.5%, 25% 6.7%, 40.7% 15.2%);
   }
-  .msg.err { background:#fde7e5; color:var(--bad); } .msg.ok { background:#e3f3e7; color:var(--ok); }
+  /* burst with ink outline: outer element ink, ::before the fill (set --fill) */
+  .burst { position:relative; display:grid; place-items:center; clip-path:var(--burst); background:var(--ink); }
+  .burst::before { content:""; position:absolute; inset:4px; clip-path:var(--burst); background:var(--fill, var(--red)); }
+  .burst > * { position:relative; }
+  * { box-sizing:border-box; }
+  html { background:var(--paper); }
+  body { margin:0; font:500 17px/1.4 var(--text); color:var(--ink); background:var(--paper); }
+  a { color:var(--blue); }
+  :focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
+
+  /* masthead: red title panel cut at an angle, halftone fading out to the right */
+  header { position:relative; display:flex; align-items:stretch; gap:1.4rem; flex-wrap:wrap;
+           border-bottom:4px solid var(--ink); background:var(--paper); overflow:hidden; }
+  header::after { content:""; position:absolute; inset:0 0 0 40%; background:var(--dots); opacity:.18;
+                  -webkit-mask:linear-gradient(90deg, transparent, #000); mask:linear-gradient(90deg, transparent, #000); pointer-events:none; }
+  header .marke { display:flex; align-items:center; padding:.35rem 2.6rem .25rem 1.2rem; background:var(--red);
+                  clip-path:polygon(0 0, 100% 0, calc(100% - 1.6rem) 100%, 0 100%);
+                  font:2.1rem/1 var(--display); letter-spacing:.04em; color:var(--paper); text-decoration:none;
+                  text-shadow:2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink); }
+  header nav { display:flex; align-items:center; gap:1.2rem; position:relative; z-index:1; }
+  header nav a { color:var(--ink); text-decoration:none; font-weight:800; font-size:1.15rem; padding:.15rem .1rem;
+                 border-bottom:3px solid transparent; }
+  header nav a:hover, header nav a[aria-current=page] { border-bottom-color:var(--red); }
+  header .tagline { margin-left:auto; align-self:center; padding-right:1.2rem; position:relative; z-index:1;
+                    font:1.25rem var(--display); letter-spacing:.06em; color:var(--ink); }
+
+  main { padding:1.6rem 1.4rem 2rem; max-width:1500px; margin:0 auto; }
+  h1 { font:400 clamp(2.4rem, 5vw, 3.6rem)/1 var(--display); letter-spacing:.03em; margin:.2rem 0 1.2rem;
+       text-shadow:3px 3px 0 var(--yellow); }
+  /* section heads look like comic captions */
+  h2 { display:flex; align-items:center; gap:.6rem; margin:2rem 0 .9rem; font:400 1.6rem/1 var(--display); letter-spacing:.04em; }
+  h2 .zahl { font:800 1rem/1 var(--text); background:var(--ink); color:var(--paper); padding:.25rem .5rem; }
+
+  /* stickers */
+  .badge { display:inline-block; padding:.08rem .5rem; border:2px solid var(--ink); font:800 .85rem/1.3 var(--text);
+           background:var(--paper); color:var(--ink); white-space:nowrap; }
+  h2 .badge { font:400 1.6rem/1.1 var(--display); letter-spacing:.04em; padding:.15rem .7rem .05rem; box-shadow:3px 3px 0 var(--ink); }
+  .sicher, .status-bestaetigt { background:#c9f2d5; }
+  .nachkontrolle { background:var(--yellow); }
+  .fehler, .status-fehler { background:var(--red); color:var(--paper); }
+  .status-neu, .status-in-arbeit { background:var(--soft); }
+  .status-offen { background:var(--yellow); }
+  .zki { background:#e3d4ff; }
+
+  .msg { padding:.8rem 1rem; margin-bottom:1.2rem; border:var(--panel); box-shadow:4px 4px 0 var(--ink); font-weight:700; }
+  .msg.err { background:var(--red); color:var(--paper); } .msg.ok { background:#c9f2d5; }
+
+  /* comic panel: thick ink outline with a hard offset shadow */
+  .panel { background:var(--paper); border:var(--panel); box-shadow:var(--pop); }
+
+  @media (max-width: 640px) {
+    header { position:sticky; top:0; z-index:5; gap:.9rem; }
+    header .marke { font-size:1.55rem; padding:.3rem 2rem .2rem .8rem; }
+    header nav { gap:.9rem; }
+    header nav a { font-size:1.05rem; }
+    header .tagline { display:none; }
+    main { padding:1rem .9rem 1.5rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 {% block head %}{% endblock %}
 </head>
 <body>
-<header><a href="/review/">Offene Comics</a><a href="/review/hochladen">Hochladen</a><span class="tagline" style="color:var(--muted)">Scannen → Prüfen → Shop</span></header>
+{% set pfad = request.url.path %}
+<header>
+  <a class="marke" href="/review/">Comics prüfen</a>
+  <nav>
+    <a href="/review/"{% if pfad == '/review/' %} aria-current="page"{% endif %}>Offene Comics</a>
+    <a href="/review/hochladen"{% if pfad == '/review/hochladen' %} aria-current="page"{% endif %}>Hochladen</a>
+  </nav>
+  <span class="tagline">Scannen → Prüfen → Shop</span>
+</header>
 <main>{% block body %}{% endblock %}</main>
 </body>
 </html>

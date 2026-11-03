@@ -2,49 +2,83 @@
 {% block title %}{{ v.titel }} {{ v.ausgabe }} – prüfen{% endblock %}
 {% block head %}
 <style>
-  .grid { display:grid; grid-template-columns: minmax(0,1.4fr) minmax(360px,1fr); gap:1.2rem; }
-  .pics { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
-  .pics img { width:100%; background:#fff; border:1px solid var(--line); cursor:zoom-in; }
-  .pics img.zoom { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:rgba(0,0,0,.9); z-index:9; cursor:zoom-out; }
-  form { background:#fff; border:1px solid var(--line); border-radius:.5rem; padding:1rem 1.2rem; }
-  label { display:block; font-size:.85rem; color:var(--muted); margin-top:.7rem; }
-  input, select, textarea { width:100%; font:inherit; padding:.45rem .55rem; border:1px solid var(--line); border-radius:.35rem; }
-  .row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
-  .row3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:.7rem; }
-  fieldset { border:1px solid var(--line); border-radius:.4rem; margin:.9rem 0 0; padding:.3rem .8rem .8rem; }
-  .zustand label { display:flex; gap:.5rem; align-items:flex-start; color:var(--ink); font-size:.95rem; cursor:pointer; }
-  .zustand input { width:auto; margin-top:.25rem; }
-  .zustand small { color:var(--muted); display:block; }
-  .price { font-size:2rem; font-weight:700; margin:.3rem 0; }
-  .calc { color:var(--muted); font-size:.85rem; }
-  .links a { margin-right:.8rem; }
-  button { margin-top:1rem; width:100%; padding:.8rem; font:inherit; font-weight:700; color:#fff; background:var(--accent); border:0; border-radius:.4rem; cursor:pointer; }
-  .hint { font-size:.85rem; color:var(--warn); }
-  .links { display:flex; flex-wrap:wrap; gap:.4rem; }
-  .links a { margin:0; padding:.35rem .7rem; border:1px solid var(--line); border-radius:1rem; text-decoration:none; color:var(--accent); background:#fff; }
-  .zustand label { padding:.45rem .5rem; border-radius:.4rem; }
-  .zustand label:has(input:checked) { background:#e4ebfa; }
-  .absenden { position:sticky; bottom:0; display:flex; align-items:center; gap:.8rem; background:#fff;
-              margin:1rem -1.2rem -1rem; padding:.7rem 1.2rem; border-top:1px solid var(--line); border-radius:0 0 .5rem .5rem; }
-  .absenden button { margin:0; flex:1; }
-  .absenden .mini { font-size:1.25rem; font-weight:700; white-space:nowrap; }
+  .grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(360px,1fr); gap:2rem; align-items:start; }
+  .grid > section { position:sticky; top:1rem; }  /* pictures stay in view while scrolling the form */
+  /* cover and back as two comic panels with caption boxes */
+  .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
+  .pics figure { margin:0; position:relative; border:var(--panel); box-shadow:var(--pop); background:var(--paper); }
+  .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); border:solid var(--ink); border-width:0 3px 3px 0;
+                     padding:.15rem .6rem .05rem; font:1.15rem var(--display); letter-spacing:.05em; }
+  .pics img { width:100%; display:block; cursor:zoom-in; }
+  .pics img.zoom { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:rgba(0,0,0,.92); z-index:9; cursor:zoom-out; }
+  .kopf { display:flex; flex-wrap:wrap; gap:.4rem .6rem; align-items:center; margin:1.4rem 0 .4rem; color:var(--muted); font-size:.95rem; }
+  .kopf code { font:inherit; color:var(--ink); }
+  /* what the AI says is set as speech bubbles */
+  .sprechblase { position:relative; margin:1.4rem 0 1.1rem; padding:.75rem 1rem; border:var(--panel); border-radius:1.4rem;
+                 background:var(--paper); font-size:1.05rem; line-height:1.35; }
+  .sprechblase::before, .sprechblase::after { content:""; position:absolute; left:2.2rem; border-style:solid; }
+  .sprechblase::before { bottom:-1.25rem; border-width:1.25rem 1.25rem 0 0; border-color:var(--ink) transparent transparent; }
+  .sprechblase::after { bottom:-.8rem; left:calc(2.2rem + 3px); border-width:.85rem .85rem 0 0; border-color:var(--paper) transparent transparent; }
+  .sprechblase strong { font:1.2rem/1 var(--display); letter-spacing:.05em; margin-right:.35rem; }
+  .sprechblase small { display:block; margin-top:.3rem; }
+
+  form#f { background:var(--paper); border:var(--panel); border-width:4px; box-shadow:10px 10px 0 var(--ink); padding:1rem 1.3rem 1.2rem; }
+  form#f > h2:first-child { margin:0 0 .4rem; font-size:2rem; }
+  label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
+  input, select, textarea { width:100%; font:500 1.05rem var(--text); color:var(--ink); padding:.45rem .6rem; margin-top:.15rem;
+                            border:2px solid var(--ink); border-radius:0; background:var(--paper); }
+  input:focus, select:focus, textarea:focus { background:#fffbe0; outline:3px solid var(--blue); outline-offset:0; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+  .row3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:.8rem; }
+  fieldset { border:var(--panel); margin:1.3rem 0 0; padding:.4rem .9rem .9rem; }
+  legend { font:1.45rem/1 var(--display); letter-spacing:.05em; padding:.15rem .55rem .05rem; background:var(--ink); color:var(--paper); }
+  .zustand { display:grid; gap:.5rem; }
+  .zustand label { display:flex; gap:.6rem; align-items:flex-start; margin:0; padding:.55rem .65rem; font-weight:500; font-size:1rem;
+                   border:2px solid var(--ink); cursor:pointer; transition:transform .1s, box-shadow .1s; }
+  .zustand label:hover { background:var(--soft); }
+  .zustand label:has(input:checked) { background:var(--yellow); box-shadow:4px 4px 0 var(--ink); transform:translate(-2px, -2px); }
+  .zustand input { width:auto; margin:.2rem 0 0; accent-color:var(--red); transform:scale(1.25); }
+  .zustand strong { font-weight:800; font-size:1.08rem; }
+  .zustand small { color:var(--muted); display:block; line-height:1.3; }
+  .zustand label:has(input:checked) small { color:var(--ink); }
+  /* the price is the sound effect of the page */
+  .ergebnis { display:flex; align-items:center; gap:1rem; margin:1rem 0 .3rem; }
+  .price { flex:none; width:11rem; height:8.5rem; --fill:var(--red); font:2.3rem/1 var(--display); letter-spacing:.03em;
+           color:var(--paper); text-shadow:2px 2px 0 var(--ink); transform:rotate(-4deg); }
+  .calc { color:var(--muted); font-size:.95rem; }
+  .hint { font-size:.95rem; color:var(--bad); font-weight:700; }
+  .links { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+  .links a { padding:.25rem .7rem; border:2px solid var(--ink); text-decoration:none; color:var(--ink); font-weight:800; background:var(--paper); }
+  .links a:hover { background:var(--yellow); }
+  button { margin-top:1rem; width:100%; padding:.7rem .8rem .55rem; font:1.5rem/1 var(--display); letter-spacing:.05em; cursor:pointer;
+           color:var(--paper); background:var(--red); border:var(--panel); text-shadow:1px 1px 0 var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  button:active { transform:translate(3px, 3px); box-shadow:1px 1px 0 var(--ink); }
+  button.zweit { width:auto; background:var(--paper); color:var(--ink); text-shadow:none; font-size:1.2rem; }
+  .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink);
+              margin:1.2rem -1.3rem -1.2rem; padding:.7rem 1.3rem; }
+  .absenden button { margin:0; flex:1; border-color:var(--paper); box-shadow:3px 3px 0 var(--yellow); }
+  .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--yellow); white-space:nowrap; }
   /* tablets and phones: one column, pictures first */
   @media (max-width: 900px) {
     .grid { grid-template-columns:1fr; }
+    .grid > section { position:static; }
   }
   /* phones */
   @media (max-width: 560px) {
-    main { padding:.7rem; }
-    form { padding:.8rem .9rem; }
-    .absenden { margin:1rem -.9rem -.8rem; padding:.6rem .9rem calc(.6rem + env(safe-area-inset-bottom)); }
+    .pics { gap:.8rem; }
+    .pics figure { box-shadow:4px 4px 0 var(--ink); }
+    form#f { padding:.8rem .9rem 1rem; box-shadow:6px 6px 0 var(--ink); border-width:3px; }
+    fieldset { padding:.3rem .65rem .75rem; }
+    .absenden { margin:1.2rem -.9rem -1rem; padding:.6rem .9rem calc(.6rem + env(safe-area-inset-bottom)); }
     .row { grid-template-columns:1fr; }
     .row3 { grid-template-columns:1fr 1fr; }
     .row3 > div:first-child { grid-column:1 / -1; }
     input, select, textarea { min-height:2.75rem; font-size:16px; }  /* 16px: no zoom-in on iOS */
-    .zustand input { min-height:0; transform:scale(1.3); margin:.35rem .3rem 0 .2rem; }
-    .zustand label { padding:.6rem .5rem; }
-    .price { font-size:1.6rem; }
-    .calc { font-size:.8rem; }
+    .zustand input { min-height:0; }
+    .ergebnis { flex-direction:column; align-items:flex-start; }
+    .price { width:9.5rem; height:7.4rem; font-size:2rem; }
+    .absenden .mini { font-size:1.6rem; }
+    .absenden button { font-size:1.25rem; }
   }
 </style>
 {% endblock %}
@@ -53,16 +87,16 @@
 <div class="grid">
   <section>
     <div class="pics">
-      <img src="/review/bild/{{ id }}/1" alt="Cover" onclick="this.classList.toggle('zoom')">
-      <img src="/review/bild/{{ id }}/2" alt="Rückseite" onclick="this.classList.toggle('zoom')">
+      <figure><figcaption>Cover</figcaption><img src="/review/bild/{{ id }}/1" alt="Cover" onclick="this.classList.toggle('zoom')"></figure>
+      <figure><figcaption>Rückseite</figcaption><img src="/review/bild/{{ id }}/2" alt="Rückseite" onclick="this.classList.toggle('zoom')"></figure>
     </div>
     {% set status = tags.get('status', 'neu') %}
-    <p class="calc">Exemplar {{ id }} · gescannt {{ side.gescannt_am|lokalzeit }} ·
-      Status <span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> ·
-      KI <span class="badge {{ side.ki_status }}">{{ side.ki_status }}</span> ({{ '%.0f' % (side.konfidenz * 100) }} %)</p>
-    {% if side.vorschlag.auffaelligkeiten %}<p><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
+    <p class="kopf"><span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span>
+      <span class="badge {{ side.ki_status }}">KI {{ side.ki_status }} {{ '%.0f' % (side.konfidenz * 100) }} %</span>
+      <span>gescannt {{ side.gescannt_am|lokalzeit }}</span><span>Exemplar <code>{{ id[:8] }}</code></span></p>
+    {% if side.vorschlag.auffaelligkeiten %}<p class="sprechblase"><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}
     {% set zki = side.vorschlag.get('zustand_ki') %}
-    <p id="ki-zustand"><strong>KI-Zustandsempfehlung:</strong>
+    <p id="ki-zustand" class="sprechblase"><strong>KI-Zustandsempfehlung:</strong>
       {% if zki is not none and zki in cfg.zustaende %}<span class="badge zki">{{ zki }} – {{ cfg.zustaende[zki].bezeichnung }}</span>
         {% if side.vorschlag.zustand_ki_begruendung %}{{ side.vorschlag.zustand_ki_begruendung }}{% endif %}
         <small class="calc">Nur nach den Bildern; den Zustand bitte am Exemplar prüfen.</small>
@@ -72,12 +106,13 @@
     <form method="post" action="/review/{{ id }}/neu-erkennen" style="background:none;border:0;padding:0">
       <p class="calc">Scan unbrauchbar (z. B. falsche Seitenzahl)? Neu scannen und dieses Exemplar ignorieren.
       Nur vorübergehender Fehler? Dann erneut erkennen lassen:</p>
-      <button type="submit" style="width:auto;padding:.5rem 1rem;background:#6b6b70">Erneut erkennen</button>
+      <button type="submit" class="zweit">Erneut erkennen</button>
     </form>
     {% endif %}
   </section>
 
   <form method="post" action="/review/{{ id }}" id="f">
+    <h2>Angaben prüfen</h2>
     <div class="row3">
       <div><label>Titel</label><input name="titel" value="{{ v.titel }}" required></div>
       <div><label>Ausgabe</label><input name="ausgabe" value="{{ v.ausgabe }}"></div>
@@ -118,8 +153,8 @@
       {% elif preis_vorschlag %}<p class="calc">Vorschlag aus Coverpreis: Z1 {{ '%.2f' % preis_vorschlag.basis_z1 }} € ({{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar){% if not prefill %}, Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
       {% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
       <p class="calc">Kein Comicguide-Eintrag? Gedruckten Katalog prüfen, Quelle „katalog“.</p>
-      <div class="price" id="preis">–</div>
-      <div class="calc" id="rechnung"></div>
+      <div class="ergebnis"><div class="price burst" aria-live="polite"><span id="preis">–</span></div>
+        <div class="calc" id="rechnung"></div></div>
       <label>Endpreis überschreiben (optional, €)</label>
       <input name="preis_override" id="override" inputmode="decimal" placeholder="leer = berechneter Preis">
     </fieldset>

@@ -442,3 +442,8 @@ def test_condition_prompt_uses_scale_from_config():
     from comic_helper.recognition import system_prompt
     p = system_prompt(load_pricing()["zustaende"])
     assert "zustand_empfehlung" in p and "- 1 sehr gut: Gelesen, aber sehr gepflegt." in p
+
+
+def test_review_fonts_are_served_locally(env):
+    r = env.client.get("/review/static/fonts/Bangers-Regular.ttf")
+    assert r.status_code == 200 and len(r.content) > 10_000

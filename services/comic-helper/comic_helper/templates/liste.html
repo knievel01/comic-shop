@@ -1,37 +1,55 @@
 {% extends "base.html" %}
 {% block head %}
 <style>
-  main { padding-bottom:6rem; }
-  .plus { position:fixed; right:1.5rem; bottom:1.5rem; width:4.2rem; height:4.2rem; border-radius:50%; border:0;
-          background:var(--accent); color:#fff; font-size:2.6rem; line-height:1; cursor:pointer;
-          box-shadow:0 4px 14px rgba(0,0,0,.25); }
-  .plus:hover { filter:brightness(1.1); }
-  dialog.hochladen { border:0; border-radius:.6rem; padding:1.2rem 1.4rem; width:min(36rem, calc(100vw - 2rem)); box-shadow:0 10px 40px rgba(0,0,0,.3); }
-  dialog.hochladen::backdrop { background:rgba(0,0,0,.4); }
-  dialog.hochladen h2 { margin:0 0 .3rem; color:var(--ink); font-size:1.2rem; }
-  td.c-bild img { display:block; }
-  /* phones: each copy becomes a card (picture left, title and details right) */
+  main { padding-bottom:7rem; }
+  /* every copy is a comic panel: cover on top, caption below */
+  ul.faelle { list-style:none; margin:0; padding:0; display:grid; gap:1.6rem 1.4rem;
+              grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); }
+  .fall { position:relative; display:flex; flex-direction:column; transition:transform .12s, box-shadow .12s; }
+  .fall:has(a.ganz):hover { transform:translate(-3px, -3px); box-shadow:9px 9px 0 var(--ink); }
+  .fall .bild { aspect-ratio:3 / 4; border-bottom:var(--panel); overflow:hidden; background:var(--dots), var(--soft); }
+  .fall .bild img { width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
+  .fall .bild .leer { display:grid; place-items:center; height:100%; font:1.5rem var(--display); letter-spacing:.05em; }
+  .fall .bild .leer span { background:var(--paper); border:var(--panel); padding:.2rem .7rem .1rem; }
+  .fall .nr { position:absolute; top:-.9rem; left:-.9rem; width:3.6rem; height:3.6rem; --fill:var(--red);
+              font:1.35rem/1 var(--display); color:var(--paper); text-shadow:1px 1px 0 var(--ink); }
+  .fall .ki { position:absolute; top:.6rem; right:.6rem; }
+  .fall .text { padding:.55rem .7rem .7rem; display:flex; flex-direction:column; gap:.15rem; flex:1; }
+  .fall .titel { font:800 1.2rem/1.15 var(--text); color:var(--ink); text-decoration:none; }
+  .fall .untertitel { font-weight:700; }
+  .fall .meta { margin-top:auto; padding-top:.3rem; display:flex; justify-content:space-between; gap:.5rem;
+                color:var(--muted); font-size:.92rem; }
+  .fall .meta .verlag { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fall a.ganz::after { content:""; position:absolute; inset:0; }  /* whole panel clickable */
+  .leerzustand { padding:1.2rem 1.4rem; max-width:34rem; font-size:1.15rem; }
+
+  /* "+" as a starburst sound effect */
+  .plus { position:fixed; right:1.4rem; bottom:calc(1.4rem + env(safe-area-inset-bottom)); z-index:6;
+          width:5.4rem; height:5.4rem; padding:0; border:0; background:none; cursor:pointer;
+          filter:drop-shadow(4px 4px 0 var(--ink)); transition:transform .12s; }
+  .plus .burst { width:100%; height:100%; --fill:var(--yellow); font:3.2rem/1 var(--display); color:var(--red);
+                 text-shadow:2px 2px 0 var(--ink); }
+  .plus:hover { transform:rotate(-12deg) scale(1.06); }
+  .plus:focus-visible { outline:none; } .plus:focus-visible .burst { --fill:#fff27a; }
+
+  dialog.hochladen { border:var(--panel); border-width:4px; box-shadow:10px 10px 0 var(--ink); border-radius:0;
+                     padding:0; width:min(36rem, calc(100vw - 2rem)); }
+  dialog.hochladen::backdrop { background:var(--dots), rgba(255,255,255,.55); }
+  dialog.hochladen h2 { margin:0; padding:.6rem 1.2rem .45rem; background:var(--yellow); border-bottom:var(--panel);
+                        font-size:1.8rem; }
+  dialog.hochladen form { padding:.2rem 1.2rem 1.2rem; }
+  dialog[open] { animation:aufpoppen .16s ease-out; }
+  @keyframes aufpoppen { from { transform:scale(.92) rotate(-1.5deg); opacity:0; } }
+
   @media (max-width: 640px) {
-    main { padding:.7rem; }
-    h1 { font-size:1.4rem; margin:.4rem 0; }
-    table.faelle thead { display:none; }
-    table.faelle, table.faelle tbody { display:block; }
-    table.faelle tr { display:grid; grid-template-columns:auto auto 1fr; column-gap:.8rem; row-gap:.15rem; align-items:center;
-                      grid-template-areas:"bild titel titel" "bild ausgabe verlag" "bild ki zeit";
-                      padding:.6rem .7rem; border-bottom:1px solid var(--line); position:relative; }
-    table.faelle td { border:0; padding:0; }
-    table.faelle td.c-bild { grid-area:bild; }
-    table.faelle td.c-bild img { height:84px; }
-    table.faelle td.c-titel { grid-area:titel; font-weight:600; font-size:1.05rem; line-height:1.3; }
-    table.faelle td.c-ausgabe { grid-area:ausgabe; white-space:nowrap; }
-    table.faelle td.c-ausgabe:not(:empty)::before { content:"Nr. "; color:var(--muted); }
-    table.faelle td.c-verlag { grid-area:verlag; color:var(--muted); font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    table.faelle td.c-ki { grid-area:ki; }
-    table.faelle td.c-zeit { grid-area:zeit; color:var(--muted); font-size:.85rem; }
-    table.faelle td.c-titel a { text-decoration:none; }
-    table.faelle td.c-titel a::after { content:""; position:absolute; inset:0; }  /* whole card tappable */
-    .plus { right:1rem; bottom:calc(1rem + env(safe-area-inset-bottom)); }
+    ul.faelle { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1.2rem .9rem; }
+    .fall .nr { width:3rem; height:3rem; font-size:1.1rem; top:-.6rem; left:-.6rem; }
+    .fall .titel { font-size:1.05rem; }
+    .fall .meta { flex-direction:column; gap:0; font-size:.85rem; }
+    .fall .ki .badge { font-size:.75rem; }
+    .plus { right:1rem; bottom:calc(1rem + env(safe-area-inset-bottom)); width:4.8rem; height:4.8rem; }
   }
+  @media (max-width: 340px) { ul.faelle { grid-template-columns:1fr; } }
 </style>
 {% endblock %}
 {% block body %}
@@ -40,26 +58,29 @@
 <h1>Offene Comics ({{ open_count }})</h1>
 {% for status, cases in groups %}
 {% set link = status in reviewable %}
-<h2 id="status-{{ status }}"><span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span> {{ cases|length }}</h2>
-<table class="faelle">
-  <thead><tr><th></th><th>Titel</th><th>Ausgabe</th><th>Verlag</th><th>KI</th><th>Gescannt</th></tr></thead>
-  <tbody>
+<h2 id="status-{{ status }}"><span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span><span class="zahl">{{ cases|length }}</span></h2>
+<ul class="faelle">
   {% for c in cases %}
-    {% set d = details.get(c.id, {}) %}
-    <tr>
-      <td class="c-bild">{% if status in ('offen', 'bestaetigt') %}{% if link %}<a href="/review/{{ c.id }}">{% endif %}<img src="/review/bild/{{ c.id }}/1" alt="" height="70" loading="lazy">{% if link %}</a>{% endif %}{% endif %}</td>
-      <td class="c-titel">{% if link %}<a href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}{% if d.get('untertitel') %} – {{ d.get('untertitel') }}{% endif %}</a>{% else %}{{ d.get('titel') or '–' }}{% if d.get('untertitel') %} – {{ d.get('untertitel') }}{% endif %}{% endif %}</td>
-      <td class="c-ausgabe">{{ d.get('ausgabe', '') }}</td>
-      <td class="c-verlag">{{ d.get('verlag', '') }}</td>
-      <td class="c-ki">{% if c.ki %}<span class="badge {{ c.ki }}">{{ 'sicher' if c.ki == 'sicher' else 'Nachkontrolle' }}</span>{% endif %}</td>
-      <td class="c-zeit">{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</td>
-    </tr>
+  {% set d = details.get(c.id, {}) %}
+  <li class="fall panel">
+    <div class="bild">
+      {% if status in ('offen', 'bestaetigt') %}<img src="/review/bild/{{ c.id }}/1" alt="" loading="lazy">
+      {% else %}<div class="leer"><span>{{ labels.get(status, status) }}</span></div>{% endif %}
+    </div>
+    {% if d.get('ausgabe') %}<div class="nr burst" title="Ausgabe"><span>{{ d.get('ausgabe') }}</span></div>{% endif %}
+    {% if c.ki %}<div class="ki"><span class="badge {{ c.ki }}">{{ 'sicher' if c.ki == 'sicher' else 'Nachkontrolle' }}</span></div>{% endif %}
+    <div class="text">
+      {% if link %}<a class="titel ganz" href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}</a>
+      {% else %}<span class="titel">{{ d.get('titel') or 'Exemplar ' ~ c.id[:8] }}</span>{% endif %}
+      {% if d.get('untertitel') %}<span class="untertitel">{{ d.get('untertitel') }}</span>{% endif %}
+      <div class="meta"><span class="verlag">{{ d.get('verlag', '') }}</span><span>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</span></div>
+    </div>
+  </li>
   {% endfor %}
-  </tbody>
-</table>
-{% else %}<p>Nichts zu tun.</p>
+</ul>
+{% else %}<div class="leerzustand panel">Nichts zu prüfen. Mit dem Plus unten rechts ein neues Comic hochladen.</div>
 {% endfor %}
-<button class="plus" id="plus" type="button" title="Comic hochladen" aria-label="Comic hochladen">+</button>
+<button class="plus" id="plus" type="button" title="Comic hochladen" aria-label="Comic hochladen"><span class="burst"><span>+</span></span></button>
 <dialog class="hochladen" id="dlg-hochladen" aria-labelledby="dlg-titel">
   <h2 id="dlg-titel">Comic hochladen</h2>
   {% with abbrechen=true %}{% include "_hochladen_form.html" %}{% endwith %}

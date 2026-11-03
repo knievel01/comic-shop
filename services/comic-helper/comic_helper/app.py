@@ -33,6 +33,7 @@ from botocore.config import Config
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import pdf, pricing, recognition, report, storage, webhooks
@@ -46,6 +47,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = FastAPI(title="comic-helper", docs_url=None, redoc_url=None)
 _render_slot = threading.Lock()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# Fonts for the review UI, served locally so the pages make no external requests
+app.mount("/review/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 
 def _local_time(value: datetime | str | None, fmt: str = "%d.%m.%Y %H:%M") -> str:
