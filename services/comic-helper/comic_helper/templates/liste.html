@@ -11,9 +11,11 @@
   .fall .bild img { width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
   .fall .bild .leer { display:grid; place-items:center; height:100%; font:1.5rem var(--display); letter-spacing:.05em; }
   .fall .bild .leer span { background:var(--paper); border:var(--strich); padding:.2rem .7rem .1rem; }
-  .fall .nr { position:absolute; top:-.9rem; left:-.9rem; width:3.6rem; height:3.6rem; --fill:var(--red);
+  .fall .nr { position:absolute; top:-.9rem; right:-.9rem; width:3.6rem; height:3.6rem; --fill:var(--red);
               font:1.35rem/1 var(--display); color:var(--paper); text-shadow:1px 1px 0 var(--ink); }
-  .fall .ki { position:absolute; top:.6rem; right:.6rem; }
+  /* AI tag sits flush in the top left corner, like the figcaptions on the review page */
+  .fall .ki { position:absolute; top:0; left:0; }
+  .fall .ki .badge { display:block; border-width:0 2px 2px 0; }
   .fall .text { padding:.55rem .7rem .7rem; display:flex; flex-direction:column; gap:.15rem; flex:1; }
   .fall .titel, .fall .untertitel { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
   .fall .titel { font:800 1.2rem/1.15 var(--text); color:var(--ink); text-decoration:none; }
@@ -35,7 +37,7 @@
 
   dialog.hochladen { border:var(--strich); box-shadow:var(--schweben); border-radius:0;
                      padding:0; width:min(36rem, calc(100vw - 2rem)); }
-  dialog.hochladen::backdrop { background:var(--dots), rgba(255,255,255,.55); }
+  dialog.hochladen::backdrop { background:var(--dots), rgba(239,226,194,.6); }
   dialog.hochladen h2 { margin:0; padding:.6rem 1.2rem .45rem; background:var(--yellow); border-bottom:var(--strich);
                         font-size:1.8rem; }
   dialog.hochladen form { padding:.2rem 1.2rem 1.2rem; }
@@ -44,7 +46,7 @@
 
   @media (max-width: 640px) {
     ul.faelle { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1.2rem .9rem; }
-    .fall .nr { width:3rem; height:3rem; font-size:1.1rem; top:-.6rem; left:-.6rem; }
+    .fall .nr { width:3rem; height:3rem; font-size:1.1rem; top:-.6rem; right:-.6rem; }
     .fall .titel { font-size:1.05rem; }
     .fall .meta { font-size:.85rem; }
     .fall .ki .badge { font-size:.75rem; }

@@ -12,8 +12,12 @@
   @font-face { font-family:"Barlow Condensed"; font-weight:800; src:url("/review/static/fonts/BarlowCondensed-ExtraBold.ttf") format("truetype"); font-display:swap; }
 
   :root {
-    --ink:#000; --paper:#fff; --red:#e62429; --yellow:#ffd600; --blue:#1d4fd8; --green:#12823b;
-    --muted:#55555c; --line:#000; --soft:#f2f2f2;
+    --ink:#000; --red:#e62429; --yellow:#ffd600; --blue:#1d4fd8; --green:#12823b;
+    /* slightly yellowed newsprint: the page is darker, panels are the less aged paper inside */
+    --seite:#efe2c2; --paper:#fbf5e5; --muted:#5e5446; --line:#000; --soft:#ebdfc1;
+    /* paper fibres: tiled SVG noise, warm brown, low alpha */
+    --faser:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .32 0 0 0 0 .14 .55 0 0 0 -.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --flecken:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .4 0 0 0 0 .12 .45 0 0 0 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
     --ok:var(--green); --warn:#9a5a00; --bad:var(--red); --accent:var(--red);
     --display:"Bangers", "Impact", "Arial Black", sans-serif;
     --text:"Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -34,14 +38,18 @@
   .burst::before { content:""; position:absolute; inset:3px; clip-path:var(--burst); background:var(--fill, var(--red)); }
   .burst > * { position:relative; }
   * { box-sizing:border-box; }
-  html { background:var(--paper); }
-  body { margin:0; font:500 17px/1.4 var(--text); color:var(--ink); background:var(--paper); }
+  html { background:var(--seite); }
+  body { margin:0; font:500 17px/1.4 var(--text); color:var(--ink); background:transparent; }  /* page colour lives on html, paper layer in between */
+  /* fixed paper layer: fibres, uneven yellowing, edges browned like an old comic page */
+  body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+                 background:var(--faser), var(--flecken),
+                   radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(140,95,30,.18) 100%); }
   a { color:var(--blue); }
   :focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
 
   /* masthead: red title panel cut at an angle, halftone fading out to the right */
   header { position:relative; display:flex; align-items:stretch; gap:1.4rem; flex-wrap:wrap;
-           border-bottom:var(--strich); background:var(--paper); overflow:hidden; }
+           border-bottom:var(--strich); background:var(--faser), var(--seite); overflow:hidden; }
   header::after { content:""; position:absolute; inset:0 0 0 40%; background:var(--dots); opacity:.18;
                   -webkit-mask:linear-gradient(90deg, transparent, #000); mask:linear-gradient(90deg, transparent, #000); pointer-events:none; }
   header .marke { display:flex; align-items:center; padding:.35rem 2.6rem .25rem 1.2rem; background:var(--red);
@@ -59,7 +67,7 @@
   h1 { font:400 clamp(2.4rem, 5vw, 3.6rem)/1 var(--display); letter-spacing:.03em; margin:.2rem 0 1.2rem;
        text-shadow:3px 3px 0 var(--yellow); }
   /* section heads look like comic captions */
-  h2 { display:flex; align-items:center; gap:.6rem; margin:2rem 0 .9rem; font:400 1.6rem/1 var(--display); letter-spacing:.04em; }
+  h2 { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; margin:2rem 0 .9rem; font:400 1.6rem/1 var(--display); letter-spacing:.04em; }
   h2 .zahl { font:800 1rem/1 var(--text); background:var(--ink); color:var(--paper); padding:.25rem .5rem; }
 
   /* stickers */
@@ -77,7 +85,7 @@
   .msg { padding:.8rem 1rem; margin-bottom:1.2rem; border:var(--strich); font-weight:700; }
   .msg.err { background:var(--red); color:var(--paper); } .msg.ok { background:#c9f2d5; }
 
-  .panel { background:var(--paper); border:var(--strich); }
+  .panel { background:var(--faser), var(--paper); border:var(--strich); }
 
   @media (max-width: 640px) {
     header { position:sticky; top:0; z-index:5; gap:.9rem; }

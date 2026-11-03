@@ -24,12 +24,12 @@
 
   /* the form is a stack of three colored sections, no outer frame */
   form#f { display:grid; gap:1.4rem; }
-  .abschnitt { position:relative; border:var(--strich); padding:1.5rem 1.2rem 1.1rem; background:var(--tint, var(--paper)); }
+  .abschnitt { position:relative; border:var(--strich); padding:1.5rem 1.2rem 1.1rem; background:var(--faser), var(--tint, var(--paper)); }
   .abschnitt > h2 { position:absolute; top:-1rem; left:.9rem; margin:0; padding:.2rem .7rem .05rem; font-size:1.45rem;
                     background:var(--reiter); color:var(--reiter-text, var(--paper)); border:var(--strich); }
-  .angaben { --tint:#e6eeff; --reiter:var(--blue); }
+  .angaben { --tint:color-mix(in srgb, var(--blue) 11%, var(--paper)); --reiter:var(--blue); }
   .zustand { --tint:var(--paper); --reiter:var(--yellow); --reiter-text:var(--ink); }
-  .preis   { --tint:#ffe4e2; --reiter:var(--red); }
+  .preis   { --tint:color-mix(in srgb, var(--red) 11%, var(--paper)); --reiter:var(--red); }
   label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
   label small { font-weight:500; color:var(--muted); }
   input, select, textarea { width:100%; font:500 1.05rem var(--text); color:var(--ink); padding:.45rem .6rem; margin-top:.15rem;
@@ -42,7 +42,7 @@
   /* condition: compact rows, the help text of the chosen level shows below */
   .stufen { display:grid; border:var(--strich); }
   .stufe { display:flex; align-items:center; gap:.75rem; margin:0; padding:.45rem .7rem; font-weight:700; font-size:1.08rem; cursor:pointer; }
-  .stufe + .stufe { border-top:1px solid #c9c9c9; }
+  .stufe + .stufe { border-top:1px solid rgba(0,0,0,.18); }
   .stufe:hover { background:var(--soft); }
   .stufe:has(input:checked) { background:var(--yellow); }
   .stufe input { position:absolute; opacity:0; width:1px; height:1px; }
