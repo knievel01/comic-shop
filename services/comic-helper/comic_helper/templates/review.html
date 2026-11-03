@@ -68,6 +68,11 @@
            color:var(--paper); background:var(--red); border:var(--strich); text-shadow:1px 1px 0 var(--ink); box-shadow:var(--druck); }
   button:active { transform:translate(3px, 3px); box-shadow:var(--gedrueckt); }
   button.zweit { width:auto; background:var(--paper); color:var(--ink); text-shadow:none; font-size:1.2rem; }
+  .entwurf { margin:0; padding:.55rem .8rem; background:var(--yellow); border:var(--strich); font-weight:700;
+             display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .8rem; }
+  .entwurf[hidden] { display:none; }
+  .entwurf button { width:auto; margin:0; padding:.15rem .6rem; font:800 1rem var(--text); letter-spacing:0;
+                    background:var(--paper); color:var(--ink); text-shadow:none; box-shadow:none; }
   .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink); padding:.7rem 1rem; }
   .absenden button { margin:0; flex:1; border-color:var(--paper); box-shadow:3px 3px 0 var(--yellow); }
   .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--yellow); white-space:nowrap; }
@@ -123,6 +128,7 @@
   </section>
 
   <form method="post" action="/review/{{ id }}" id="f">
+    <p class="entwurf" id="entwurf" hidden><span></span> <button type="button" id="entwurf-weg">Verwerfen</button></p>
     <section class="abschnitt angaben">
       <h2>Angaben</h2>
       <div class="row3">
@@ -209,7 +215,7 @@ function show() {
   const z = document.querySelector("input[name=zustand]:checked");
   const basis = num(document.getElementById("basis").value), ov = num(document.getElementById("override").value);
   const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
-  if (z) document.getElementById("stufe-hilfe").textContent = z.dataset.hilfe;
+  document.getElementById("stufe-hilfe").textContent = z ? z.dataset.hilfe : HILFE_LEER;
   if (ov) { out.textContent = eur(ov); calc.textContent = "manuell überschrieben"; return; }
   if (!z || !basis) { out.textContent = "?"; calc.textContent = "Zustand und Preis Z1 eingeben"; return; }
   const q = document.getElementById("quelle").value, a = CFG.aufschlag_je_quelle[q] ?? CFG.aufschlag;
@@ -218,8 +224,64 @@ function show() {
   out.textContent = eur(roundShop(raw));
   calc.textContent = `${eur(basis)} × ${f} (Zustand ${z.value}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
 }
-document.getElementById("f").addEventListener("input", update);
+const form = document.getElementById("f");
+const HILFE_LEER = document.getElementById("stufe-hilfe").textContent;
+
+// Clicking the chosen condition again clears it (radios cannot be unchecked otherwise).
+let gewaehlt = form.querySelector("input[name=zustand]:checked")?.value ?? null;
+for (const r of form.querySelectorAll("input[name=zustand]")) {
+  r.addEventListener("click", () => {
+    if (r.value === gewaehlt) { r.checked = false; gewaehlt = null; } else { gewaehlt = r.value; }
+    update(); speichern();
+  });
+}
+
+// Draft in browser storage, per copy: survives reloads and leaving the page without confirming.
+// Only a convenience on this device; the server stores nothing until "Bestätigen".
+const SCHLUESSEL = "comics-entwurf:{{ id }}", MAX_ALTER_MS = 14 * 24 * 3600 * 1000;
+const speicher = (() => { try { const t = "__t"; localStorage.setItem(t, t); localStorage.removeItem(t); return localStorage; } catch { return null; } })();
+function speichern(gesendet = false) {
+  if (!speicher) return;
+  const felder = {};
+  for (const el of form.elements) {
+    if (!el.name || el.type === "submit") continue;
+    if (el.type === "radio") { if (el.checked) felder[el.name] = el.value; else if (!(el.name in felder)) felder[el.name] = null; }
+    else felder[el.name] = el.value;
+  }
+  try { speicher.setItem(SCHLUESSEL, JSON.stringify({ am: Date.now(), gesendet, felder })); } catch {}
+}
+function laden() {
+  if (!speicher) return null;
+  try {
+    for (let i = speicher.length - 1; i >= 0; i--) {  // drop old drafts of other copies
+      const k = speicher.key(i);
+      if (k?.startsWith("comics-entwurf:") && Date.now() - (JSON.parse(speicher.getItem(k))?.am ?? 0) > MAX_ALTER_MS) speicher.removeItem(k);
+    }
+    return JSON.parse(speicher.getItem(SCHLUESSEL));
+  } catch { return null; }
+}
+function verwerfen() { try { speicher?.removeItem(SCHLUESSEL); } catch {} location.reload(); }
+
+const entwurf = laden(), fehlerSeite = {{ 'true' if fehler else 'false' }};
+if (entwurf && entwurf.gesendet && !fehlerSeite) {
+  speicher.removeItem(SCHLUESSEL);  // confirmed earlier: the server's data wins
+} else if (entwurf) {
+  for (const [name, wert] of Object.entries(entwurf.felder)) {
+    const els = form.elements.namedItem(name);
+    if (!els) continue;
+    if (els instanceof RadioNodeList && els[0]?.type === "radio") { for (const r of els) r.checked = r.value === wert; }
+    else els.value = wert ?? "";
+  }
+  gewaehlt = form.querySelector("input[name=zustand]:checked")?.value ?? null;
+  const hinweis = document.getElementById("entwurf");
+  hinweis.querySelector("span").textContent = "Entwurf vom " + new Date(entwurf.am).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) + " wiederhergestellt.";
+  hinweis.hidden = false;
+}
+document.getElementById("entwurf-weg").addEventListener("click", verwerfen);
+
+form.addEventListener("input", () => { update(); speichern(); });
 document.getElementById("quelle").addEventListener("change", update);
+form.addEventListener("submit", () => speichern(true));
 update();
 </script>
 {% endblock %}

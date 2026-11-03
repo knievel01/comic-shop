@@ -436,6 +436,7 @@ def test_condition_recommendation_shown_not_preselected(env):
     assert "KI-Zustandsempfehlung:" in page and "1 – sehr gut" in page and "KI-Empfehlung</span>" in page
     radio = re.search(r'<input type="radio" name="zustand" value="1"[^>]*>', page).group(0)
     assert "checked" not in radio  # recommendation is shown, not preselected
+    assert 'id="entwurf"' in page and "comics-entwurf:" in page  # draft autosave in browser storage
 
 
 def test_condition_prompt_uses_scale_from_config():
