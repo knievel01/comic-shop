@@ -297,10 +297,12 @@ def test_review_reopen_confirmed_copy(env):
     c.post("/api/scans/claim", headers=H)
     c.post(f"/api/scans/{cid}/recognize", headers=H)
     assert c.post(f"/review/{cid}/zurueckholen", follow_redirects=False).status_code == 409  # not confirmed yet
-    c.post(f"/review/{cid}", data=review_form(titel="Asterix Mega"), follow_redirects=False)
+    c.post(f"/review/{cid}", data=review_form(titel="Asterix Mega", preisquelle="booklooker",
+                                              preis_beleg="https://www.booklooker.de/app/detail.php?id=1"), follow_redirects=False)
     assert f'href="/review/{cid}"' in c.get("/review/").text  # confirmed card links to the detail view
     page = c.get(f"/review/{cid}").text
     assert "Zurückholen und ändern" in page and "Bestätigen und in den Shop</button>" not in page
+    assert 'href="https://www.booklooker.de/app/detail.php?id=1"' in page and "Beleg:" in page  # clickable in the locked view
     r = c.post(f"/review/{cid}/zurueckholen", follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == f"/review/{cid}"
     assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"

@@ -55,6 +55,12 @@
   .stufe-hilfe { margin:.7rem 0 0; min-height:2.6em; color:var(--muted); line-height:1.3; }
 
   .vorschlag { margin:.9rem 0 0; padding:.55rem .75rem; background:#fff6c7; border:var(--strich); border-left:6px solid var(--red); font-size:.98rem; line-height:1.35; }
+  .beleg-kopf { display:flex; align-items:flex-end; justify-content:space-between; gap:.6rem; margin-top:.8rem; }
+  .beleg-kopf label { margin-top:0; }
+  .beleg-oeffnen { padding:.05rem .6rem; border:var(--strich); background:var(--yellow); color:var(--ink); font-weight:800;
+                   font-size:.92rem; text-decoration:none; white-space:nowrap; }
+  .beleg-oeffnen[hidden] { display:none; }
+  .gesperrt a { color:var(--ink); font-weight:800; word-break:break-all; }
   .links { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; margin:.9rem 0 0; }
   .links a { padding:.2rem .65rem; border:var(--strich); text-decoration:none; color:var(--ink); font-weight:800; background:var(--paper); }
   .links a:hover { background:var(--yellow); }
@@ -136,7 +142,8 @@
   <form method="post" action="/review/{{ id }}" id="f">
     {% if gesperrt %}<p class="gesperrt">{% if side.get('shopify') %}Schon in Shopify angelegt – Zurückholen ist nicht mehr möglich.
       {% else %}Bestätigt {{ (side.get('entscheidung') or {}).get('am', '')|lokalzeit('am %d.%m. um %H:%M') }}, wartet auf den Shop.
-      Zum Ändern zurückholen; das Comic steht dann wieder unter „Zu prüfen“.{% endif %}</p>{% endif %}
+      Zum Ändern zurückholen; das Comic steht dann wieder unter „Zu prüfen“.{% endif %}
+      {% set beleg = ((side.get('entscheidung') or {}).get('preis') or {}).get('beleg', '') %}{% if beleg.startswith(('https://', 'http://')) %}<br>Beleg: <a href="{{ beleg }}" target="_blank" rel="noopener noreferrer">{{ beleg }}</a>{% endif %}</p>{% endif %}
     <p class="entwurf" id="entwurf" hidden><span></span> <button type="button" id="entwurf-weg">Verwerfen</button></p>
     <section{{ sperre }} class="abschnitt raster angaben">
       <h2>Angaben</h2>
@@ -182,7 +189,8 @@
             {% for p in cfg.preisquellen %}<option {% if p == q %}selected{% endif %}>{{ p }}</option>{% endfor %}
           </select></div>
       </div>
-      <label>Beleg-Link <small>(bei Booklooker Pflicht)</small></label>
+      <div class="beleg-kopf"><label>Beleg-Link <small>(bei Booklooker Pflicht)</small></label>
+        <a id="beleg-link" class="beleg-oeffnen" target="_blank" rel="noopener noreferrer" hidden>Beleg öffnen ↗</a></div>
       <input name="preis_beleg" id="beleg" type="url" maxlength="300" value="{{ v.preis.beleg if v.preis is defined and v.preis.beleg else (preis_vorschlag.beleg if prefill and preis_vorschlag.beleg else '') }}"
         placeholder="{{ links.get('Booklooker', 'https://…') }}">
       {% if preis_vorschlag and preis_vorschlag.quelle != 'coverpreis' %}<p class="vorschlag"><strong>Vorschlag {{ preis_vorschlag.quelle }}: {{ '%.2f' % preis_vorschlag.basis_z1 }} €</strong>{% if preis_vorschlag.hinweis %}<br>{{ preis_vorschlag.hinweis }}{% endif %}</p>
@@ -222,6 +230,9 @@ function roundShop(value) {
 const eur = x => x.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
 function update() {
   show();
+  const beleg = document.getElementById("beleg").value.trim(), link = document.getElementById("beleg-link");
+  link.hidden = !/^https?:\/\//i.test(beleg);  // only real web links become clickable
+  if (!link.hidden) link.href = beleg;
   document.getElementById("preis-mini").textContent = document.getElementById("preis").textContent;
 }
 function show() {
