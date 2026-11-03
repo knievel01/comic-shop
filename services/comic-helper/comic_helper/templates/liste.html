@@ -5,8 +5,7 @@
   /* every copy is a comic panel: cover on top, caption below */
   ul.faelle { list-style:none; margin:0; padding:0; display:grid; gap:1.6rem 1.4rem;
               grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); }
-  /* caption box in dirty white newsprint, a shade apart from the yellowed page */
-  .fall { position:relative; display:flex; flex-direction:column; background:var(--faser), #fdfcf8; transition:transform .12s, box-shadow .12s; }
+  .fall { position:relative; display:flex; flex-direction:column; transition:transform .12s, box-shadow .12s; }
   .fall:has(a.ganz):hover { transform:translate(-3px, -3px); box-shadow:var(--druck); }
   .fall .bild { aspect-ratio:3 / 4; border-bottom:var(--strich); overflow:hidden; background:var(--dots), var(--soft); }
   .fall .bild img { width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
