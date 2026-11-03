@@ -197,6 +197,11 @@ def test_full_lifecycle(env):
     assert meta["preis-quelle"] == "comicguide" and meta["sku"] == sku and meta["shopify-variant-id"]
     assert meta["exemplar-id"] == cid and meta["ki-konfidenz"] == "0.95"
     assert c.post(f"/api/scans/{cid}/finalize", headers=H).json()["bereits_erledigt"] is True
+    # copies in the shop stay visible in their own greyed-out group, read-only and not counted as open
+    page = c.get("/review/").text
+    assert 'id="status-aktiv"' in page and "Im Shop" in page and 'class="fall panel im-shop"' in page
+    assert f'/review/bild/{cid}/1' in page and f'href="/review/{cid}"' not in page
+    assert "Zustand 2 · 5,99 €" in page and "Offene Comics (0)" in page
 
     # sale: exactly this copy moves to verkauft/; duplicate delivery changes nothing
     order = {"id": 1, "name": "#1001", "line_items": [{"sku": sku}, {"sku": "GUTSCHEIN"}]}

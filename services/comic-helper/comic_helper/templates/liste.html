@@ -24,6 +24,10 @@
   .fall .meta .verlag { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fall a.ganz::after { content:""; position:absolute; inset:0; }  /* whole panel clickable */
   .fall .meta .entwurf-info { color:var(--ink); font-weight:800; }
+  /* copies already in the shop: still visible, but clearly out of the work queue */
+  .fall.im-shop { filter:grayscale(1); opacity:.6; }
+  .fall.im-shop:hover { opacity:.85; }
+  .fall .meta .shop-info { color:var(--ink); font-weight:800; }
   .leerzustand { padding:1.2rem 1.4rem; max-width:34rem; font-size:1.15rem; }
 
   /* "+" as a starburst sound effect */
@@ -66,9 +70,9 @@
 <ul class="faelle">
   {% for c in cases %}
   {% set d = details.get(c.id, {}) %}
-  <li class="fall panel" data-id="{{ c.id }}">
+  <li class="fall panel{% if status == 'aktiv' %} im-shop{% endif %}" data-id="{{ c.id }}">
     <div class="bild">
-      {% if status in ('offen', 'bestaetigt') %}<img src="/review/bild/{{ c.id }}/1" alt="" loading="lazy">
+      {% if status in ('offen', 'bestaetigt', 'aktiv') %}<img src="/review/bild/{{ c.id }}/1" alt="" loading="lazy">
       {% else %}<div class="leer"><span>{{ labels.get(status, status) }}</span></div>{% endif %}
     </div>
     {% if d.get('ausgabe') %}<div class="nr burst" title="Ausgabe"><span>{{ d.get('ausgabe') }}</span></div>{% endif %}
@@ -77,7 +81,7 @@
       {% if link %}<a class="titel ganz" href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}</a>
       {% else %}<span class="titel">{{ d.get('titel') or 'Exemplar ' ~ c.id[:8] }}</span>{% endif %}
       {% if d.get('untertitel') %}<span class="untertitel">{{ d.get('untertitel') }}</span>{% endif %}
-      <div class="meta"><span class="verlag">{{ d.get('verlag', '') }}</span><span>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</span></div>
+      <div class="meta">{% if status == 'aktiv' and d.get('preis') %}<span class="shop-info">Zustand {{ d.get('zustand') }} · {{ ('%.2f' % d.preis.final)|replace('.', ',') }} €</span>{% endif %}<span class="verlag">{{ d.get('verlag', '') }}</span><span>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</span></div>
     </div>
   </li>
   {% endfor %}

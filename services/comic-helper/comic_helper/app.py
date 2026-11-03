@@ -367,6 +367,12 @@ def _open_cases(store: Store) -> list[dict]:
     return cases
 
 
+def _shop_cases(store: Store) -> list[dict]:
+    """Copies already moved to aktiv/ (in Shopify), newest first, for the greyed-out list group."""
+    objs = sorted(store.list_scans(AKTIV), key=lambda o: o.last_modified, reverse=True)[:SHOP_LIST_LIMIT]
+    return [{"id": o.copy_id, "status": "aktiv", "ki": "", "gescannt": o.last_modified} for o in objs]
+
+
 # Status tag -> label for the review UI (lifecycle in storage.py)
 STATUS_LABELS = {
     "neu": "Neu",
@@ -374,10 +380,12 @@ STATUS_LABELS = {
     "offen": "Zu prüfen",
     "bestaetigt": "Bestätigt, wartet auf Shop",
     "fehler": "Fehler",
+    "aktiv": "Im Shop",
 }
 REVIEWABLE = ("offen", "fehler")
 # Group order on the list page: work to do first, then what is still in the pipeline
-GROUP_ORDER = ("offen", "fehler", "bestaetigt", "in-arbeit", "neu")
+GROUP_ORDER = ("offen", "fehler", "bestaetigt", "in-arbeit", "neu", "aktiv")
+SHOP_LIST_LIMIT = 60  # copies already in the shop are shown greyed out, newest first (read-only)
 
 
 def _inbox_cases(store: Store) -> list[dict]:
@@ -398,14 +406,14 @@ def review_root():
 
 @app.get("/review/", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
 def review_list(request: Request, store: Store = Depends(get_store)):
-    cases = _inbox_cases(store)
+    cases = _inbox_cases(store) + _shop_cases(store)
     details = {}
     for c in cases:
-        if c["status"] in ("offen", "bestaetigt"):
+        if c["status"] in ("offen", "bestaetigt", "aktiv"):
             try:
-                side = store.read_json(store.sidecar_key(EINGANG, c["id"]))
+                side = store.read_json(store.sidecar_key(AKTIV if c["status"] == "aktiv" else EINGANG, c["id"]))
                 details[c["id"]] = side.get("entscheidung") or side["vorschlag"]
-            except storage.NotFound:
+            except (storage.NotFound, KeyError):
                 pass
     open_count = sum(c["status"] in REVIEWABLE for c in cases)
     order = list(GROUP_ORDER) + sorted({c["status"] for c in cases} - set(GROUP_ORDER))
