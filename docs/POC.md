@@ -72,7 +72,7 @@ scripts/poc-host-k3s.sh env
 ```
 
 Legt `~/.config/comics/comics.env` (Rechte 600) aus `.env.example` an, erzeugt
-`N8N_ENCRYPTION_KEY`, `POSTGRES_PASSWORD`, `HELPER_TOKEN` und `REVIEW_PASSWORD` zufällig und setzt
+`N8N_ENCRYPTION_KEY`, `POSTGRES_PASSWORD` und `HELPER_TOKEN` zufällig und setzt
 `WEBHOOK_URL` auf `http://localhost:5678/` und `REVIEW_BASE_URL` auf `http://localhost:8080`.
 Bricht ab, wenn die Datei schon existiert, damit der `N8N_ENCRYPTION_KEY` stabil bleibt.
 
@@ -118,8 +118,9 @@ Standardmäßig nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN n
 
 - **n8n:** <http://localhost:5678/>. **Gleich nach dem ersten Deploy** das Owner-Konto anlegen
   (nur für den PoC, nicht das spätere Produktivkonto).
-- **Review-Oberfläche:** <http://localhost:8080/review/>, HTTP Basic mit beliebigem Benutzernamen
-  und `REVIEW_PASSWORD` aus der Geheimnisdatei.
+- **Review-Oberfläche:** <http://localhost:8080/review/>. Im PoC ohne Anmeldung (`REVIEW_PASSWORD`
+  leer, ADR-0006). Wer ein Passwort will, trägt es in die Geheimnisdatei ein und ruft `deploy` auf;
+  dann HTTP Basic mit beliebigem Benutzernamen.
 - Andere Ports: `N8N_PORT=… HELPER_PORT=… scripts/poc-host-k3s.sh forward` (dann vorher
   `WEBHOOK_URL`/`REVIEW_BASE_URL` in der Datei anpassen und `deploy`).
 - Logs: `kubectl -n comics logs deploy/comic-helper` bzw. `deploy/n8n`.
@@ -130,8 +131,9 @@ Standardmäßig nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN n
 (automatisch ermittelt, sonst `LAN_IP=…`) und zeigt die Adressen an, z. B.
 `http://192.168.40.123:5678/` und `http://192.168.40.123:8080/review/`.
 
-- Nur unverschlüsseltes http: Review-Passwort und n8n-Anmeldung gehen im Klartext durchs WLAN,
-  und jedes Gerät im Netz kann die Seiten aufrufen. Nur im eigenen, vertrauten WLAN verwenden
+- Nur unverschlüsseltes http: die n8n-Anmeldung geht im Klartext durchs WLAN, und jedes Gerät im
+  Netz kann die Seiten aufrufen. Ohne `REVIEW_PASSWORD` kann es auch Comics prüfen, bestätigen und
+  hochladen. Nur im eigenen, vertrauten WLAN verwenden
   und nach dem Test mit Strg-C beenden.
 - Startet nur, wenn n8n schon ein Owner-Konto hat (sonst würde der erste Besucher Owner).
 - Ist ufw aktiv, die Ports einmalig für das LAN freigeben (braucht root, selbst ausführen):

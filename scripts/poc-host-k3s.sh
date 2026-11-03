@@ -37,7 +37,7 @@ cmd_env() {
   (umask 077 && cp "$ROOT/.env.example" "$ENV_FILE")
   chmod 600 "$ENV_FILE"
   local key
-  for key in N8N_ENCRYPTION_KEY POSTGRES_PASSWORD HELPER_TOKEN REVIEW_PASSWORD; do
+  for key in N8N_ENCRYPTION_KEY POSTGRES_PASSWORD HELPER_TOKEN; do
     sed -i "s|^$key=.*|$key=$(openssl rand -hex 32)|" "$ENV_FILE"
   done
   sed -i -e "s|^WEBHOOK_URL=.*|WEBHOOK_URL=http://localhost:$N8N_PORT/|" \
@@ -104,7 +104,7 @@ cmd_status() {
   echo
   echo "Access only via: $0 forward"
   echo "  n8n:       http://localhost:$N8N_PORT/"
-  echo "  Review-UI: http://localhost:$HELPER_PORT/review/   (user: any, password: REVIEW_PASSWORD)"
+  echo "  Review-UI: http://localhost:$HELPER_PORT/review/   (password only if REVIEW_PASSWORD is set)"
 }
 
 cmd_forward() {
