@@ -161,7 +161,7 @@
   "settings": {
     "executionOrder": "v1",
     "timezone": "Europe/Berlin",
-    "saveDataSuccessExecution": "none",
+    "saveDataSuccessExecution": "all",
     "saveDataErrorExecution": "all",
     "errorWorkflow": "cmxFehlerAlarm01"
   },

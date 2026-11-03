@@ -33,8 +33,15 @@ def conn(*pairs):
             c[src]["main"][out].append({"node": dst, "type": "main", "index": 0})
     return c
 
+# Successful runs are stored only for workflows that run rarely and on events (confirmation, sale, daily mail),
+# so the execution list shows what happened. 01 polls every 2 minutes and 99 only runs on errors: errors are
+# stored for all, successes of 01 would be ~700 empty entries a day.
+SAVE_SUCCESS = {"cmxShopify000001", "cmxVerkauf000001", "cmxTagesmail0001"}
+
+
 def wf(wid, name, nodes, connections, error_wf=True):
-    settings = {"executionOrder": "v1", "timezone": "Europe/Berlin", "saveDataSuccessExecution": "none",
+    settings = {"executionOrder": "v1", "timezone": "Europe/Berlin",
+                "saveDataSuccessExecution": "all" if wid in SAVE_SUCCESS else "none",
                 "saveDataErrorExecution": "all"}
     if error_wf:
         settings["errorWorkflow"] = ERROR_WF
