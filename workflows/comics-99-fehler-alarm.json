@@ -4,19 +4,37 @@
   "active": false,
   "nodes": [
     {
+      "id": "ac2c5f87-d029-5f81-b275-ea81864ce599",
+      "name": "Notiz titel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -300
+      ],
+      "parameters": {
+        "content": "## Der Alarm\nGeht in einem der anderen Abläufe etwas schief, meldet sich dieser Ablauf per Mail und nennt Ablauf, Schritt und Fehlermeldung.",
+        "height": 150,
+        "width": 760,
+        "color": 7
+      }
+    },
+    {
       "id": "792de705-7aff-553e-85f0-b4fc1b2a188e",
-      "name": "Bei Workflow-Fehler",
+      "name": "Irgendwo ist etwas schiefgelaufen",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
       "position": [
         0,
         0
       ],
-      "parameters": {}
+      "parameters": {},
+      "notes": "Startet bei jedem Fehler",
+      "notesInFlow": true
     },
     {
       "id": "46d38205-5d1c-59f9-b872-c8acfcb25e19",
-      "name": "Empfänger holen",
+      "name": "Empfänger nachschlagen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -42,7 +60,7 @@
     },
     {
       "id": "7107dfa5-771b-55e2-9e60-f84f73553e6b",
-      "name": "Alarm-Mail",
+      "name": "Alarm-Mail senden",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
@@ -52,9 +70,9 @@
       "parameters": {
         "fromEmail": "={{ $json.from }}",
         "toEmail": "={{ $json.alerts }}",
-        "subject": "=Comic-Automatisierung: Fehler in {{ $('Bei Workflow-Fehler').item.json.workflow.name }}",
+        "subject": "=Comic-Automatisierung: Fehler in {{ $('Irgendwo ist etwas schiefgelaufen').item.json.workflow.name }}",
         "emailFormat": "text",
-        "text": "=Workflow: {{ $('Bei Workflow-Fehler').item.json.workflow.name }}\nNode: {{ $('Bei Workflow-Fehler').item.json.execution.lastNodeExecuted }}\nFehler: {{ $('Bei Workflow-Fehler').item.json.execution.error.message }}\nAusführung: {{ $('Bei Workflow-Fehler').item.json.execution.url }}\n",
+        "text": "=Workflow: {{ $('Irgendwo ist etwas schiefgelaufen').item.json.workflow.name }}\nNode: {{ $('Irgendwo ist etwas schiefgelaufen').item.json.execution.lastNodeExecuted }}\nFehler: {{ $('Irgendwo ist etwas schiefgelaufen').item.json.execution.error.message }}\nAusführung: {{ $('Irgendwo ist etwas schiefgelaufen').item.json.execution.url }}\n",
         "options": {}
       },
       "credentials": {
@@ -62,26 +80,28 @@
           "id": "cmxSmtpComics001",
           "name": "SMTP Comics"
         }
-      }
+      },
+      "notes": "An die Betreiber",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Bei Workflow-Fehler": {
+    "Irgendwo ist etwas schiefgelaufen": {
       "main": [
         [
           {
-            "node": "Empfänger holen",
+            "node": "Empfänger nachschlagen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Empfänger holen": {
+    "Empfänger nachschlagen": {
       "main": [
         [
           {
-            "node": "Alarm-Mail",
+            "node": "Alarm-Mail senden",
             "type": "main",
             "index": 0
           }

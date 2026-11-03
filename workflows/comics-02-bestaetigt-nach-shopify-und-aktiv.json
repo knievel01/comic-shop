@@ -4,8 +4,104 @@
   "active": false,
   "nodes": [
     {
+      "id": "ac2c5f87-d029-5f81-b275-ea81864ce599",
+      "name": "Notiz titel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -360
+      ],
+      "parameters": {
+        "content": "## Vom Bestätigen bis in den Shop\nSobald du ein Comic bestätigst, legt dieser Ablauf es im Shop an (zunächst als Entwurf, für Kundschaft unsichtbar) und merkt sich das im Archiv. Alle 15 Minuten sucht er zusätzlich nach Comics, die er verpasst hat.",
+        "height": 150,
+        "width": 1380,
+        "color": 7
+      }
+    },
+    {
+      "id": "e703beb0-765a-5ce5-9b3a-399d0100e449",
+      "name": "Notiz a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -190
+      ],
+      "parameters": {
+        "content": "### Auslöser 1: dein Klick",
+        "height": 190,
+        "width": 540,
+        "color": 3
+      }
+    },
+    {
+      "id": "4199cb2b-ba5f-5576-8c43-98cc8db9f149",
+      "name": "Notiz b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        30
+      ],
+      "parameters": {
+        "content": "### Auslöser 2: Sicherheitsnetz",
+        "height": 330,
+        "width": 560,
+        "color": 6
+      }
+    },
+    {
+      "id": "05d0b6df-17c3-5c7f-9b89-cac8f288b465",
+      "name": "Notiz c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -190
+      ],
+      "parameters": {
+        "content": "### Im Shop anlegen\nBis zu 3 Versuche.",
+        "height": 360,
+        "width": 380,
+        "color": 1
+      }
+    },
+    {
+      "id": "983266e5-bed3-5615-a372-cd10e557b7b7",
+      "name": "Notiz d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        -190
+      ],
+      "parameters": {
+        "content": "### Klappt",
+        "height": 210,
+        "width": 280,
+        "color": 4
+      }
+    },
+    {
+      "id": "789db9e8-805e-5ac0-828b-8c84bd06d06d",
+      "name": "Notiz e",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        130
+      ],
+      "parameters": {
+        "content": "### Klappt nicht\nKein Schaden: Das Comic bleibt bestätigt und wird später nochmal versucht.",
+        "height": 230,
+        "width": 280,
+        "color": 5
+      }
+    },
+    {
       "id": "8161ecd5-43ac-5bf8-8dec-51390d3649ba",
-      "name": "Webhook vom Review",
+      "name": "Du klickst „Bestätigen“",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -25,11 +121,13 @@
           "name": "Comic Helper Token"
         }
       },
-      "webhookId": "8e014243-af83-5180-90a8-c6a85d8c2b73"
+      "webhookId": "8e014243-af83-5180-90a8-c6a85d8c2b73",
+      "notes": "Startet sofort",
+      "notesInFlow": true
     },
     {
       "id": "a9cdb0ef-1c77-5601-8509-6bc1e6b1220c",
-      "name": "ID aus Webhook",
+      "name": "Comic merken",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
@@ -53,7 +151,7 @@
     },
     {
       "id": "04c089fe-9a64-5e51-9c5b-0352a4ff7a91",
-      "name": "Alle 15 Minuten (Nachzügler)",
+      "name": "Alle 15 Minuten Nachzügler suchen",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -69,11 +167,13 @@
             }
           ]
         }
-      }
+      },
+      "notes": "Sicherheitsnetz",
+      "notesInFlow": true
     },
     {
       "id": "0bfef255-fa9c-53a0-9de2-7cada9cc2ed5",
-      "name": "Bestätigte ohne Shop holen",
+      "name": "Bestätigte Comics suchen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -98,7 +198,7 @@
     },
     {
       "id": "b90ccf20-8149-5f0b-bf4f-b1e82f6e5a89",
-      "name": "Einzeln",
+      "name": "Ein Comic nach dem anderen",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
@@ -113,7 +213,7 @@
     },
     {
       "id": "16ad98dc-eb25-55fd-9aa2-e03436ca839f",
-      "name": "Shopify: Variante anlegen",
+      "name": "Im Shop anlegen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -138,11 +238,13 @@
       "onError": "continueErrorOutput",
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 10000
+      "waitBetweenTries": 10000,
+      "notes": "Produkt, Preis, Bestand 1",
+      "notesInFlow": true
     },
     {
       "id": "4406adf3-1e92-5056-9fa0-435afa0df8ca",
-      "name": "S3: Metadaten und nach aktiv/",
+      "name": "Als „im Shop“ ablegen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -164,22 +266,26 @@
           "name": "Comic Helper Token"
         }
       },
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "notes": "Ordner aktiv/ im Archiv",
+      "notesInFlow": true
     },
     {
       "id": "d3fdf153-b905-58e8-8a1a-c53d728c5d99",
-      "name": "Fertig",
+      "name": "Fertig: Comic ist im Shop",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1180,
         -100
       ],
-      "parameters": {}
+      "parameters": {},
+      "notes": "Taucht grau in der Review auf",
+      "notesInFlow": true
     },
     {
       "id": "9756bbf2-e253-5fbd-a59b-5011982ab2f8",
-      "name": "Später erneut (15-Min-Lauf)",
+      "name": "Klappt später nochmal",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
@@ -187,95 +293,96 @@
         200
       ],
       "parameters": {},
-      "notes": "Fehler bleiben im Status 'bestaetigt' und werden vom 15-Minuten-Lauf erneut versucht. Die Tagesmail zeigt 'Bestätigt, noch nicht im Shop'."
+      "notes": "Neuer Versuch in 15 Minuten",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Webhook vom Review": {
+    "Du klickst „Bestätigen“": {
       "main": [
         [
           {
-            "node": "ID aus Webhook",
+            "node": "Comic merken",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ID aus Webhook": {
+    "Comic merken": {
       "main": [
         [
           {
-            "node": "Shopify: Variante anlegen",
+            "node": "Im Shop anlegen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Alle 15 Minuten (Nachzügler)": {
+    "Alle 15 Minuten Nachzügler suchen": {
       "main": [
         [
           {
-            "node": "Bestätigte ohne Shop holen",
+            "node": "Bestätigte Comics suchen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Bestätigte ohne Shop holen": {
+    "Bestätigte Comics suchen": {
       "main": [
         [
           {
-            "node": "Einzeln",
+            "node": "Ein Comic nach dem anderen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Einzeln": {
+    "Ein Comic nach dem anderen": {
       "main": [
         [
           {
-            "node": "Shopify: Variante anlegen",
+            "node": "Im Shop anlegen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Shopify: Variante anlegen": {
+    "Im Shop anlegen": {
       "main": [
         [
           {
-            "node": "S3: Metadaten und nach aktiv/",
+            "node": "Als „im Shop“ ablegen",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Später erneut (15-Min-Lauf)",
+            "node": "Klappt später nochmal",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "S3: Metadaten und nach aktiv/": {
+    "Als „im Shop“ ablegen": {
       "main": [
         [
           {
-            "node": "Fertig",
+            "node": "Fertig: Comic ist im Shop",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Später erneut (15-Min-Lauf)",
+            "node": "Klappt später nochmal",
             "type": "main",
             "index": 0
           }

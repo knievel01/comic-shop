@@ -4,8 +4,72 @@
   "active": false,
   "nodes": [
     {
+      "id": "ac2c5f87-d029-5f81-b275-ea81864ce599",
+      "name": "Notiz titel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -360
+      ],
+      "parameters": {
+        "content": "## Was passiert bei einem Verkauf\nShopify meldet jede Bestellung. Der Ablauf prüft, dass die Meldung echt ist, und legt verkaufte Comics im Archiv unter „verkauft“ ab. Danach bekommt Shopify eine Antwort.",
+        "height": 150,
+        "width": 1000,
+        "color": 7
+      }
+    },
+    {
+      "id": "e703beb0-765a-5ce5-9b3a-399d0100e449",
+      "name": "Notiz a",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -190
+      ],
+      "parameters": {
+        "content": "### Meldung prüfen",
+        "height": 340,
+        "width": 560,
+        "color": 3
+      }
+    },
+    {
+      "id": "4199cb2b-ba5f-5576-8c43-98cc8db9f149",
+      "name": "Notiz b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -190
+      ],
+      "parameters": {
+        "content": "### Klappt",
+        "height": 210,
+        "width": 240,
+        "color": 4
+      }
+    },
+    {
+      "id": "05d0b6df-17c3-5c7f-9b89-cac8f288b465",
+      "name": "Notiz c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        40
+      ],
+      "parameters": {
+        "content": "### Klappt nicht\nShopify versucht es selbst erneut, wir bekommen einen Alarm.",
+        "height": 230,
+        "width": 520,
+        "color": 5
+      }
+    },
+    {
       "id": "6cca51a7-524a-5e94-b1d7-7ce16f5a0dd7",
-      "name": "Shopify Webhook",
+      "name": "Shopify meldet eine Bestellung",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
@@ -20,11 +84,13 @@
           "rawBody": true
         }
       },
-      "webhookId": "17689243-558a-5624-897b-87df3091ffb4"
+      "webhookId": "17689243-558a-5624-897b-87df3091ffb4",
+      "notes": "Startet bei jedem Verkauf",
+      "notesInFlow": true
     },
     {
       "id": "eae30db5-5f39-5148-8dcc-d3912c9857ec",
-      "name": "An comic-helper (HMAC-Prüfung)",
+      "name": "Echtheit prüfen und Comic als verkauft ablegen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -70,7 +136,7 @@
     },
     {
       "id": "528ab7d5-8757-571e-b6f2-b3a97434c3f5",
-      "name": "200 an Shopify",
+      "name": "Shopify: „Erledigt“",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
@@ -87,7 +153,7 @@
     },
     {
       "id": "4e368ad8-0147-5cc6-aa21-413cc895e52c",
-      "name": "500 an Shopify (Shopify wiederholt)",
+      "name": "Shopify: „Bitte nochmal“",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
@@ -104,7 +170,7 @@
     },
     {
       "id": "1d6efabe-5113-587b-b445-942c40d7ae10",
-      "name": "Fehler melden",
+      "name": "Alarm auslösen",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
@@ -113,44 +179,46 @@
       ],
       "parameters": {
         "errorMessage": "={{ 'Verkaufs-Webhook fehlgeschlagen: ' + ($json.error?.message || 'unbekannt') }}"
-      }
+      },
+      "notes": "Fehler wird per Mail gemeldet",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Shopify Webhook": {
+    "Shopify meldet eine Bestellung": {
       "main": [
         [
           {
-            "node": "An comic-helper (HMAC-Prüfung)",
+            "node": "Echtheit prüfen und Comic als verkauft ablegen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "An comic-helper (HMAC-Prüfung)": {
+    "Echtheit prüfen und Comic als verkauft ablegen": {
       "main": [
         [
           {
-            "node": "200 an Shopify",
+            "node": "Shopify: „Erledigt“",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "500 an Shopify (Shopify wiederholt)",
+            "node": "Shopify: „Bitte nochmal“",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "500 an Shopify (Shopify wiederholt)": {
+    "Shopify: „Bitte nochmal“": {
       "main": [
         [
           {
-            "node": "Fehler melden",
+            "node": "Alarm auslösen",
             "type": "main",
             "index": 0
           }

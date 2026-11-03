@@ -4,8 +4,88 @@
   "active": false,
   "nodes": [
     {
+      "id": "ac2c5f87-d029-5f81-b275-ea81864ce599",
+      "name": "Notiz titel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -360
+      ],
+      "parameters": {
+        "content": "## So kommen neue Comics in die Review\nAlle 2 Minuten schaut dieser Ablauf in den Eingang. Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. Danach wartet das Comic auf deine Prüfung.",
+        "height": 150,
+        "width": 1120,
+        "color": 7
+      }
+    },
+    {
+      "id": "059a8db7-9cee-56a1-ba0f-8a8a93153000",
+      "name": "Notiz 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -190
+      ],
+      "parameters": {
+        "content": "### 1. Neue Scans finden",
+        "height": 330,
+        "width": 400,
+        "color": 3
+      }
+    },
+    {
+      "id": "5b1b7a05-8f12-5695-a17e-b79a0d4747f8",
+      "name": "Notiz 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -190
+      ],
+      "parameters": {
+        "content": "### 2. KI liest das Cover\nBis zu 3 Versuche, falls es klemmt.",
+        "height": 330,
+        "width": 400,
+        "color": 1
+      }
+    },
+    {
+      "id": "b2a6ffe5-d735-5c08-b088-2f0cccf8545e",
+      "name": "Notiz 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        860,
+        -190
+      ],
+      "parameters": {
+        "content": "### Klappt",
+        "height": 210,
+        "width": 220,
+        "color": 4
+      }
+    },
+    {
+      "id": "2ab64c58-fb28-56f2-8a54-4eaec06d6246",
+      "name": "Notiz 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        860,
+        40
+      ],
+      "parameters": {
+        "content": "### Klappt nicht",
+        "height": 230,
+        "width": 220,
+        "color": 5
+      }
+    },
+    {
       "id": "5c2ddbea-c580-52af-9697-538ec434d0ed",
-      "name": "Alle 2 Minuten",
+      "name": "Alle 2 Minuten nachsehen",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -21,11 +101,13 @@
             }
           ]
         }
-      }
+      },
+      "notes": "Startet von selbst",
+      "notesInFlow": true
     },
     {
       "id": "b66227a3-6fd9-51f5-ab34-684b138926dc",
-      "name": "Neue Scans holen",
+      "name": "Neue Scans abholen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -46,11 +128,13 @@
           "id": "cmxHelperToken01",
           "name": "Comic Helper Token"
         }
-      }
+      },
+      "notes": "Was liegt im Eingang?",
+      "notesInFlow": true
     },
     {
       "id": "b90ccf20-8149-5f0b-bf4f-b1e82f6e5a89",
-      "name": "Einzeln",
+      "name": "Ein Comic nach dem anderen",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
@@ -64,7 +148,7 @@
     },
     {
       "id": "97b42dc2-5482-5f77-b8b1-511e2013bf9d",
-      "name": "Erkennen (Claude)",
+      "name": "KI liest das Cover",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -89,22 +173,26 @@
       "onError": "continueErrorOutput",
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "notes": "Titel, Heft, Verlag, Zustand",
+      "notesInFlow": true
     },
     {
       "id": "313df2fd-4e05-5f4a-9722-7316c0089923",
-      "name": "Erkannt",
+      "name": "Fertig: wartet auf Prüfung",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         900,
         -100
       ],
-      "parameters": {}
+      "parameters": {},
+      "notes": "Du prüfst in der Review",
+      "notesInFlow": true
     },
     {
       "id": "234cb7bf-fada-5e87-b972-b352ca0c7c4f",
-      "name": "Fehlerpfad: als Fehler markieren",
+      "name": "Problem vermerken",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -113,7 +201,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $('Einzeln').item.json.ids }}/fail",
+        "url": "=http://comic-helper.comics.svc.cluster.local:8080/api/scans/{{ $('Ein Comic nach dem anderen').item.json.ids }}/fail",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
@@ -128,55 +216,57 @@
           "id": "cmxHelperToken01",
           "name": "Comic Helper Token"
         }
-      }
+      },
+      "notes": "Comic bekommt Status Fehler",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Alle 2 Minuten": {
+    "Alle 2 Minuten nachsehen": {
       "main": [
         [
           {
-            "node": "Neue Scans holen",
+            "node": "Neue Scans abholen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Neue Scans holen": {
+    "Neue Scans abholen": {
       "main": [
         [
           {
-            "node": "Einzeln",
+            "node": "Ein Comic nach dem anderen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Einzeln": {
+    "Ein Comic nach dem anderen": {
       "main": [
         [
           {
-            "node": "Erkennen (Claude)",
+            "node": "KI liest das Cover",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Erkennen (Claude)": {
+    "KI liest das Cover": {
       "main": [
         [
           {
-            "node": "Erkannt",
+            "node": "Fertig: wartet auf Prüfung",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Fehlerpfad: als Fehler markieren",
+            "node": "Problem vermerken",
             "type": "main",
             "index": 0
           }

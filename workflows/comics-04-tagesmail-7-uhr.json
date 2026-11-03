@@ -4,8 +4,24 @@
   "active": false,
   "nodes": [
     {
+      "id": "ac2c5f87-d029-5f81-b275-ea81864ce599",
+      "name": "Notiz titel",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -300
+      ],
+      "parameters": {
+        "content": "## Die Tagesmail\nJeden Morgen um 7 Uhr schickt dieser Ablauf eine kurze Zusammenfassung: wie viele Comics gescannt, wie viele noch zu prüfen und wie viele verkauft wurden.",
+        "height": 150,
+        "width": 760,
+        "color": 7
+      }
+    },
+    {
       "id": "5030192f-8a10-5176-be52-ba9a1687dba3",
-      "name": "Täglich 7:00",
+      "name": "Jeden Morgen um 7 Uhr",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -21,11 +37,13 @@
             }
           ]
         }
-      }
+      },
+      "notes": "Startet von selbst",
+      "notesInFlow": true
     },
     {
       "id": "aea55b28-4195-561e-88b6-d24bcafe2bbb",
-      "name": "Zahlen holen",
+      "name": "Zahlen von gestern zusammenstellen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -49,11 +67,13 @@
       },
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "notes": "Gescannt, geprüft, verkauft",
+      "notesInFlow": true
     },
     {
       "id": "638b67ae-d396-5e38-b1a8-31ccd1764ec1",
-      "name": "Mail senden",
+      "name": "Mail schreiben",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
@@ -73,26 +93,28 @@
           "id": "cmxSmtpComics001",
           "name": "SMTP Comics"
         }
-      }
+      },
+      "notes": "Ein Absatz, ein Link",
+      "notesInFlow": true
     }
   ],
   "connections": {
-    "Täglich 7:00": {
+    "Jeden Morgen um 7 Uhr": {
       "main": [
         [
           {
-            "node": "Zahlen holen",
+            "node": "Zahlen von gestern zusammenstellen",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Zahlen holen": {
+    "Zahlen von gestern zusammenstellen": {
       "main": [
         [
           {
-            "node": "Mail senden",
+            "node": "Mail schreiben",
             "type": "main",
             "index": 0
           }

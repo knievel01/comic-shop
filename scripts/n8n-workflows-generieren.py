@@ -154,6 +154,130 @@ flows.append(wf(ERROR_WF, "Comics 99 Fehler-Alarm", [
         "options": {}}, credentials=CRED_SMTP),
 ], conn(("Bei Workflow-Fehler", "Empfänger holen", 0), ("Empfänger holen", "Alarm-Mail", 0)), error_wf=False))
 
+# ---- Presentation for non-technical viewers: plain German node names, one-line captions under each node
+# and coloured sticky notes that group the steps. Applied last so the logic above stays readable.
+RENAMES = {
+    "cmxScanIngest001": {
+        "Alle 2 Minuten": "Alle 2 Minuten nachsehen",
+        "Neue Scans holen": "Neue Scans abholen",
+        "Einzeln": "Ein Comic nach dem anderen",
+        "Erkennen (Claude)": "KI liest das Cover",
+        "Erkannt": "Fertig: wartet auf Prüfung",
+        "Fehlerpfad: als Fehler markieren": "Problem vermerken",
+    },
+    "cmxShopify000001": {
+        "Webhook vom Review": "Du klickst „Bestätigen“",
+        "ID aus Webhook": "Comic merken",
+        "Alle 15 Minuten (Nachzügler)": "Alle 15 Minuten Nachzügler suchen",
+        "Bestätigte ohne Shop holen": "Bestätigte Comics suchen",
+        "Einzeln": "Ein Comic nach dem anderen",
+        "Shopify: Variante anlegen": "Im Shop anlegen",
+        "S3: Metadaten und nach aktiv/": "Als „im Shop“ ablegen",
+        "Fertig": "Fertig: Comic ist im Shop",
+        "Später erneut (15-Min-Lauf)": "Klappt später nochmal",
+    },
+    "cmxVerkauf000001": {
+        "Shopify Webhook": "Shopify meldet eine Bestellung",
+        "An comic-helper (HMAC-Prüfung)": "Echtheit prüfen und Comic als verkauft ablegen",
+        "200 an Shopify": "Shopify: „Erledigt“",
+        "500 an Shopify (Shopify wiederholt)": "Shopify: „Bitte nochmal“",
+        "Fehler melden": "Alarm auslösen",
+    },
+    "cmxTagesmail0001": {
+        "Täglich 7:00": "Jeden Morgen um 7 Uhr",
+        "Zahlen holen": "Zahlen von gestern zusammenstellen",
+        "Mail senden": "Mail schreiben",
+    },
+    "cmxFehlerAlarm01": {
+        "Bei Workflow-Fehler": "Irgendwo ist etwas schiefgelaufen",
+        "Empfänger holen": "Empfänger nachschlagen",
+        "Alarm-Mail": "Alarm-Mail senden",
+    },
+}
+CAPTIONS = {
+    "Alle 2 Minuten nachsehen": "Startet von selbst",
+    "Neue Scans abholen": "Was liegt im Eingang?",
+    "KI liest das Cover": "Titel, Heft, Verlag, Zustand",
+    "Fertig: wartet auf Prüfung": "Du prüfst in der Review",
+    "Problem vermerken": "Comic bekommt Status Fehler",
+    "Du klickst „Bestätigen“": "Startet sofort",
+    "Alle 15 Minuten Nachzügler suchen": "Sicherheitsnetz",
+    "Im Shop anlegen": "Produkt, Preis, Bestand 1",
+    "Als „im Shop“ ablegen": "Ordner aktiv/ im Archiv",
+    "Fertig: Comic ist im Shop": "Taucht grau in der Review auf",
+    "Klappt später nochmal": "Neuer Versuch in 15 Minuten",
+    "Shopify meldet eine Bestellung": "Startet bei jedem Verkauf",
+    "Alarm auslösen": "Fehler wird per Mail gemeldet",
+    "Jeden Morgen um 7 Uhr": "Startet von selbst",
+    "Zahlen von gestern zusammenstellen": "Gescannt, geprüft, verkauft",
+    "Mail schreiben": "Ein Absatz, ein Link",
+    "Irgendwo ist etwas schiefgelaufen": "Startet bei jedem Fehler",
+    "Alarm-Mail senden": "An die Betreiber",
+}
+
+
+def sticky(key, pos, w, h, color, text):
+    return {"id": nid("sticky/" + key), "name": "Notiz " + key, "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1, "position": pos,
+            "parameters": {"content": text, "height": h, "width": w, "color": color}}
+
+
+# colour 1 yellow, 2 orange, 3 blue, 4 green, 5 red, 6 purple, 7 grey
+STICKIES = {
+    "cmxScanIngest001": [
+        ("titel", [-40, -360], 1120, 150, 7,
+         "## So kommen neue Comics in die Review\nAlle 2 Minuten schaut dieser Ablauf in den Eingang. "
+         "Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. "
+         "Danach wartet das Comic auf deine Prüfung."),
+        ("1", [-40, -190], 400, 330, 3, "### 1. Neue Scans finden"),
+        ("2", [400, -190], 400, 330, 1, "### 2. KI liest das Cover\nBis zu 3 Versuche, falls es klemmt."),
+        ("3", [860, -190], 220, 210, 4, "### Klappt"),
+        ("4", [860, 40], 220, 230, 5, "### Klappt nicht"),
+    ],
+    "cmxShopify000001": [
+        ("titel", [-40, -360], 1380, 150, 7,
+         "## Vom Bestätigen bis in den Shop\nSobald du ein Comic bestätigst, legt dieser Ablauf es im Shop an "
+         "(zunächst als Entwurf, für Kundschaft unsichtbar) und merkt sich das im Archiv. "
+         "Alle 15 Minuten sucht er zusätzlich nach Comics, die er verpasst hat."),
+        ("a", [-40, -190], 540, 190, 3, "### Auslöser 1: dein Klick"),
+        ("b", [-40, 30], 560, 330, 6, "### Auslöser 2: Sicherheitsnetz"),
+        ("c", [600, -190], 380, 360, 1, "### Im Shop anlegen\nBis zu 3 Versuche."),
+        ("d", [1060, -190], 280, 210, 4, "### Klappt"),
+        ("e", [1060, 130], 280, 230, 5, "### Klappt nicht\nKein Schaden: Das Comic bleibt bestätigt und wird später nochmal versucht."),
+    ],
+    "cmxVerkauf000001": [
+        ("titel", [-40, -360], 1000, 150, 7,
+         "## Was passiert bei einem Verkauf\nShopify meldet jede Bestellung. Der Ablauf prüft, "
+         "dass die Meldung echt ist, und legt verkaufte Comics im Archiv unter „verkauft“ ab. "
+         "Danach bekommt Shopify eine Antwort."),
+        ("a", [-40, -190], 560, 340, 3, "### Meldung prüfen"),
+        ("b", [520, -190], 240, 210, 4, "### Klappt"),
+        ("c", [520, 40], 520, 230, 5, "### Klappt nicht\nShopify versucht es selbst erneut, wir bekommen einen Alarm."),
+    ],
+    "cmxTagesmail0001": [
+        ("titel", [-40, -300], 760, 150, 7,
+         "## Die Tagesmail\nJeden Morgen um 7 Uhr schickt dieser Ablauf eine kurze Zusammenfassung: "
+         "wie viele Comics gescannt, wie viele noch zu prüfen und wie viele verkauft wurden."),
+    ],
+    "cmxFehlerAlarm01": [
+        ("titel", [-40, -300], 760, 150, 7,
+         "## Der Alarm\nGeht in einem der anderen Abläufe etwas schief, meldet sich dieser Ablauf "
+         "per Mail und nennt Ablauf, Schritt und Fehlermeldung."),
+    ],
+}
+
+for f in flows:
+    txt = json.dumps(f, ensure_ascii=False)
+    for old, new in RENAMES.get(f["id"], {}).items():
+        txt = txt.replace(json.dumps(old, ensure_ascii=False), json.dumps(new, ensure_ascii=False))
+        txt = txt.replace("$('%s')" % old, "$('%s')" % new)
+    f.update(json.loads(txt))
+    for n in f["nodes"]:
+        if n["name"] in CAPTIONS:
+            n["notes"] = CAPTIONS[n["name"]]
+            n["notesInFlow"] = True
+    f["nodes"] = [sticky(k, pos, w, h, c, t) for k, pos, w, h, c, t in STICKIES.get(f["id"], [])] + f["nodes"]
+
 import re
 for f in flows:
     slug = re.sub(r"[^a-z0-9]+", "-", f["name"].lower().replace("ä", "ae").replace("ü", "ue").replace("ö", "oe")).strip("-")
