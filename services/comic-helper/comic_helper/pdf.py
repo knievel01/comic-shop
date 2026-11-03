@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageFilter, ImageOps, UnidentifiedImageError
 
 SHOP_MAX_EDGE = 2400     # stored in S3, used for Shopify media
 MODEL_MAX_EDGE = 1568    # recommended max long edge for Claude vision input
@@ -50,6 +50,24 @@ def render_pages(pdf: bytes, dpi: int = 200) -> list[Image.Image]:
             with Image.open(f) as im:
                 images.append(im.convert("RGB"))
         return images
+
+
+def trim_margins(image: Image.Image, tolerance: int = 24, pad: int = 6, min_share: float = 0.15) -> Image.Image:
+    """Crop the near-white page around the comic (A4 scan bed, photo fitted onto A4).
+
+    Keeps the image unchanged if nothing or almost nothing would remain (e.g. a mostly white cover).
+    """
+    gray = ImageChops.difference(image.convert("L"), Image.new("L", image.size, 255))
+    # ignore single specks (dust, JPEG noise) before looking for the content box
+    box = gray.point(lambda v: 255 if v > tolerance else 0).filter(ImageFilter.MinFilter(5)).getbbox()
+    if not box:
+        return image
+    left, top, right, bottom = box
+    pad += 2  # MinFilter(5) shrank the content box by 2 px on each side
+    if (right - left) * (bottom - top) < min_share * image.width * image.height:
+        return image
+    return image.crop((max(left - pad, 0), max(top - pad, 0),
+                       min(right + pad, image.width), min(bottom + pad, image.height)))
 
 
 def to_jpeg(image: Image.Image, max_edge: int, quality: int = 85) -> bytes:

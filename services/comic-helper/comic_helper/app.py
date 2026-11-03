@@ -159,7 +159,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             pages = pdf.page_count(data)
             if pages != 2:
                 raise pdf.PdfError(f"{pages} Seiten statt 2")
-            cover, back = pdf.render_pages(data)[:2]
+            cover, back = (pdf.trim_margins(im) for im in pdf.render_pages(data)[:2])
         except pdf.PdfError as e:
             raise HTTPException(422, f"PDF: {e}")
         for page, im in ((1, cover), (2, back)):
