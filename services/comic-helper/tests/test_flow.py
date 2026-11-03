@@ -173,7 +173,7 @@ def test_full_lifecycle(env):
     page = c.get("/review/?fertig=1")
     assert "Offene Comics (0)" in page.text and 'id="status-bestaetigt"' in page.text
     assert 'id="status-offen"' not in page.text   # empty groups are not shown
-    assert f'href="/review/{cid}"' not in page.text
+    assert f'href="/review/{cid}"' in page.text   # still opens, read-only, to take it back (ADR-0020)
     # second submit is rejected
     assert c.post(f"/review/{cid}", data=review_form(), follow_redirects=False).status_code == 409
 
@@ -284,6 +284,30 @@ def test_review_delete_moves_to_papierkorb(env):
     assert cid not in c.get("/review/").text
     assert "gelöscht" in c.get(f"/review/?geloescht={cid}").text
     assert c.post(f"/review/{cid}/loeschen", follow_redirects=False).status_code == 404
+
+
+def test_review_reopen_confirmed_copy(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    assert c.post(f"/review/{cid}/zurueckholen", follow_redirects=False).status_code == 409  # not confirmed yet
+    c.post(f"/review/{cid}", data=review_form(titel="Asterix Mega"), follow_redirects=False)
+    assert f'href="/review/{cid}"' in c.get("/review/").text  # confirmed card links to the detail view
+    page = c.get(f"/review/{cid}").text
+    assert "Zurückholen und ändern" in page and "Bestätigen und in den Shop</button>" not in page
+    r = c.post(f"/review/{cid}/zurueckholen", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/review/{cid}"
+    assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"
+    page = c.get(f"/review/{cid}").text
+    assert 'value="Asterix Mega"' in page and "Bestätigen und in den Shop</button>" in page
+    # once in Shopify, a confirmation can no longer be taken back
+    c.post(f"/review/{cid}", data=review_form(), follow_redirects=False)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    side["shopify"] = {"product_id": "gid://shopify/Product/1"}
+    env.store.write_json(f"eingang/{cid}.json", side)
+    assert c.post(f"/review/{cid}/zurueckholen", follow_redirects=False).status_code == 409
+    assert "Schon in Shopify angelegt" in c.get(f"/review/{cid}").text
 
 
 def test_low_confidence_needs_recheck(env):

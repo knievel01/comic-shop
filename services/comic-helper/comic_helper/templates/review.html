@@ -71,6 +71,8 @@
   .entwurf { margin:0; padding:.55rem .8rem; background:var(--yellow); border:var(--strich); font-weight:700;
              display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .8rem; }
   .entwurf[hidden] { display:none; }
+  .gesperrt { margin:0; padding:.6rem .8rem; background:#c9f2d5; border:var(--strich); font-weight:700; }
+  .abschnitt[inert] { opacity:.65; }
   .entwurf button { width:auto; margin:0; padding:.15rem .6rem; font:800 1rem var(--text); letter-spacing:0;
                     background:var(--paper); color:var(--ink); text-shadow:none; box-shadow:none; }
   .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink); padding:.7rem 1rem; }
@@ -102,6 +104,7 @@
 {% endblock %}
 {% block body %}
 {% if fehler %}<div class="msg err">{{ fehler }}</div>{% endif %}
+{% set gesperrt = tags.get('status') == 'bestaetigt' %}{% set sperre = ' inert' if gesperrt else '' %}
 <div class="grid">
   <section>
     <div class="pics">
@@ -130,8 +133,11 @@
   </section>
 
   <form method="post" action="/review/{{ id }}" id="f">
+    {% if gesperrt %}<p class="gesperrt">{% if side.get('shopify') %}Schon in Shopify angelegt – Zurückholen ist nicht mehr möglich.
+      {% else %}Bestätigt {{ (side.get('entscheidung') or {}).get('am', '')|lokalzeit('am %d.%m. um %H:%M') }}, wartet auf den Shop.
+      Zum Ändern zurückholen; das Comic steht dann wieder unter „Zu prüfen“.{% endif %}</p>{% endif %}
     <p class="entwurf" id="entwurf" hidden><span></span> <button type="button" id="entwurf-weg">Verwerfen</button></p>
-    <section class="abschnitt angaben">
+    <section{{ sperre }} class="abschnitt angaben">
       <h2>Angaben</h2>
       <div class="row3">
         <div><label>Titel</label><input name="titel" value="{{ v.titel }}" required></div>
@@ -150,7 +156,7 @@
       </div>
     </section>
 
-    <section class="abschnitt zustand">
+    <section{{ sperre }} class="abschnitt zustand">
       <h2>Zustand</h2>
       <div class="stufen" role="radiogroup" aria-label="Zustand (Comicguide-Skala)">
         {% for z, d in cfg.zustaende|dictsort %}
@@ -161,7 +167,7 @@
       <p class="stufe-hilfe" id="stufe-hilfe" aria-live="polite">Stufe nach Comicguide-Skala wählen.</p>
     </section>
 
-    <section class="abschnitt preis">
+    <section{{ sperre }} class="abschnitt preis">
       <h2>Preis</h2>
       {% set standard = cfg.get('standard_preisquelle', 'comicguide') %}
       {% set prefill = preis_vorschlag and preis_vorschlag.quelle == standard %}
@@ -187,9 +193,12 @@
       <input name="preis_override" id="override" inputmode="decimal" placeholder="leer = berechneter Preis">
     </section>
 
-    <div class="absenden"><span class="mini" id="preis-mini">?</span><button type="submit" form="loeschen" class="loeschen">Löschen</button><button type="submit">Bestätigen und in den Shop</button></div>
+    <div class="absenden"><span class="mini" id="preis-mini">?</span>
+      {% if not gesperrt %}<button type="submit" form="loeschen" class="loeschen">Löschen</button><button type="submit">Bestätigen und in den Shop</button>
+      {% elif not side.get('shopify') %}<button type="submit" form="zurueckholen">Zurückholen und ändern</button>{% endif %}</div>
   </form>
   <form method="post" action="/review/{{ id }}/loeschen" id="loeschen" hidden></form>
+  <form method="post" action="/review/{{ id }}/zurueckholen" id="zurueckholen" hidden></form>
 </div>
 
 <script>
@@ -269,7 +278,8 @@ document.getElementById("loeschen").addEventListener("submit", e => {
   try { speicher?.removeItem(SCHLUESSEL); } catch {}
 });
 
-const entwurf = laden(), fehlerSeite = {{ 'true' if fehler else 'false' }};
+const gesperrt = {{ 'true' if gesperrt else 'false' }};  // confirmed: read-only until taken back
+const entwurf = gesperrt ? null : laden(), fehlerSeite = {{ 'true' if fehler else 'false' }};
 if (entwurf && entwurf.gesendet && !fehlerSeite) {
   speicher.removeItem(SCHLUESSEL);  // confirmed earlier: the server's data wins
 } else if (entwurf) {

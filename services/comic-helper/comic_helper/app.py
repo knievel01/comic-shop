@@ -510,6 +510,23 @@ def review_delete(copy_id: str, store: Store = Depends(get_store)):
     return RedirectResponse(f"/review/?geloescht={copy_id}", status_code=303)
 
 
+@app.post("/review/{copy_id}/zurueckholen", dependencies=[Depends(require_reviewer)])
+def review_reopen(copy_id: str, store: Store = Depends(get_store)):
+    """Takes a confirmation back while the copy is not yet in Shopify (ADR-0020); the decision stays as prefill."""
+    _check_id(copy_id)
+    key = store.pdf_key(EINGANG, copy_id)
+    if not store.exists(key):
+        raise HTTPException(404, "Exemplar ist nicht (mehr) im Eingang")
+    if store.get_tags(key).get("status") != "bestaetigt":
+        raise HTTPException(409, "Nur bestätigte Exemplare können zurückgeholt werden")
+    side_key = store.sidecar_key(EINGANG, copy_id)
+    if store.exists(side_key) and store.read_json(side_key).get("shopify"):
+        raise HTTPException(409, "Schon in Shopify angelegt")
+    store.update_tags(key, status="offen")
+    log.info("reopened %s", copy_id)
+    return RedirectResponse(f"/review/{copy_id}", status_code=303)
+
+
 def _notify_n8n(s: Settings, copy_id: str) -> None:
     """Best effort: n8n also polls /api/scans/confirmed, so a failure here loses nothing."""
     try:

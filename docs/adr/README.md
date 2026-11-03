@@ -25,3 +25,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0017](0017-poc-booklooker-angebotspreis-als-standardquelle.md) | PoC: Booklooker-Angebotspreis als Standard-Preisquelle, mit Beleg | Akzeptiert (nur PoC), ergänzt 0011 |
 | [0018](0018-foto-upload-ueber-die-review-oberflaeche.md) | Foto-Upload über die Review-Oberfläche als zweiter Eingang | Akzeptiert, ergänzt 0007 |
 | [0019](0019-loeschen-im-review-ueber-papierkorb.md) | Löschen im Review verschiebt das Exemplar in den Papierkorb | Akzeptiert, ergänzt 0004/0006 |
+| [0020](0020-bestaetigung-zurueckholen-bis-shopify.md) | Bestätigung lässt sich bis zum Anlegen in Shopify zurückholen | Akzeptiert, ergänzt 0006/0014 |
