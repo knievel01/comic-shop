@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import html
 import re
+import threading
+import time
 import unicodedata
 from dataclasses import dataclass
 from string import ascii_lowercase
@@ -20,6 +22,13 @@ from . import pricing
 
 class ShopifyError(Exception):
     pass
+
+
+# Dev Dashboard apps have no permanent token: client id + secret are exchanged for a 24 h token (ADR-0021).
+# The helper builds a client per request, so the token is cached per process.
+_TOKENS: dict[tuple[str, str], tuple[str, float]] = {}
+_TOKEN_LOCK = threading.Lock()
+_TOKEN_MARGIN_S = 300
 
 
 def slugify(text: str, max_len: int = 60) -> str:
@@ -140,20 +149,46 @@ mutation($id: ID!, $input: [PublicationInput!]!) {
 
 class Shopify:
     def __init__(self, domain: str, token: str, api_version: str, location_id: str,
-                 publication_ids: list[str] | None = None, transport: httpx2.BaseTransport | None = None):
-        if not (domain and token and location_id):
-            raise ShopifyError("SHOPIFY_SHOP_DOMAIN, SHOPIFY_ADMIN_TOKEN and SHOPIFY_LOCATION_ID are required")
+                 publication_ids: list[str] | None = None, transport: httpx2.BaseTransport | None = None,
+                 *, client_id: str = "", client_secret: str = ""):
+        if not (domain and location_id and (token or (client_id and client_secret))):
+            raise ShopifyError("SHOPIFY_SHOP_DOMAIN, SHOPIFY_LOCATION_ID and either SHOPIFY_ADMIN_TOKEN "
+                               "or SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET are required")
+        self.domain, self.static_token = domain, token
+        self.client_id, self.client_secret = client_id, client_secret
         self.location_id = location_id if location_id.startswith("gid://") else f"gid://shopify/Location/{location_id}"
         self.publication_ids = publication_ids or []
         self.http = httpx2.Client(
             base_url=f"https://{domain}/admin/api/{api_version}",
-            headers={"X-Shopify-Access-Token": token, "Content-Type": "application/json"},
+            headers={"Content-Type": "application/json"},
             timeout=60,
             transport=transport,
         )
 
+    def access_token(self, refresh: bool = False) -> str:
+        """Static token if configured, otherwise a cached client-credentials token."""
+        if self.static_token:
+            return self.static_token
+        key = (self.domain, self.client_id)
+        with _TOKEN_LOCK:
+            cached = _TOKENS.get(key)
+            if cached and not refresh and cached[1] - _TOKEN_MARGIN_S > time.time():
+                return cached[0]
+            resp = self.http.post(f"https://{self.domain}/admin/oauth/access_token", headers={"Content-Type": "application/x-www-form-urlencoded"},
+                                  data={"grant_type": "client_credentials", "client_id": self.client_id,
+                                        "client_secret": self.client_secret})
+            if resp.status_code >= 400:
+                raise ShopifyError(f"token request failed: HTTP {resp.status_code}")  # body may echo credentials
+            body = resp.json()
+            _TOKENS[key] = (body["access_token"], time.time() + int(body.get("expires_in", 86399)))
+            return _TOKENS[key][0]
+
     def gql(self, query: str, variables: dict) -> dict:
-        resp = self.http.post("/graphql.json", json={"query": query, "variables": variables})
+        payload = {"query": query, "variables": variables}
+        resp = self.http.post("/graphql.json", json=payload, headers={"X-Shopify-Access-Token": self.access_token()})
+        if resp.status_code == 401 and not self.static_token:  # token revoked or expired early: fetch a new one once
+            resp = self.http.post("/graphql.json", json=payload,
+                                  headers={"X-Shopify-Access-Token": self.access_token(refresh=True)})
         if resp.status_code >= 400:
             raise ShopifyError(f"HTTP {resp.status_code}: {resp.text[:500]}")
         body = resp.json()

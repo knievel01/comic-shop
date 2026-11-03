@@ -65,7 +65,8 @@ suchlinks:
   GCD: https://www.comics.org/searchNew/?q={q}
 
 shopify:
-  # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen
-  produkt_status: ACTIVE
+  # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
+  # PoC im echten Shop (ADR-0021): DRAFT, bis der Ablauf geprüft ist.
+  produkt_status: DRAFT
   produkt_typ: Comic
   hersteller_aus_verlag: true

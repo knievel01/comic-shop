@@ -31,6 +31,8 @@ class Settings:
     anthropic_effort: str = "low"
     shopify_shop_domain: str = ""
     shopify_admin_token: str = ""
+    shopify_client_id: str = ""
+    shopify_client_secret: str = ""
     shopify_webhook_secret: str = ""
     shopify_api_version: str = "2026-07"
     shopify_location_id: str = ""
@@ -54,6 +56,8 @@ class Settings:
             anthropic_effort=env("CLAUDE_EFFORT", "low"),
             shopify_shop_domain=env("SHOPIFY_SHOP_DOMAIN", ""),
             shopify_admin_token=env("SHOPIFY_ADMIN_TOKEN", ""),
+            shopify_client_id=env("SHOPIFY_CLIENT_ID", ""),
+            shopify_client_secret=env("SHOPIFY_CLIENT_SECRET", ""),
             shopify_webhook_secret=env("SHOPIFY_WEBHOOK_SECRET", ""),
             shopify_api_version=env("SHOPIFY_API_VERSION", "2026-07"),
             shopify_location_id=env("SHOPIFY_LOCATION_ID", ""),

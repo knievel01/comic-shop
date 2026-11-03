@@ -4,10 +4,9 @@
 
 ### 1. Shopify
 
-1. Admin → Einstellungen → Apps → App-Entwicklung → **Custom App** „Comic-Automatisierung“.
-   Admin-API-Scopes: `read_products`, `write_products`, `read_inventory`, `write_inventory`,
-   `read_orders`, `read_publications`, `write_publications`.
-   Token → `SHOPIFY_ADMIN_TOKEN`, Shop-Domain (`xyz.myshopify.com`) → `SHOPIFY_SHOP_DOMAIN`.
+1. App im Dev Dashboard anlegen und installieren: siehe `docs/SHOPIFY-EINRICHTUNG.md` (ADR-0021).
+   Client-ID → `SHOPIFY_CLIENT_ID`, Client-Schlüssel → `SHOPIFY_CLIENT_SECRET`,
+   Shop-Domain (`xyz.myshopify.com`) → `SHOPIFY_SHOP_DOMAIN`. (Ältere benutzerdefinierte App: Token → `SHOPIFY_ADMIN_TOKEN`.)
 2. Standort-ID (Einstellungen → Standorte, Zahl in der URL) → `SHOPIFY_LOCATION_ID`.
 3. Publication-ID des Online Stores (GraphQL `publications { nodes { id name } }`) → `SHOPIFY_PUBLICATION_IDS`.
 4. Webhooks (Einstellungen → Benachrichtigungen → Webhooks, Format JSON, aktuelle API-Version), jeweils an

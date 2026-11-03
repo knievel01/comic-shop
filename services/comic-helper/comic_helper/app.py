@@ -105,7 +105,8 @@ def get_claude() -> anthropic.Anthropic:
 def get_shopify() -> Shopify:
     s = settings()
     return Shopify(s.shopify_shop_domain, s.shopify_admin_token, s.shopify_api_version,
-                   s.shopify_location_id, s.shopify_publication_ids)
+                   s.shopify_location_id, s.shopify_publication_ids,
+                   client_id=s.shopify_client_id, client_secret=s.shopify_client_secret)
 
 
 def require_token(x_helper_token: str = Header(default=""), s: Settings = Depends(get_settings)) -> None:
