@@ -157,6 +157,9 @@ Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „3. n8n“, mit folgenden 
    ```
 
 3. Credentials in den Workflows zuordnen, falls n8n das nicht automatisch tut, dann aktivieren.
+   Aktivieren per CLI statt Oberfläche: `kubectl -n comics exec deploy/n8n -c n8n -- n8n update:workflow --id=<ID> --active=true`,
+   danach `kubectl -n comics rollout restart deployment/n8n` (ohne Neustart greift es nicht). Workflow-IDs: `n8n list:workflow`.
+   Den Aktiv-Zustand halten die Datenbank von n8n, nicht die Exporte im Repo (dort bleibt `active: false`).
    Sinnvoll im PoC: **01** (Scan-Ingest und Erkennung, Polling alle 2 Minuten) und **02**
    (Bestätigt → Shopify, nur mit Entwicklungsshop). **03** (Shopify-Verkauf) bekommt ohne Tunnel
    keine echten Webhooks, lässt sich aber lokal mit `curl` gegen
