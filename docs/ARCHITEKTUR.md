@@ -45,6 +45,7 @@ Alles läuft auf einem Rechner (Ubuntu 24.04, K3s), Namespace `comics`:
 | `eingang/` | `bestaetigt` | Fachkraft hat bestätigt, Shopify/Metadaten stehen aus |
 | `aktiv/` | `aktiv` | im Shop, Metadaten final |
 | `verkauft/` | `verkauft` | verkauft |
+| `papierkorb/` | `geloescht` | im Review gelöscht, wiederherstellbar (ADR-0019) |
 
 Der Arbeitsstand (KI-Rohantwort, Entscheidung, Shopify-IDs) steht in `<prefix>/<id>.json`
 neben der PDF. Er wird beim Verschieben mitgenommen.

@@ -57,6 +57,7 @@
 {% endblock %}
 {% block body %}
 {% if request.query_params.get('hochgeladen') %}<div class="msg ok">Hochgeladen als {{ request.query_params.get('hochgeladen')[:8] }} – die Erkennung startet innerhalb von 2 Minuten, danach erscheint das Comic unter „Zu prüfen“.</div>{% endif %}
+{% if request.query_params.get('geloescht') %}<div class="msg ok">Exemplar {{ request.query_params.get('geloescht')[:8] }} gelöscht (liegt im Papierkorb).</div>{% endif %}
 {% if request.query_params.get('fertig') %}<div class="msg ok">Alles bestätigt – keine offenen Comics mehr.</div>{% endif %}
 <h1>Offene Comics ({{ open_count }})</h1>
 {% for status, cases in groups %}

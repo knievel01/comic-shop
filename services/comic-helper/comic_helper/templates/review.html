@@ -75,6 +75,8 @@
                     background:var(--paper); color:var(--ink); text-shadow:none; box-shadow:none; }
   .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink); padding:.7rem 1rem; }
   .absenden button { margin:0; flex:1; border-color:var(--paper); box-shadow:3px 3px 0 var(--yellow); }
+  .absenden button.loeschen { flex:none; width:auto; background:var(--paper); color:var(--red); border-color:var(--ink);
+                              text-shadow:none; font-size:1.2rem; box-shadow:3px 3px 0 var(--paper); }
   .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--yellow); white-space:nowrap; }
   /* tablets and phones: one column, pictures first */
   @media (max-width: 900px) {
@@ -120,7 +122,7 @@
     {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
     {% if tags.status == 'fehler' %}
     <form method="post" action="/review/{{ id }}/neu-erkennen" style="background:none;border:0;padding:0">
-      <p class="calc">Scan unbrauchbar (z. B. falsche Seitenzahl)? Neu scannen und dieses Exemplar ignorieren.
+      <p class="calc">Scan unbrauchbar (z. B. falsche Seitenzahl)? Neu scannen und dieses Exemplar löschen.
       Nur vorübergehender Fehler? Dann erneut erkennen lassen:</p>
       <button type="submit" class="zweit">Erneut erkennen</button>
     </form>
@@ -185,8 +187,9 @@
       <input name="preis_override" id="override" inputmode="decimal" placeholder="leer = berechneter Preis">
     </section>
 
-    <div class="absenden"><span class="mini" id="preis-mini">?</span><button type="submit">Bestätigen und in den Shop</button></div>
+    <div class="absenden"><span class="mini" id="preis-mini">?</span><button type="submit" form="loeschen" class="loeschen">Löschen</button><button type="submit">Bestätigen und in den Shop</button></div>
   </form>
+  <form method="post" action="/review/{{ id }}/loeschen" id="loeschen" hidden></form>
 </div>
 
 <script>
@@ -261,6 +264,10 @@ function laden() {
   } catch { return null; }
 }
 function verwerfen() { try { speicher?.removeItem(SCHLUESSEL); } catch {} location.reload(); }
+document.getElementById("loeschen").addEventListener("submit", e => {
+  if (!confirm("Dieses Exemplar löschen? Es landet im Papierkorb und verschwindet aus der Liste.")) { e.preventDefault(); return; }
+  try { speicher?.removeItem(SCHLUESSEL); } catch {}
+});
 
 const entwurf = laden(), fehlerSeite = {{ 'true' if fehler else 'false' }};
 if (entwurf && entwurf.gesendet && !fehlerSeite) {

@@ -20,6 +20,7 @@ import json
 import logging
 import secrets
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -493,6 +494,20 @@ def review_retry(copy_id: str, store: Store = Depends(get_store)):
         raise HTTPException(404)
     store.update_tags(key, status="neu", claimed=None)
     return RedirectResponse("/review/", status_code=303)
+
+
+@app.post("/review/{copy_id}/loeschen", dependencies=[Depends(require_reviewer)])
+def review_delete(copy_id: str, store: Store = Depends(get_store)):
+    """Moves a reviewable copy to papierkorb/ (ADR-0019); nothing is deleted for good."""
+    _check_id(copy_id)
+    key = store.pdf_key(EINGANG, copy_id)
+    if not store.exists(key):
+        raise HTTPException(404)
+    if store.get_tags(key).get("status") not in REVIEWABLE:
+        raise HTTPException(409, "Nur offene oder fehlerhafte Exemplare können gelöscht werden")
+    store.move(copy_id, EINGANG, storage.PAPIERKORB, tags={"status": "geloescht", "geloescht": str(int(time.time()))})
+    log.info("moved %s to %s/", copy_id, storage.PAPIERKORB)
+    return RedirectResponse(f"/review/?geloescht={copy_id}", status_code=303)
 
 
 def _notify_n8n(s: Settings, copy_id: str) -> None:

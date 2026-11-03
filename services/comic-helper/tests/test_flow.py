@@ -267,6 +267,25 @@ def test_wrong_page_count_goes_to_error_path(env):
     assert c.post("/api/scans/claim", headers=H).json()["ids"] == [cid]
 
 
+def test_review_delete_moves_to_papierkorb(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    # still owned by n8n (status neu/in-arbeit): not deletable
+    assert c.post(f"/review/{cid}/loeschen", follow_redirects=False).status_code == 409
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    page = c.get(f"/review/{cid}").text
+    assert 'action="/review/' + cid + '/loeschen"' in page and 'form="loeschen"' in page
+    r = c.post(f"/review/{cid}/loeschen", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == f"/review/?geloescht={cid}"
+    assert not env.store.exists(f"eingang/{cid}.pdf") and not env.store.exists(f"eingang/{cid}.json")
+    assert env.store.get_tags(f"papierkorb/{cid}.pdf")["status"] == "geloescht"
+    assert env.store.exists(f"papierkorb/{cid}.json")
+    assert cid not in c.get("/review/").text
+    assert "gelöscht" in c.get(f"/review/?geloescht={cid}").text
+    assert c.post(f"/review/{cid}/loeschen", follow_redirects=False).status_code == 404
+
+
 def test_low_confidence_needs_recheck(env):
     env.claude.titel_sicherheit = 0.5
     c, cid = env.client, str(uuid.uuid4())

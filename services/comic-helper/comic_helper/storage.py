@@ -6,6 +6,7 @@ Layout per copy ("Exemplar", id = UUID from the scan upload):
     eingang/<id>.json    sidecar: AI proposal, review decision, Shopify ids (mutable working state)
     aktiv/<id>.pdf       confirmed + in Shopify; final metadata on the object
     verkauft/<id>.pdf    sold
+    papierkorb/<id>.pdf  deleted in the review UI, restorable (ADR-0019)
     bilder/<id>-1.jpg    cover / bilder/<id>-2.jpg back (for review UI and Shopify media)
 
 Object tags are mutable and cheap, user metadata is not (only via CopyObject with
@@ -25,6 +26,7 @@ from urllib.parse import quote, unquote
 from botocore.exceptions import ClientError
 
 EINGANG, AKTIV, VERKAUFT, BILDER = "eingang", "aktiv", "verkauft", "bilder"
+PAPIERKORB = "papierkorb"
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 METADATA_LIMIT = 2048  # bytes, S3 user-defined metadata (keys + values)
 SAFE_CHARS = " -_.,:;/()+&'!?#@"
