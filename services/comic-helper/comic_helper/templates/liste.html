@@ -6,8 +6,10 @@
   ul.faelle { list-style:none; margin:0; padding:0; display:grid; gap:1.6rem 1.4rem;
               grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); }
   .fall { position:relative; display:flex; flex-direction:column; transition:transform .12s, box-shadow .12s; }
-  .fall:has(a.ganz):hover { transform:translate(-3px, -3px); box-shadow:9px 9px 0 var(--ink); }
-  .fall .bild { aspect-ratio:3 / 4; border-bottom:var(--panel); overflow:hidden; background:var(--dots), var(--soft); }
+  /* lighter outline than the other panels: the covers should carry the list, not the frames */
+  .fall.panel { border-width:1.5px; box-shadow:3px 3px 0 var(--ink); }
+  .fall:has(a.ganz):hover { transform:translate(-2px, -2px); box-shadow:5px 5px 0 var(--ink); }
+  .fall .bild { aspect-ratio:3 / 4; border-bottom:1.5px solid var(--ink); overflow:hidden; background:var(--dots), var(--soft); }
   .fall .bild img { width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
   .fall .bild .leer { display:grid; place-items:center; height:100%; font:1.5rem var(--display); letter-spacing:.05em; }
   .fall .bild .leer span { background:var(--paper); border:var(--panel); padding:.2rem .7rem .1rem; }
