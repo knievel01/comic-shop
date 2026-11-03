@@ -7,11 +7,11 @@
   form.upload small { color:var(--muted); display:block; margin-top:.5rem; font-size:.95rem; }
   form.upload .aktionen { display:flex; gap:.8rem; margin-top:1.4rem; flex-wrap:wrap; }
   form.upload button { padding:.65rem 1.5rem .5rem; font:1.45rem/1 var(--display); letter-spacing:.05em; cursor:pointer;
-    border:var(--panel); background:var(--red); color:var(--paper); text-shadow:1px 1px 0 var(--ink); box-shadow:4px 4px 0 var(--ink); }
-  form.upload button:active { transform:translate(3px, 3px); box-shadow:1px 1px 0 var(--ink); }
+    border:var(--strich); background:var(--red); color:var(--paper); text-shadow:1px 1px 0 var(--ink); box-shadow:var(--druck); }
+  form.upload button:active { transform:translate(3px, 3px); box-shadow:var(--gedrueckt); }
   form.upload button.zweit { background:var(--paper); color:var(--ink); text-shadow:none; }
   .vorschau { display:flex; gap:1rem; margin-top:1rem; }
-  .vorschau img { max-height:160px; max-width:45%; border:var(--panel); box-shadow:4px 4px 0 var(--ink); }
+  .vorschau img { max-height:160px; max-width:45%; border:var(--strich); }
 </style>
 <form class="upload" method="post" action="/review/hochladen" enctype="multipart/form-data" id="upload">
   <label for="cover">Cover (Seite 1)</label>

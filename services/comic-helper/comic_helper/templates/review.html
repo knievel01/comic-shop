@@ -6,37 +6,37 @@
   .grid > section { position:sticky; top:1rem; }  /* pictures stay in view while scrolling the form */
   /* cover and back as two comic panels with caption boxes */
   .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
-  .pics figure { margin:0; position:relative; border:var(--panel); box-shadow:var(--pop); background:var(--paper); }
-  .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); border:solid var(--ink); border-width:0 3px 3px 0;
+  .pics figure { margin:0; position:relative; border:var(--strich); background:var(--paper); }
+  .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); border:solid var(--ink); border-width:0 2px 2px 0;
                      padding:.15rem .6rem .05rem; font:1.15rem var(--display); letter-spacing:.05em; }
   .pics img { width:100%; display:block; cursor:zoom-in; }
   .pics img.zoom { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:rgba(0,0,0,.92); z-index:9; cursor:zoom-out; }
   .kopf { display:flex; flex-wrap:wrap; gap:.4rem .6rem; align-items:center; margin:1.4rem 0 .4rem; color:var(--muted); font-size:.95rem; }
   .kopf code { font:inherit; color:var(--ink); }
   /* what the AI says is set as speech bubbles */
-  .sprechblase { position:relative; margin:1.4rem 0 1.1rem; padding:.75rem 1rem; border:var(--panel); border-radius:1.4rem;
+  .sprechblase { position:relative; margin:1.4rem 0 1.1rem; padding:.75rem 1rem; border:var(--strich); border-radius:1.4rem;
                  background:var(--paper); font-size:1.05rem; line-height:1.35; }
   .sprechblase::before, .sprechblase::after { content:""; position:absolute; left:2.2rem; border-style:solid; }
   .sprechblase::before { bottom:-1.25rem; border-width:1.25rem 1.25rem 0 0; border-color:var(--ink) transparent transparent; }
-  .sprechblase::after { bottom:-.8rem; left:calc(2.2rem + 3px); border-width:.85rem .85rem 0 0; border-color:var(--paper) transparent transparent; }
+  .sprechblase::after { bottom:-.8rem; left:calc(2.2rem + 2px); border-width:.95rem .95rem 0 0; border-color:var(--paper) transparent transparent; }
   .sprechblase strong { font:1.2rem/1 var(--display); letter-spacing:.05em; margin-right:.35rem; }
   .sprechblase small { display:block; margin-top:.3rem; }
 
-  form#f { background:var(--paper); border:var(--panel); border-width:4px; box-shadow:10px 10px 0 var(--ink); padding:1rem 1.3rem 1.2rem; }
+  form#f { background:var(--paper); border:var(--strich); padding:1rem 1.3rem 1.2rem; }
   form#f > h2:first-child { margin:0 0 .4rem; font-size:2rem; }
   label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
   input, select, textarea { width:100%; font:500 1.05rem var(--text); color:var(--ink); padding:.45rem .6rem; margin-top:.15rem;
-                            border:2px solid var(--ink); border-radius:0; background:var(--paper); }
+                            border:var(--strich); border-radius:0; background:var(--paper); }
   input:focus, select:focus, textarea:focus { background:#fffbe0; outline:3px solid var(--blue); outline-offset:0; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
   .row3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:.8rem; }
-  fieldset { border:var(--panel); margin:1.3rem 0 0; padding:.4rem .9rem .9rem; }
+  fieldset { border:var(--strich); margin:1.3rem 0 0; padding:.4rem .9rem .9rem; }
   legend { font:1.45rem/1 var(--display); letter-spacing:.05em; padding:.15rem .55rem .05rem; background:var(--ink); color:var(--paper); }
   .zustand { display:grid; gap:.5rem; }
   .zustand label { display:flex; gap:.6rem; align-items:flex-start; margin:0; padding:.55rem .65rem; font-weight:500; font-size:1rem;
-                   border:2px solid var(--ink); cursor:pointer; transition:transform .1s, box-shadow .1s; }
+                   border:var(--strich); cursor:pointer; }
   .zustand label:hover { background:var(--soft); }
-  .zustand label:has(input:checked) { background:var(--yellow); box-shadow:4px 4px 0 var(--ink); transform:translate(-2px, -2px); }
+  .zustand label:has(input:checked) { background:var(--yellow); }
   .zustand input { width:auto; margin:.2rem 0 0; accent-color:var(--red); transform:scale(1.25); }
   .zustand strong { font-weight:800; font-size:1.08rem; }
   .zustand small { color:var(--muted); display:block; line-height:1.3; }
@@ -48,11 +48,11 @@
   .calc { color:var(--muted); font-size:.95rem; }
   .hint { font-size:.95rem; color:var(--bad); font-weight:700; }
   .links { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
-  .links a { padding:.25rem .7rem; border:2px solid var(--ink); text-decoration:none; color:var(--ink); font-weight:800; background:var(--paper); }
+  .links a { padding:.25rem .7rem; border:var(--strich); text-decoration:none; color:var(--ink); font-weight:800; background:var(--paper); }
   .links a:hover { background:var(--yellow); }
   button { margin-top:1rem; width:100%; padding:.7rem .8rem .55rem; font:1.5rem/1 var(--display); letter-spacing:.05em; cursor:pointer;
-           color:var(--paper); background:var(--red); border:var(--panel); text-shadow:1px 1px 0 var(--ink); box-shadow:4px 4px 0 var(--ink); }
-  button:active { transform:translate(3px, 3px); box-shadow:1px 1px 0 var(--ink); }
+           color:var(--paper); background:var(--red); border:var(--strich); text-shadow:1px 1px 0 var(--ink); box-shadow:var(--druck); }
+  button:active { transform:translate(3px, 3px); box-shadow:var(--gedrueckt); }
   button.zweit { width:auto; background:var(--paper); color:var(--ink); text-shadow:none; font-size:1.2rem; }
   .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink);
               margin:1.2rem -1.3rem -1.2rem; padding:.7rem 1.3rem; }
@@ -66,8 +66,7 @@
   /* phones */
   @media (max-width: 560px) {
     .pics { gap:.8rem; }
-    .pics figure { box-shadow:4px 4px 0 var(--ink); }
-    form#f { padding:.8rem .9rem 1rem; box-shadow:6px 6px 0 var(--ink); border-width:3px; }
+    form#f { padding:.8rem .9rem 1rem; }
     fieldset { padding:.3rem .65rem .75rem; }
     .absenden { margin:1.2rem -.9rem -1rem; padding:.6rem .9rem calc(.6rem + env(safe-area-inset-bottom)); }
     .row { grid-template-columns:1fr; }
