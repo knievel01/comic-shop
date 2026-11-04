@@ -188,6 +188,16 @@
         "genericAuthType": "httpHeaderAuth",
         "options": {
           "timeout": 300000
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-Lauf",
+              "value": "={{ $execution.id }}"
+            }
+          ]
         }
       },
       "credentials": {

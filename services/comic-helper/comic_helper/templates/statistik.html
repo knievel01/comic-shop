@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  h1 { margin:0 0 1rem; font-size:2.2rem; }
+  h2 { margin:2rem 0 .6rem; font-size:1.5rem; }
+  .zahlen { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); }
+  .zahl { border:var(--strich); box-shadow:var(--druck); background:var(--paper); padding:.7rem .9rem; }
+  .zahl.gross { background:var(--yellow); }
+  .zahl b { display:block; font:2rem/1.1 var(--display); letter-spacing:.02em; }
+  .zahl span { color:var(--ink); font-weight:700; }
+  .tabelle { overflow-x:auto; border:var(--strich); background:var(--paper); }
+  table { border-collapse:collapse; width:100%; min-width:34rem; }
+  th, td { padding:.45rem .7rem; text-align:right; border-bottom:2px solid var(--soft); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { background:var(--soft); border-bottom:var(--strich); font-weight:800; }
+  tfoot td { border-top:var(--strich); border-bottom:0; font-weight:800; }
+  td.minus { color:var(--red); }
+  .hinweis { max-width:46rem; color:var(--muted); line-height:1.4; margin:.6rem 0 0; }
+  .leer { padding:1rem 1.2rem; }
+</style>
+{% endblock %}
+{% block body %}
+<h1>Statistik</h1>
+
+{% set z = st.zaehler %}
+<div class="zahlen">
+  <div class="zahl gross"><b>{{ st.gespart_min | minuten }}</b><span>Zeit gespart (geschätzt)</span></div>
+  <div class="zahl"><b>{{ st.kosten | usd }}</b><span>KI-Kosten gesamt (ohne Preissuchen vor der Messung)</span></div>
+  <div class="zahl"><b>{{ ((st.gemessene_kosten / st.gemessene_comics) if st.gemessene_comics else None) | usd }}</b><span>KI-Kosten je Comic (nur gemessene Läufe: {{ st.gemessene_comics }})</span></div>
+  <div class="zahl"><b>{{ z.comics }}</b><span>Comics erfasst</span></div>
+</div>
+
+<h2>Gesparte Zeit je Workflow</h2>
+<div class="tabelle"><table>
+  <thead><tr><th>Workflow</th><th>Comics</th><th>Von Hand</th><th>Automatisch</th><th>Prüfung</th><th>Gespart</th></tr></thead>
+  <tbody>
+  {% for w in st.workflows %}
+    <tr><td>{{ w.name }}</td><td>{{ w.anzahl }}</td><td>{{ w.handarbeit | minuten }}</td>
+        <td>{{ w.automatisch | minuten }}</td><td>{{ w.pruefung | minuten if w.pruefung else "–" }}</td>
+        <td{% if w.gespart < 0 %} class="minus"{% endif %}>{{ w.gespart | minuten }}</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><td>Gesamt</td><td></td><td>{{ st.handarbeit_min | minuten }}</td><td></td><td></td><td>{{ st.gespart_min | minuten }}</td></tr></tfoot>
+</table></div>
+<p class="hinweis">
+  „Von Hand“ ist eine <b>Annahme</b> je Comic: Erkennung {{ annahmen.handarbeit_minuten.erkennung }} Min,
+  Preisvorschlag {{ annahmen.handarbeit_minuten.preissuche }} Min (nur wenn ein Vorschlag gefunden wurde),
+  Shopify {{ annahmen.handarbeit_minuten.shopify }} Min, Verkauf {{ annahmen.handarbeit_minuten.verkauf }} Min.
+  „Automatisch“ ist die gemessene Laufzeit der KI; Workflow 02 und 03 sind nicht gemessen und zählen als 0.
+  „Prüfung“ ({{ annahmen.pruefung_minuten }} Min je Comic) bleibt Handarbeit und wird abgezogen.
+  Gelöschte Comics sparen nichts, ihre Kosten zählen aber mit. Die Werte stehen in
+  <code>config/pricing.yaml</code> unter <code>statistik</code>.
+</p>
+
+<h2>Je n8n-Durchlauf</h2>
+{% if st.laeufe %}
+<div class="tabelle"><table>
+  <thead><tr><th>Ende</th><th>Durchlauf</th><th>Comics</th><th>Dauer</th><th>KI-Zeit</th><th>Kosten</th></tr></thead>
+  <tbody>
+  {% for r in st.laeufe %}
+    <tr><td>{{ r.ende | lokalzeit }}</td>
+        <td>{% if r.alt %}Vor der Messung ({{ r.anzahl }} Comics, nur Erkennung){% elif r.manuell %}Review (manuell){% else %}Workflow 01 · #{{ r.id }}{% endif %}</td>
+        <td>{{ r.anzahl }}</td>
+        <td>{{ r.dauer_s | sekunden if r.gemessen else "–" }}</td>
+        <td>{{ r.claude_s | sekunden if r.gemessen else "–" }}</td>
+        <td>{{ r.kosten | usd }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="hinweis">Dauer = vom Start des ersten bis zum Ende des letzten Comics im Durchlauf (die Comics laufen nacheinander).
+  KI-Zeit = Summe der Wartezeit auf Claude. Comics von vor der Messung ({{ z.alt }}) sind in einer Zeile zusammengefasst: nur die Erkennung ist bekannt, Preissuche und Zeiten fehlen, ihre Kosten sind daher zu niedrig. Neue Läufe werden vollständig erfasst; die Vergleichsmessungen zwischen den Modellen sind nicht enthalten.</p>
+{% else %}
+<p class="zahl leer">Noch keine Läufe erfasst.</p>
+{% endif %}
+
+<h2>Je Modell</h2>
+<div class="tabelle"><table>
+  <thead><tr><th>Modell</th><th>Aufrufe</th><th>Kosten</th><th>Kosten je Aufruf</th><th>Ø Dauer</th></tr></thead>
+  <tbody>
+  {% for name, m in st.modelle.items() %}
+    <tr><td>{{ name }}</td><td>{{ m.aufrufe }}</td><td>{{ m.kosten | usd }}</td>
+        <td>{{ (m.kosten / m.aufrufe) | usd }}</td>
+        <td>{{ ((m.sekunden / m.gemessen) if m.gemessen else None) | sekunden }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="hinweis">Kosten in US-Dollar nach der Preisliste in <code>config/pricing.yaml</code> (Token, Websuchen).
+  Aufrufe sind Erkennungen und Preissuchen getrennt gezählt.</p>
+{% endblock %}

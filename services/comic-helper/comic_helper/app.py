@@ -37,7 +37,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import marktpreis, pdf, pricing, recognition, report, storage, webhooks
+from . import marktpreis, pdf, pricing, recognition, report, statistik, storage, webhooks
 from .config import Settings, pricing_config, settings
 from .shopify import Shopify, ShopifyError, make_sku
 from .storage import AKTIV, EINGANG, Store
@@ -76,6 +76,27 @@ def _local_time(value: datetime | str | None, fmt: str = "%d.%m.%Y %H:%M") -> st
 
 
 templates.env.filters["lokalzeit"] = _local_time
+
+
+def _fmt_seconds(value: float | None) -> str:
+    if value is None:
+        return "–"
+    value = int(round(value))
+    return f"{value // 60}:{value % 60:02d} min" if value >= 60 else f"{value} s"
+
+
+def _fmt_minutes(value: float | None) -> str:
+    if value is None:
+        return "–"
+    sign, value = ("−" if value < 0 else ""), int(round(abs(value)))
+    return f"{sign}{value // 60} Std {value % 60} Min" if value >= 60 else f"{sign}{value} Min"
+
+
+def _fmt_usd(value: float | None) -> str:
+    return "–" if value is None else f"{value:.2f} $".replace(".", ",")
+
+
+templates.env.filters.update(sekunden=_fmt_seconds, minuten=_fmt_minutes, usd=_fmt_usd)
 
 
 # --- dependencies (overridden in tests) ---------------------------------------
@@ -149,8 +170,11 @@ def claim(limit: int = 10, store: Store = Depends(get_store)):
 
 @app.post("/api/scans/{copy_id}/recognize", dependencies=[Depends(require_token)])
 def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Depends(get_settings),
-              cfg: dict = Depends(get_cfg), claude: anthropic.Anthropic = Depends(get_claude)):
+              cfg: dict = Depends(get_cfg), claude: anthropic.Anthropic = Depends(get_claude),
+              x_n8n_lauf: str = Header(default="")):
     _check_id(copy_id)
+    started = _utc()
+    t0 = time.monotonic()
     key = store.pdf_key(EINGANG, copy_id)
     try:
         head = store.head(key)
@@ -177,16 +201,19 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         model_images = [pdf.to_jpeg(im, pdf.MODEL_MAX_EDGE) for im in (cover, back)]
         del cover, back
 
+    t_claude = time.monotonic()
     try:
         result, info = recognition.recognize(
             claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort, zustaende=cfg["zustaende"])
     except recognition.RecognitionError as e:
         raise HTTPException(503 if e.retryable else 502, f"Erkennung: {e}")
+    recognition_s = round(time.monotonic() - t_claude, 1)
 
     proposal = recognition.to_proposal(result)
     confidence = recognition.overall_confidence(result)
     ki_status = recognition.classify(confidence, float(cfg["konfidenz_schwelle"]))
-    price_hint = marktpreis.suggest(claude, proposal, cfg, s.anthropic_model)
+    price_usage: dict = {}
+    price_hint = marktpreis.suggest(claude, proposal, cfg, s.anthropic_model, usage_out=price_usage)
     if price_hint is None and proposal["coverpreis"] and pricing.cover_rule_applies(
             proposal["waehrung"], proposal["jahr"], cfg):
         price_hint = {"basis_z1": pricing.base_from_cover_price(proposal["coverpreis"], cfg), "quelle": "coverpreis"}
@@ -202,11 +229,37 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         "preis_suche": _utc(),
         "ki_roh": result.model_dump(),
         "ki_info": info,
+        "laeufe": _prior_runs(store, side_key) + [{
+            "start": started, "zeit": _utc(), "art": "erkennung", "n8n": x_n8n_lauf[:40],
+            "gesamt_s": round(time.monotonic() - t0, 1),
+            "erkennung": {"modell": info["model"], "input_tokens": info["input_tokens"],
+                          "output_tokens": info["output_tokens"], "sekunden": recognition_s},
+            "preissuche": _price_run(price_usage, price_hint),
+        }],
     }
     store.write_json(side_key, sidecar)
     store.update_tags(key, status="offen", ki=ki_status, claimed=None)
     log.info("recognized %s: %s %s (%s %.2f)", copy_id, proposal["titel"], proposal["ausgabe"], ki_status, confidence)
     return _summary(copy_id, sidecar, s)
+
+
+def _prior_runs(store: Store, side_key: str) -> list[dict]:
+    """Run entries of an earlier sidecar (a failed scan that is recognized again keeps its history)."""
+    if not store.exists(side_key):
+        return []
+    try:
+        return statistik.entries_of(store.read_json(side_key))
+    except (ValueError, KeyError):
+        return []
+
+
+def _price_run(usage: dict, hint: dict | None) -> dict | None:
+    """Statistics entry for one price search; None if the search was switched off or not started."""
+    if not usage.get("attempts"):
+        return None
+    return {"modell": usage["model"], "input_tokens": usage["input_tokens"], "output_tokens": usage["output_tokens"],
+            "suchen": usage["searches"], "versuche": usage["attempts"], "sekunden": usage["seconds"],
+            "treffer": len(hint["angebote"]) if hint and hint.get("angebote") else 0}
 
 
 def _summary(copy_id: str, sidecar: dict, s: Settings, already: bool = False) -> dict:
@@ -426,6 +479,12 @@ def review_list(request: Request, store: Store = Depends(get_store)):
     })
 
 
+@app.get("/review/statistik", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
+def review_statistics(request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
+    return templates.TemplateResponse(request, "statistik.html", {
+        "st": statistik.collect(store, cfg), "annahmen": (cfg.get("statistik") or {})})
+
+
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp", "image/avif")
 templates.env.globals["upload_typen"] = ",".join(UPLOAD_TYPES)
@@ -518,8 +577,13 @@ def review_search_price(copy_id: str, store: Store = Depends(get_store), cfg: di
     if store.get_tags(key).get("status") not in REVIEWABLE:
         raise HTTPException(409, "Nur offene oder fehlerhafte Exemplare")
     side = store.read_json(side_key)
-    hint = marktpreis.suggest(claude, side["vorschlag"], cfg, s.anthropic_model)
+    started, usage = _utc(), {}
+    hint = marktpreis.suggest(claude, side["vorschlag"], cfg, s.anthropic_model, usage_out=usage)
+    side["laeufe"] = statistik.entries_of(side) + [{
+        "start": started, "zeit": _utc(), "art": "preissuche", "n8n": "", "gesamt_s": usage.get("seconds"),
+        "erkennung": None, "preissuche": _price_run(usage, hint)}]
     if hint is None:
+        store.write_json(side_key, side)
         return RedirectResponse(f"/review/{copy_id}?fehler=" + quote_plus(
             "Keine passenden Angebote gefunden. Bitte von Hand über die Links suchen."), status_code=303)
     side["preis_vorschlag"] = hint

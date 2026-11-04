@@ -28,3 +28,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0020](0020-bestaetigung-zurueckholen-bis-shopify.md) | Bestätigung lässt sich bis zum Anlegen in Shopify zurückholen | Akzeptiert, ergänzt 0006/0014 |
 | [0021](0021-shopify-dev-dashboard-app-mit-client-credentials.md) | Shopify-Anbindung über eine Dev-Dashboard-App mit Client-Credentials | Akzeptiert, ergänzt 0012/0003 |
 | [0022](0022-automatischer-preisvorschlag-per-websuche.md) | Automatischer Preisvorschlag aus Booklooker/ZVAB per Anthropic-Websuche | Akzeptiert (PoC), ergänzt 0017/0011 |
+| [0023](0023-statistik-seite-fuer-kosten-laufzeit-und-zeitersparnis.md) | Statistik-Seite für KI-Kosten, Laufzeiten und gesparte Handarbeit | Akzeptiert (PoC), ergänzt 0004/0022 |

@@ -16,9 +16,12 @@ def node(name, type_, ver, pos, params, **extra):
     n.update(extra)
     return n
 
-def http(name, pos, method, url, body=None, timeout=60000, **extra):
+def http(name, pos, method, url, body=None, timeout=60000, headers=None, **extra):
     p = {"method": method, "url": url, "authentication": "genericCredentialType",
          "genericAuthType": "httpHeaderAuth", "options": {"timeout": timeout}}
+    if headers:
+        p.update(sendHeaders=True, specifyHeaders="keypair",
+                 headerParameters={"parameters": [{"name": k, "value": v} for k, v in headers.items()]})
     if body is not None:
         p.update(sendBody=True, specifyBody="json", jsonBody=body)
     return node(name, "n8n-nodes-base.httpRequest", 4.2, pos, p, credentials=CRED_HELPER, **extra)
@@ -63,7 +66,8 @@ flows.append(wf("cmxScanIngest001", "Comics 01 Scan-Ingest und Erkennung", [
     http("Neue Scans holen", [220, 0], "POST", f"={HELPER}/api/scans/claim?limit=20"),
     node("Einzeln", "n8n-nodes-base.splitOut", 1, [440, 0], {"fieldToSplitOut": "ids", "options": {}}),
     http("Erkennen (Claude)", [660, 0], "POST", f"={HELPER}/api/scans/{{{{ $json.ids }}}}/recognize",
-         timeout=300000, onError="continueErrorOutput", retryOnFail=True, maxTries=3, waitBetweenTries=5000),
+         timeout=300000, headers={"X-N8N-Lauf": "={{ $execution.id }}"},
+         onError="continueErrorOutput", retryOnFail=True, maxTries=3, waitBetweenTries=5000),
     node("Erkannt", "n8n-nodes-base.noOp", 1, [900, -100], {}),
     http("Fehlerpfad: als Fehler markieren", [900, 100], "POST",
          f"={HELPER}/api/scans/{{{{ $('Einzeln').item.json.ids }}}}/fail",
