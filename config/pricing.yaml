@@ -71,6 +71,7 @@ marktpreis:
   min_angebote: 2     # weniger belegte Angebote -> kein Vorschlag
   max_suchen: 4       # Websuchen je Comic (Kostenbremse)
   versuche: 2         # zweiter Anlauf, wenn der erste zu wenige Angebote liefert
+  max_tokens: 16000   # Obergrenze je Antwort; zu knapp (4000) schneidet bei Haiku die Antwort ab, bevor sie fertig ist
   modell: ""          # leer = CLAUDE_MODEL (Erkennung); z. B. claude-sonnet-5-5 für die Preissuche
 
 shopify:

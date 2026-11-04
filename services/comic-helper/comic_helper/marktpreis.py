@@ -150,7 +150,7 @@ def suggest(client: anthropic.Anthropic, proposal: dict, cfg: dict, model: str,
         try:
             response = client.messages.create(
                 model=model,
-                max_tokens=4000,
+                max_tokens=int(conf.get("max_tokens", 4000)),
                 tools=[{"type": "web_search_20250305", "name": "web_search",
                         "max_uses": int(conf.get("max_suchen", 4)),
                         "allowed_domains": list(PORTALS)}],

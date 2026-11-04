@@ -2,7 +2,7 @@
 """Compares the automatic price search (ADR-0022) between models on already recognized comics.
 
 Runs inside the comic-helper pod (needs S3 and the Anthropic key), nothing is written back:
-  kubectl -n comics exec -i deploy/comic-helper -- python - [max_comics] < scripts/preissuche-vergleich.py
+  kubectl -n comics exec -i deploy/comic-helper -- python - [max_comics] [model,model,...] [max_tokens] < scripts/preissuche-vergleich.py
 Prices (USD per million tokens, search per call) as of 2026-11-03, see platform.claude.com pricing.
 """
 import copy
@@ -12,9 +12,11 @@ import sys
 from comic_helper import app, marktpreis
 from comic_helper.storage import AKTIV, EINGANG
 
-MODELS = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0)}
+PRICES = {"claude-opus-5-5": (4.0, 20.0), "claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.1, 0.5)}  # haiku: prompts up to 100k tokens
+MODELS = {m: PRICES[m] for m in (sys.argv[2].split(",") if len(sys.argv) > 2 else ["claude-opus-5-5", "claude-sonnet-5-5"])}
 SEARCH_USD = 0.01
 LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+MAX_TOKENS = int(sys.argv[3]) if len(sys.argv) > 3 else 4000
 
 store, cfg, client = app.get_store(), app.get_cfg(), app.get_claude()
 comics = []
@@ -40,6 +42,7 @@ for cid, v in comics:
     for model in MODELS:
         c = copy.deepcopy(cfg)
         c["marktpreis"]["modell"] = model
+        c["marktpreis"]["max_tokens"] = MAX_TOKENS
         u = {}
         h = marktpreis.suggest(client, v, c, model, usage_out=u)
         u["usd"] = cost(model, u)
@@ -56,7 +59,9 @@ for model, us in rows.items():
     print(f"{model}: Ø {statistics.mean(u['seconds'] for u in us):.1f}s, Ø ${statistics.mean(u['usd'] for u in us):.3f}, "
           f"Ø {statistics.mean(u['input_tokens'] for u in us):.0f} in / {statistics.mean(u['output_tokens'] for u in us):.0f} out, "
           f"Ø {statistics.mean(u['searches'] for u in us):.1f} Suchen, Treffer bei {sum(1 for u in us if u['median'])}/{len(us)}")
-pairs = [(a["median"], b["median"]) for a, b in zip(*rows.values()) if a["median"] and b["median"]]
-if pairs:
-    dev = [abs(b - a) / a for a, b in pairs]
-    print(f"Median-Abweichung Sonnet vs. Opus bei {len(pairs)} Paaren: Ø {statistics.mean(dev):.0%}, max {max(dev):.0%}")
+names = list(rows)
+for other in names[1:]:
+    pairs = [(a["median"], b["median"]) for a, b in zip(rows[names[0]], rows[other]) if a["median"] and b["median"]]
+    if pairs:
+        dev = [abs(b - a) / a for a, b in pairs]
+        print(f"Median-Abweichung {other} vs. {names[0]} bei {len(pairs)} Paaren: Ø {statistics.mean(dev):.0%}, max {max(dev):.0%}")
