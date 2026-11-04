@@ -438,7 +438,7 @@ def upload_form(request: Request, fehler: str = ""):
 
 @app.post("/review/hochladen", dependencies=[Depends(require_reviewer)])
 def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(...),
-                  store: Store = Depends(get_store)):
+                  store: Store = Depends(get_store), s: Settings = Depends(get_settings)):
     """Second intake besides the scanner (ADR-0018): two photos -> eingang/{uuid}.pdf, status=neu."""
     def back(msg: str):
         return RedirectResponse(f"/review/hochladen?fehler={quote_plus(msg)}", status_code=303)
@@ -459,6 +459,7 @@ def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(.
     copy_id = str(uuid.uuid4())
     store.put_new_scan(copy_id, scan)
     log.info("uploaded photos as %s (%d bytes)", copy_id, len(scan))
+    _notify_n8n(s, copy_id, "scan-neu")  # start workflow 01 now instead of waiting for the 2-minute poll
     return RedirectResponse(f"/review/?hochgeladen={copy_id}", status_code=303)
 
 
@@ -569,13 +570,14 @@ def review_reopen(copy_id: str, store: Store = Depends(get_store)):
     return RedirectResponse(f"/review/{copy_id}", status_code=303)
 
 
-def _notify_n8n(s: Settings, copy_id: str) -> None:
-    """Best effort: n8n also polls /api/scans/confirmed, so a failure here loses nothing."""
+def _notify_n8n(s: Settings, copy_id: str, hook: str = "comic-bestaetigt") -> None:
+    """Best effort: n8n also polls (confirmed comics every 15 min, new scans every 2 min), so a failure
+    here loses nothing."""
     try:
-        httpx2.post(f"{s.n8n_internal_url}/webhook/comic-bestaetigt", json={"id": copy_id},
+        httpx2.post(f"{s.n8n_internal_url}/webhook/{hook}", json={"id": copy_id},
                     headers={"X-Helper-Token": s.helper_token}, timeout=10)
     except httpx2.HTTPError as e:
-        log.warning("n8n notify failed for %s: %s", copy_id, e)
+        log.warning("n8n notify (%s) failed for %s: %s", hook, copy_id, e)
 
 
 @app.post("/review/{copy_id}", dependencies=[Depends(require_reviewer)])

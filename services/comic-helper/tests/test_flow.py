@@ -519,3 +519,12 @@ def test_condition_prompt_uses_scale_from_config():
 def test_review_fonts_are_served_locally(env):
     r = env.client.get("/review/static/fonts/Bangers-Regular.ttf")
     assert r.status_code == 200 and len(r.content) > 10_000
+
+
+def test_upload_triggers_workflow_01(env, monkeypatch):
+    calls = []
+    monkeypatch.setattr(app_module.httpx2, "post", lambda url, **kw: calls.append((url, kw)))
+    files = {"cover": ("c.jpg", _photo("red"), "image/jpeg"), "rueckseite": ("r.jpg", _photo("red"), "image/jpeg")}
+    assert env.client.post("/review/hochladen", files=files, follow_redirects=False).status_code == 303
+    assert len(calls) == 1 and calls[0][0].endswith("/webhook/scan-neu")
+    assert calls[0][1]["headers"]["X-Helper-Token"] == TOKEN

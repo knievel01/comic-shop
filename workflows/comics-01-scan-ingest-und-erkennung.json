@@ -13,7 +13,7 @@
         -360
       ],
       "parameters": {
-        "content": "## So kommen neue Comics in die Review\nAlle 2 Minuten schaut dieser Ablauf in den Eingang. Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. Danach wartet das Comic auf deine Prüfung.",
+        "content": "## So kommen neue Comics in die Review\nBei jedem Foto-Upload startet dieser Ablauf sofort, sonst schaut er alle 2 Minuten in den Eingang. Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. Danach wartet das Comic auf deine Prüfung.",
         "height": 150,
         "width": 1120,
         "color": 7
@@ -103,6 +103,32 @@
         }
       },
       "notes": "Startet von selbst",
+      "notesInFlow": true
+    },
+    {
+      "id": "2d672349-5e9a-50d8-b783-c68b78210695",
+      "name": "Foto wurde hochgeladen",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scan-neu",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cmxHelperToken01",
+          "name": "Comic Helper Token"
+        }
+      },
+      "webhookId": "3f511db5-929e-5672-93e8-6486a31aaea2",
+      "notes": "Startet sofort, ohne Warten",
       "notesInFlow": true
     },
     {
@@ -223,6 +249,17 @@
   ],
   "connections": {
     "Alle 2 Minuten nachsehen": {
+      "main": [
+        [
+          {
+            "node": "Neue Scans abholen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Foto wurde hochgeladen": {
       "main": [
         [
           {

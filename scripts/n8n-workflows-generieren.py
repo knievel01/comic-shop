@@ -55,6 +55,11 @@ flows = []
 flows.append(wf("cmxScanIngest001", "Comics 01 Scan-Ingest und Erkennung", [
     node("Alle 2 Minuten", "n8n-nodes-base.scheduleTrigger", 1.2, [0, 0],
          {"rule": {"interval": [{"field": "minutes", "minutesInterval": 2}]}}),
+    node("Webhook Foto-Upload", "n8n-nodes-base.webhook", 2, [0, 220],
+         {"httpMethod": "POST", "path": "scan-neu", "authentication": "headerAuth",
+          "responseMode": "onReceived", "options": {}},
+         credentials={"httpHeaderAuth": CRED_HELPER["httpHeaderAuth"]}, webhookId=nid("wh-scan-neu"),
+         notes="Die Review ruft das nach jedem Foto-Upload auf, damit die Erkennung sofort startet."),
     http("Neue Scans holen", [220, 0], "POST", f"={HELPER}/api/scans/claim?limit=20"),
     node("Einzeln", "n8n-nodes-base.splitOut", 1, [440, 0], {"fieldToSplitOut": "ids", "options": {}}),
     http("Erkennen (Claude)", [660, 0], "POST", f"={HELPER}/api/scans/{{{{ $json.ids }}}}/recognize",
@@ -63,7 +68,8 @@ flows.append(wf("cmxScanIngest001", "Comics 01 Scan-Ingest und Erkennung", [
     http("Fehlerpfad: als Fehler markieren", [900, 100], "POST",
          f"={HELPER}/api/scans/{{{{ $('Einzeln').item.json.ids }}}}/fail",
          body="={{ JSON.stringify({ fehler: $json.error?.message || JSON.stringify($json.error || $json) }) }}"),
-], conn(("Alle 2 Minuten", "Neue Scans holen", 0), ("Neue Scans holen", "Einzeln", 0),
+], conn(("Alle 2 Minuten", "Neue Scans holen", 0), ("Webhook Foto-Upload", "Neue Scans holen", 0),
+        ("Neue Scans holen", "Einzeln", 0),
         ("Einzeln", "Erkennen (Claude)", 0), ("Erkennen (Claude)", "Erkannt", 0),
         ("Erkennen (Claude)", "Fehlerpfad: als Fehler markieren", 1))))
 
@@ -159,6 +165,7 @@ flows.append(wf(ERROR_WF, "Comics 99 Fehler-Alarm", [
 RENAMES = {
     "cmxScanIngest001": {
         "Alle 2 Minuten": "Alle 2 Minuten nachsehen",
+        "Webhook Foto-Upload": "Foto wurde hochgeladen",
         "Neue Scans holen": "Neue Scans abholen",
         "Einzeln": "Ein Comic nach dem anderen",
         "Erkennen (Claude)": "KI liest das Cover",
@@ -197,6 +204,7 @@ RENAMES = {
 CAPTIONS = {
     "Alle 2 Minuten nachsehen": "Startet von selbst",
     "Neue Scans abholen": "Was liegt im Eingang?",
+    "Foto wurde hochgeladen": "Startet sofort, ohne Warten",
     "KI liest das Cover": "Titel, Heft, Verlag, Zustand",
     "Fertig: wartet auf Prüfung": "Du prüfst in der Review",
     "Problem vermerken": "Comic bekommt Status Fehler",
@@ -226,7 +234,7 @@ def sticky(key, pos, w, h, color, text):
 STICKIES = {
     "cmxScanIngest001": [
         ("titel", [-40, -360], 1120, 150, 7,
-         "## So kommen neue Comics in die Review\nAlle 2 Minuten schaut dieser Ablauf in den Eingang. "
+         "## So kommen neue Comics in die Review\nBei jedem Foto-Upload startet dieser Ablauf sofort, sonst schaut er alle 2 Minuten in den Eingang. "
          "Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. "
          "Danach wartet das Comic auf deine Prüfung."),
         ("1", [-40, -190], 400, 330, 3, "### 1. Neue Scans finden"),
