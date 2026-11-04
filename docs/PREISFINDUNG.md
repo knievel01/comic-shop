@@ -41,6 +41,14 @@ die Trefferquote später auswerten lässt.
 > gefundenen Preise (ohne Versand, mindestens 2 Angebote) füllt Preis, Beleg-Link und die Notiz vor.
 > Die Notiz nennt Datum, alle Preise, Vorgehen und Links. Ändern geht jederzeit, der Knopf „Preis
 > automatisch neu suchen“ wiederholt die Suche. Schalter und Grenzen: `marktpreis` in `pricing.yaml`.
+>
+> **Suchprompt (`marktpreis.py`):** Er ist so gebaut, dass auch kleinere Modelle brauchbar liefern. Gemessen
+> an acht Comics mit je einem Lauf: Mediane von Sonnet 5.5 weichen im Schnitt etwa 7 %, die von Haiku
+> 5.5 etwa 10 % von Opus 5.5 ab (vorher 26 % und 29 %), bei 6 bis 8 statt 2 bis 3 Angeboten. Kern:
+> erst den Bandtitel überlegen (Händler führen Bände nach Titel, nicht nach Nummer), kurze Suchanfragen
+> ohne Operatoren, Trefferlisten ganz lesen, Verlag und Einzelband als feste Kriterien, nicht nach
+> Preis auswählen, keine Zwischenschritte in der Antwort. Die Antwort wird auch dann gelesen, wenn
+> ein Modell Text oder Codeblöcke um das JSON legt. Vergleichen: `scripts/preissuche-vergleich.py`.
 
 - **Noch lieferbar:** Claude liest Coverpreis, Währung und Jahr. Ist der Preis in Euro und das Heft
   höchstens 3 Jahre alt (`coverpreis.max_alter_jahre`), ist Z1 mit Coverpreis × 2/3 vorausgefüllt,

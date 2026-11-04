@@ -24,8 +24,8 @@ log = logging.getLogger("comic_helper.marktpreis")
 PORTALS = {"booklooker.de": "Booklooker", "zvab.com": "ZVAB"}
 
 PROMPT = """\
-Suche mit der Websuche aktuelle Angebote für genau dieses Comic bei Booklooker (booklooker.de) und
-ZVAB (zvab.com):
+Ermittle aktuelle Gebrauchtpreise für genau dieses Comic. Du hast nur die Websuche, sie ist auf
+Booklooker (booklooker.de) und ZVAB (zvab.com) beschränkt.
 
 Titel: {titel}
 Untertitel: {untertitel}
@@ -35,18 +35,39 @@ Jahr: {jahr}
 Sprache: {sprache}
 EAN/ISBN: {ean}
 
-Regeln:
-- Nimm nur Angebote derselben Ausgabe (gleiche Nummer, möglichst gleicher Verlag, Originalausgabe,
-  keine Neuauflage und kein Sammelband, wenn das Heft ein Einzelheft ist).
-- Nimm nur gebrauchte Exemplare in unauffälligem Zustand (gut bis sehr gut erhalten). Keine
-  Angebote mit Mängeln, keine "neu"-Angebote, keine Sets oder Konvolute.
-- Preis in Euro ohne Versand, genau so, wie er in der Fundstelle steht. Keine Preise schätzen,
-  umrechnen oder ergänzen. Ohne belegbaren Preis kein Angebot.
-- url ist die Seite des Angebots oder der Trefferliste, in der du den Preis gesehen hast.
-- Findest du nichts Passendes, gib eine leere Liste zurück. Mehr als 8 Angebote sind nicht nötig.
+Vorgehen:
+1. Händler führen einen Band meist unter seinem Bandtitel, nicht unter der Nummer (Asterix 5 heißt
+   "Die goldene Sichel"). Überlege dir den Bandtitel und suche damit plus Reihe, Nummer und Verlag.
+2. Suche höchstens 4-mal mit kurzen Anfragen in normalem Deutsch, ohne Operatoren und ohne
+   Anführungszeichen, z. B. "Asterix Die goldene Sichel Band 5 Ehapa gebraucht Booklooker" und
+   danach dieselbe Anfrage mit "ZVAB". Ist eine EAN/ISBN angegeben, ist eine Suche damit sinnvoll.
+   Wiederhole keine Anfrage.
+3. Eine Trefferliste zeigt meist mehrere Angebote mit Preis. Lies sie ganz und sammle 5 bis 8
+   passende Angebote, möglichst von beiden Portalen. Hast du erst 1 oder 2, suche mit anderem
+   Wortlaut weiter, bevor du antwortest. Wähle nicht nach Preis aus: nimm die passenden Angebote in
+   der Reihenfolge der Trefferliste, auch wenn sie sehr billig oder sehr teuer sind.
 
-Antworte zuletzt nur mit JSON in diesem Format, ohne weiteren Text:
-{{"angebote": [{{"preis": 6.5, "beschreibung": "Kurzbeschreibung der Fundstelle", "url": "https://..."}}]}}
+Ein Angebot zählt nur, wenn alles zutrifft:
+- Gleicher Band: gleiche Nummer bzw. gleicher Bandtitel, deutsche Ausgabe.
+- Gleicher Verlag wie oben angegeben. Schreibvarianten und Namenswechsel desselben Hauses zählen
+  mit (z. B. Ehapa und Egmont Ehapa); fremde Verlage und Ausgaben aus anderen Ländern nicht. Fehlt
+  die Verlagsangabe, genügt die deutsche Ausgabe.
+- Einzelband bzw. Einzelheft: kein Sammelband, keine Gesamtausgabe, kein Set, Konvolut, Poster, Hörspiel
+  oder E-Book.
+- Gebrauchtes Exemplar in gutem bis sehr gutem Zustand (leichte Gebrauchsspuren sind in Ordnung).
+  Nicht: "neu", beschädigt, stark bestoßen, Wasserschaden, fehlende Seiten, Mängel.
+- Der Preis steht als Zahl in Euro in der Fundstelle, ohne Versand. Du schätzt, rechnest oder ergänzt
+  nichts. Ohne belegten Preis gibt es kein Angebot.
+
+Angaben je Angebot:
+- preis: die Zahl mit Punkt, z. B. 6.5
+- beschreibung: höchstens 100 Zeichen, so wie in der Fundstelle: Verlag, Jahr, Einband, Zustand
+- url: die Adresse der Angebots- oder Trefferseite aus der Suche, auf der du den Preis gesehen hast.
+  Erfinde oder verändere keine Adresse.
+
+Schreibe keine Zwischenschritte und keine Begründung. Deine letzte Nachricht besteht nur aus diesem
+JSON, bei keinem passenden Angebot mit leerer Liste:
+{{"angebote": [{{"preis": 6.5, "beschreibung": "Ehapa, 1980, Softcover, Zustand gut", "url": "https://..."}}]}}
 """
 
 
@@ -64,15 +85,24 @@ def portal_of(url: str) -> str | None:
     return None
 
 
+def _find_answer(text: str) -> dict | None:
+    """Last JSON object with an "angebote" key. Weaker models may add prose, code fences or draft answers."""
+    decoder = json.JSONDecoder()
+    found = None
+    for m in re.finditer(r"\{", text):
+        try:
+            obj, _ = decoder.raw_decode(text, m.start())
+        except ValueError:
+            continue
+        if isinstance(obj, dict) and "angebote" in obj:
+            found = obj
+    return found
+
+
 def parse_offers(text: str) -> list[Angebot]:
     """Extract the JSON object from the final answer; keep only offers from our two portals."""
-    match = re.search(r"\{.*\}", text, re.S)
-    if not match:
-        return []
-    try:
-        raw = json.loads(match.group(0)).get("angebote", [])
-    except (ValueError, AttributeError):
-        return []
+    answer = _find_answer(text)
+    raw = answer.get("angebote", []) if answer else []
     seen: set[tuple[float, str]] = set()
     out = []
     for item in raw if isinstance(raw, list) else []:

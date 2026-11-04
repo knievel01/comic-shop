@@ -78,3 +78,13 @@ def test_empty_search_is_explained(env):  # noqa: F811
     c.post("/api/scans/claim", headers=H)
     c.post(f"/api/scans/{cid}/recognize", headers=H)
     assert "keine passenden Angebote" in c.get(f"/review/{cid}").text
+
+
+def test_parse_offers_takes_last_json_after_prose():
+    text = (
+        'Ich habe {zwei Treffer} gefunden, Entwurf: {"angebote": []}\n'
+        '```json\n{"angebote": [{"preis": 7.5, "beschreibung": "Ehapa 1980", '
+        '"url": "https://www.booklooker.de/x"}]}\n```'
+    )
+    offers = marktpreis.parse_offers(text)
+    assert [o.preis for o in offers] == [7.5]
