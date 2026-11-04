@@ -479,10 +479,19 @@ def review_list(request: Request, store: Store = Depends(get_store)):
     })
 
 
-@app.get("/review/statistik", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
-def review_statistics(request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
+@app.get("/review/statistik", include_in_schema=False)
+def review_statistics_root():
+    return RedirectResponse("/review/statistik/kosten", status_code=307)
+
+
+@app.get("/review/statistik/{seite}", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
+def review_statistics(seite: str, request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
+                      s: Settings = Depends(get_settings)):
+    if seite not in ("kosten", "einsparung"):
+        raise HTTPException(404)
+    current = (cfg.get("marktpreis") or {}).get("modell") or s.anthropic_model
     return templates.TemplateResponse(request, "statistik.html", {
-        "st": statistik.collect(store, cfg), "annahmen": (cfg.get("statistik") or {})})
+        "st": statistik.collect(store, cfg), "seite": seite, "aktuell": current})
 
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024

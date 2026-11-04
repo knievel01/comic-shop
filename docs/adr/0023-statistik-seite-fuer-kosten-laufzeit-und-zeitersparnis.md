@@ -12,13 +12,16 @@ Datenbank; die Modellwahl für die Preissuche hing an gemessenen Kosten (ADR-002
 - Jede Erkennung und jede Preissuche hängt einen Eintrag an `laeufe` im Sidecar: Modell, Token, Websuchen, Sekunden,
   Zeitpunkt und – bei Aufruf aus Workflow 01 – die n8n-Ausführungsnummer (Header `X-N8N-Lauf`, gesetzt vom Knoten
   „Erkennen (Claude)“). Ältere Sidecars ohne `laeufe` werden aus `ki_info` gelesen (Token, keine Zeiten).
-- Die Seite `/review/statistik` (Link in der Kopfzeile) liest alle Sidecars (eingang, aktiv, verkauft, papierkorb) und zeigt
-  Kennzahlen, gesparte Zeit je Workflow, Läufe je n8n-Durchlauf und Kosten je Modell.
+- Die Statistik (Link „Statistik“ in der Kopfzeile) hat zwei Seiten: `/review/statistik/kosten` (Kennzahlen, Kosten je
+  n8n-Durchlauf, je Modell, Modellvergleich der Preissuche) und `/review/statistik/einsparung` (gesparte Zeit je Workflow
+  und je n8n-Durchlauf). Sie lesen alle Sidecars (eingang, aktiv, verkauft, papierkorb).
 - Kosten werden **beim Anzeigen** aus Token und Preisliste berechnet (`statistik.modellpreise_usd` in
   `config/pricing.yaml`), nicht gespeichert; Preisänderungen gelten damit rückwirkend (ADR-0011: Werte nur dort).
-- Gesparte Zeit = angenommene Handarbeit je Schritt (`statistik.handarbeit_minuten`) minus gemessene KI-Laufzeit
-  minus Prüfzeit der Fachkraft (`pruefung_minuten`). Die Minutenwerte sind **Annahmen**, die Seite sagt das offen.
-  Workflow 02 und 03 haben keine gemessene Laufzeit und zählen als 0. Gelöschte Comics verursachen Kosten, sparen nichts.
+  Im Einsatz ist Opus; die gemessenen Kosten je Preissuche der anderen Modelle (`statistik.preissuche_vergleich`)
+  stehen in Klammern daneben.
+- Gesparte Zeit = Läufe × angenommene Minuten je Lauf (`statistik.gespart_minuten_je_lauf`, je Workflow 4 Min).
+  Jeder Lauf spart diese Zeit, auch wenn er Token kostet; Kosten und Einsparung werden getrennt gezeigt und nicht
+  verrechnet. Die Minutenwerte sind **Annahmen**. Gelöschte Comics verursachen Kosten, sparen nichts.
 
 ## Konsequenzen
 - Kein neuer Dienst, keine neue Ablage; die Seite liest bei jedem Aufruf alle Sidecars (für PoC-Mengen ausreichend,

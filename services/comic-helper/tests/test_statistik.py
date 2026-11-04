@@ -28,10 +28,14 @@ def test_recognition_records_run_and_page_shows_it(env):  # noqa: F811
     assert run["n8n"] == "4711" and run["art"] == "erkennung"
     assert run["erkennung"]["input_tokens"] > 0 and run["preissuche"]["treffer"] == 3
 
-    page = c.get("/review/statistik")
+    page = c.get("/review/statistik/kosten")
     assert page.status_code == 200
-    assert "Workflow 01 · #4711" in page.text and "Gesparte Zeit je Workflow" in page.text
+    assert "Workflow 01 · #4711" in page.text and "(Sonnet 0,21 $)" in page.text
+    saved = c.get("/review/statistik/einsparung").text
+    assert "Je Workflow" in saved and "4 Min" in saved
     assert 'href="/review/statistik"' in c.get("/review/").text
+    assert c.get("/review/statistik", follow_redirects=False).headers["location"] == "/review/statistik/kosten"
+    assert c.get("/review/statistik/sonstwas").status_code == 404
 
 
 def test_manual_price_search_adds_entry_without_n8n_id(env):  # noqa: F811
@@ -43,7 +47,7 @@ def test_manual_price_search_adds_entry_without_n8n_id(env):  # noqa: F811
     assert c.post(f"/review/{cid}/preis-suchen", follow_redirects=False).status_code == 303
     side = env.store.read_json(env.store.sidecar_key("eingang", cid))
     assert [e["art"] for e in side["laeufe"]] == ["erkennung", "preissuche"]
-    assert "Review (manuell)" in c.get("/review/statistik").text
+    assert "Review (manuell)" in c.get("/review/statistik/kosten").text
 
 
 def test_legacy_sidecar_without_runs_still_counts_cost():

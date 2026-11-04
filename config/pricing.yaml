@@ -81,17 +81,22 @@ shopify:
   produkt_typ: Comic
   hersteller_aus_verlag: true
 
-# Statistik-Seite /review/statistik: Kosten der KI-Aufrufe und eingesparte Handarbeit.
-# Die Minutenwerte sind ANNAHMEN (nicht gemessen); bitte mit der Praxis abgleichen.
+# Statistik-Seiten /review/statistik: Kosten der KI-Aufrufe und eingesparte Zeit.
 statistik:
   modellpreise_usd:        # USD je Million Token (Eingabe, Ausgabe), Stand 2026-11-04
     claude-opus-5-5: [4.0, 20.0]
     claude-sonnet-5-5: [2.0, 10.0]
     claude-haiku-5-5: [0.1, 0.5]
   websuche_usd: 0.01       # je Websuche
-  handarbeit_minuten:      # so lange dauert der Schritt von Hand je Comic
-    erkennung: 4           # Cover und Rückseite lesen, Titel, Nummer, Verlag, Jahr abtippen
-    preissuche: 6          # Angebote bei Booklooker/ZVAB suchen, Median bilden, Notiz schreiben
-    shopify: 8             # Produkt anlegen, Bilder hochladen, SKU und Preis eintragen
-    verkauf: 3             # Verkauf im Bestand nachführen
-  pruefung_minuten: 1.5    # bleibt Handarbeit: Fachkraft prüft jeden Vorschlag in der Review
+  # ANNAHME, nicht gemessen: so viele Minuten spart jeder Lauf des Workflows gegenüber Handarbeit.
+  # Die Token-Kosten fallen trotzdem an und stehen auf der Kosten-Seite.
+  gespart_minuten_je_lauf:
+    erkennung: 4           # Workflow 01: Cover/Rückseite lesen, Angaben und Preis recherchieren
+    shopify: 4             # Workflow 02: Produkt in Shopify anlegen
+    verkauf: 4             # Workflow 03: Verkauf im Bestand nachführen
+  # Messung vom 2026-11-04 (8 Comics, je 1 Lauf, scripts/preissuche-vergleich.py), Preissuche mit dem neuen Prompt.
+  # Aktuell im Einsatz: Opus. Die Kosten der anderen Modelle erscheinen in Klammern.
+  preissuche_vergleich:
+    claude-opus-5-5:   {abweichung: "–", usd: 0.29, sekunden: 18, angebote: "5 bis 8", vorschlaege: "7 von 8"}
+    claude-sonnet-5-5: {abweichung: "Ø 6 % (max. 18 %)", usd: 0.21, sekunden: 17, angebote: "5 bis 8", vorschlaege: "7 von 8"}
+    claude-haiku-5-5:  {abweichung: "Ø 23 % (max. 80 %)", usd: 0.03, sekunden: 35, angebote: "2 bis 8", vorschlaege: "8 von 8"}

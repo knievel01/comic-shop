@@ -44,16 +44,14 @@ def entries_of(side: dict) -> list[dict]:
              "preissuche": None}]
 
 
-def collect(store: Store, cfg: dict, now: datetime | None = None) -> dict:
+def collect(store: Store, cfg: dict) -> dict:
     conf = cfg.get("statistik") or {}
-    manual = conf.get("handarbeit_minuten") or {}
-    review_min = float(conf.get("pruefung_minuten", 0))
+    minutes = conf.get("gespart_minuten_je_lauf") or {}
+    compare = conf.get("preissuche_vergleich") or {}
     runs: dict[str, dict] = {}
     models: dict[str, dict] = {}
+    n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "shopify": 0, "verkauft": 0}
     measured = {"comics": set(), "kosten": 0.0}
-    n = {"comics": 0, "alt": 0, "erkennungen": 0, "preissuchen": 0, "preis_treffer": 0, "shopify": 0, "verkauft": 0}
-    secs = {"erkennung": 0.0, "preissuche": 0.0}
-    saved_min = {"erkennung": 0.0, "preissuche": 0.0}
     cost_total = 0.0
     for prefix in (EINGANG, AKTIV, VERKAUFT, PAPIERKORB):
         for obj in store.list_scans(prefix):
@@ -61,24 +59,21 @@ def collect(store: Store, cfg: dict, now: datetime | None = None) -> dict:
                 side = store.read_json(store.sidecar_key(prefix, obj.copy_id))
             except NotFound:
                 continue
-            useful = prefix != PAPIERKORB  # deleted copies cost money but saved no work
             entries = entries_of(side)
             if not entries:
                 continue
+            useful = prefix != PAPIERKORB  # deleted copies cost money but saved no work
             n["comics"] += 1
-            if not side.get("laeufe"):
-                n["alt"] += 1
-            if useful and side.get("shopify"):
-                n["shopify"] += 1
-            if prefix == VERKAUFT:
-                n["verkauft"] += 1
+            n["alt"] += not side.get("laeufe")
+            n["shopify"] += bool(useful and side.get("shopify"))
+            n["verkauft"] += prefix == VERKAUFT
             for e in entries:
                 end = _ts(e.get("zeit"))
                 key = "alt" if e.get("alt") else e.get("n8n") or f"manuell-{obj.copy_id}-{e.get('zeit')}"
                 run = runs.setdefault(key, {"id": e.get("n8n") or "", "alt": bool(e.get("alt")),
                                             "manuell": not e.get("n8n") and not e.get("alt"), "start": None,
-                                            "ende": None, "comics": set(), "kosten": 0.0, "claude_s": 0.0,
-                                            "gemessen": True})
+                                            "ende": None, "comics": set(), "nutzbar": 0, "kosten": 0.0,
+                                            "claude_s": 0.0, "gemessen": True})
                 run["comics"].add(obj.copy_id)
                 start = _ts(e.get("start")) or end
                 if start and (run["start"] is None or start < run["start"]):
@@ -103,32 +98,29 @@ def collect(store: Store, cfg: dict, now: datetime | None = None) -> dict:
                         m["sekunden"] += part["sekunden"]
                         m["gemessen"] += 1
                         run["claude_s"] += part["sekunden"]
-                        secs[part_name] += part["sekunden"]
                     else:
                         run["gemessen"] = False
-                    n["erkennungen" if part_name == "erkennung" else "preissuchen"] += 1
-                    if useful and part_name == "erkennung":
-                        saved_min["erkennung"] += float(manual.get("erkennung", 0))
-                    if useful and part_name == "preissuche" and part.get("treffer"):
-                        n["preis_treffer"] += 1
-                        saved_min["preissuche"] += float(manual.get("preissuche", 0))
+                    if part_name == "erkennung":
+                        n["erkennungen"] += 1
+                        if useful:
+                            n["nutzbar"] += 1
+                            run["nutzbar"] += 1
+                    else:
+                        n["preissuchen"] += 1
     run_list = []
     for r in runs.values():
         dauer = (r["ende"] - r["start"]).total_seconds() if r["start"] and r["ende"] else None
-        run_list.append({**r, "anzahl": len(r["comics"]), "dauer_s": dauer})
+        run_list.append({**r, "anzahl": len(r["comics"]), "dauer_s": dauer,
+                         "gespart_min": r["nutzbar"] * float(minutes.get("erkennung", 0))})
     run_list.sort(key=lambda r: r["ende"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     workflows = [
-        {"name": "01 Erkennung", "anzahl": n["erkennungen"], "handarbeit": saved_min["erkennung"],
-         "automatisch": secs["erkennung"] / 60, "pruefung": review_min * n["erkennungen"]},
-        {"name": "01 Preisvorschlag", "anzahl": n["preis_treffer"], "handarbeit": saved_min["preissuche"],
-         "automatisch": secs["preissuche"] / 60, "pruefung": 0.0},
-        {"name": "02 Nach Shopify", "anzahl": n["shopify"], "handarbeit": n["shopify"] * float(manual.get("shopify", 0)),
-         "automatisch": 0.0, "pruefung": 0.0},
-        {"name": "03 Verkauf", "anzahl": n["verkauft"], "handarbeit": n["verkauft"] * float(manual.get("verkauft", 0)),
-         "automatisch": 0.0, "pruefung": 0.0},
+        {"name": "01 Erkennung und Preisvorschlag", "anzahl": n["nutzbar"], "je_lauf": float(minutes.get("erkennung", 0))},
+        {"name": "02 Nach Shopify", "anzahl": n["shopify"], "je_lauf": float(minutes.get("shopify", 0))},
+        {"name": "03 Verkauf", "anzahl": n["verkauft"], "je_lauf": float(minutes.get("verkauf", 0))},
     ]
     for w in workflows:
-        w["gespart"] = w["handarbeit"] - w["automatisch"] - w["pruefung"]
-    return {"gemessene_comics": len(measured["comics"]), "gemessene_kosten": measured["kosten"], "laeufe": run_list, "modelle": models, "zaehler": n, "kosten": cost_total, "workflows": workflows,
-            "gespart_min": sum(w["gespart"] for w in workflows),
-            "handarbeit_min": sum(w["handarbeit"] for w in workflows)}
+        w["gespart"] = w["anzahl"] * w["je_lauf"]
+    hypo = {name: n["preissuchen"] * v["usd"] for name, v in compare.items()}
+    return {"gemessene_comics": len(measured["comics"]), "gemessene_kosten": measured["kosten"], "laeufe": run_list,
+            "modelle": models, "zaehler": n, "kosten": cost_total, "workflows": workflows,
+            "gespart_min": sum(w["gespart"] for w in workflows), "vergleich": compare, "klammer": hypo}
