@@ -394,10 +394,10 @@ def test_review_list_grouped_by_status(env):
 
     page = c.get("/review/").text
     assert "Offene Comics (2)" in page
-    # work first (offen, fehler), then what is still in the pipeline (neu)
-    pos = [page.index(f'id="status-{s}"') for s in ("offen", "fehler", "neu")]
+    # scans still in workflow 01 (neu) on top with live progress, then the work (offen, fehler)
+    pos = [page.index(f'id="status-{s}"') for s in ("neu", "offen", "fehler")]
     assert pos == sorted(pos)
-    assert page.index(offen) < pos[1] < page.index(fehler) < pos[2]
+    assert pos[0] < page.index(neu) < pos[1] < page.index(offen) < pos[2] < page.index(fehler)
     assert f'href="/review/{neu}"' not in page and 'id="status-bestaetigt"' not in page
 
 

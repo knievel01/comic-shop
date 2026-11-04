@@ -455,8 +455,9 @@ STATUS_LABELS = {
     "aktiv": "Im Shop",
 }
 REVIEWABLE = ("offen", "fehler")
-# Group order on the list page: work to do first, then what is still in the pipeline
-GROUP_ORDER = ("offen", "fehler", "bestaetigt", "in-arbeit", "neu", "aktiv")
+# Group order on the list page: scans still in workflow 01 on top (live progress, ADR-0024), then work to do,
+# then what is still in the pipeline
+GROUP_ORDER = ("in-arbeit", "neu", "offen", "fehler", "bestaetigt", "aktiv")
 SHOP_LIST_LIMIT = 60  # copies already in the shop are shown greyed out, newest first (read-only)
 
 
