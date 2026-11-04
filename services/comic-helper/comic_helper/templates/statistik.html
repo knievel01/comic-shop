@@ -21,13 +21,15 @@
   tfoot td { border-top:var(--strich); border-bottom:0; font-weight:800; }
   tr.aktuell td { background:#fff6c9; font-weight:800; }
   .klammer { color:var(--muted); font-weight:700; }
-  .ersparnis { display:flex; justify-content:center; margin:2.4rem 0 1rem; }
-  .ersparnis .burst { width:min(22rem, 86vw); aspect-ratio:1; --fill:var(--red); color:var(--paper);
+  /* price tag sits bottom right under the table, like the total on an invoice */
+  .ersparnis { display:flex; justify-content:flex-end; margin:1.2rem 0 .4rem; }
+  .ersparnis .burst { width:11.5rem; aspect-ratio:1; --fill:var(--red); color:var(--paper);
                       text-align:center; filter:drop-shadow(var(--druck)); transform:rotate(-6deg); }
   .ersparnis .burst > span { display:flex; flex-direction:column; align-items:center; gap:.1rem;
-                             text-shadow:2px 2px 0 var(--ink); }
-  .ersparnis b { font:3rem/1 var(--display); letter-spacing:.02em; }
-  .ersparnis small { font:800 1rem/1.2 var(--text); max-width:11rem; }
+                             text-shadow:1px 1px 0 var(--ink); }
+  .ersparnis b { font:1.7rem/1 var(--display); letter-spacing:.02em; }
+  .ersparnis small { font:800 .72rem/1.15 var(--text); max-width:7rem; }
+  .ersparnis + .hinweis { margin-left:auto; text-align:right; }
   .hinweis { max-width:46rem; color:var(--muted); line-height:1.4; margin:.6rem 0 0; }
 </style>
 {% endblock %}
