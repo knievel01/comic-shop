@@ -96,7 +96,11 @@ def _fmt_usd(value: float | None) -> str:
     return "–" if value is None else f"{value:.2f} $".replace(".", ",")
 
 
-templates.env.filters.update(sekunden=_fmt_seconds, minuten=_fmt_minutes, usd=_fmt_usd)
+def _fmt_eur(value: float | None) -> str:
+    return "–" if value is None else f"{value:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+templates.env.filters.update(sekunden=_fmt_seconds, minuten=_fmt_minutes, usd=_fmt_usd, eur=_fmt_eur)
 
 
 # --- dependencies (overridden in tests) ---------------------------------------

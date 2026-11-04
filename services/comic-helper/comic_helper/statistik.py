@@ -127,4 +127,6 @@ def collect(store: Store, cfg: dict) -> dict:
     hypo = {name: n["preissuchen"] * v["usd"] for name, v in compare.items()}
     return {"gemessene_comics": len(measured["comics"]), "gemessene_kosten": measured["kosten"], "laeufe": run_list,
             "modelle": models, "zaehler": n, "kosten": cost_total, "kosten_teile": by_part, "workflows": workflows,
-            "gespart_min": sum(w["gespart"] for w in workflows), "vergleich": compare, "klammer": hypo}
+            "gespart_min": sum(w["gespart"] for w in workflows),
+            "gespart_eur": sum(w["gespart"] for w in workflows) / 60 * float(conf.get("stundensatz_eur", 0)),
+            "stundensatz": float(conf.get("stundensatz_eur", 0)), "vergleich": compare, "klammer": hypo}

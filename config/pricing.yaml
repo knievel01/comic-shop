@@ -94,6 +94,7 @@ statistik:
     erkennung: 4           # Workflow 01: Cover/Rückseite lesen, Angaben und Preis recherchieren
     shopify: 4             # Workflow 02: Produkt in Shopify anlegen
     verkauf: 4             # Workflow 03: Verkauf im Bestand nachführen
+  stundensatz_eur: 14.60   # Arbeitskosten je Stunde; gesparte Minuten × Stundensatz = eingesparte Kosten
   # Messung vom 2026-11-04 (8 Comics, je 1 Lauf, scripts/preissuche-vergleich.py), Preissuche mit dem neuen Prompt.
   # Aktuell im Einsatz: Opus. Die Kosten der anderen Modelle erscheinen in Klammern.
   preissuche_vergleich:

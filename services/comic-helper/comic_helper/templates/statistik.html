@@ -21,6 +21,13 @@
   tfoot td { border-top:var(--strich); border-bottom:0; font-weight:800; }
   tr.aktuell td { background:#fff6c9; font-weight:800; }
   .klammer { color:var(--muted); font-weight:700; }
+  .ersparnis { display:flex; justify-content:center; margin:2.4rem 0 1rem; }
+  .ersparnis .burst { width:min(22rem, 86vw); aspect-ratio:1; --fill:var(--red); color:var(--paper);
+                      text-align:center; filter:drop-shadow(var(--druck)); transform:rotate(-6deg); }
+  .ersparnis .burst > span { display:flex; flex-direction:column; align-items:center; gap:.1rem;
+                             text-shadow:2px 2px 0 var(--ink); }
+  .ersparnis b { font:3rem/1 var(--display); letter-spacing:.02em; }
+  .ersparnis small { font:800 1rem/1.2 var(--text); max-width:11rem; }
   .hinweis { max-width:46rem; color:var(--muted); line-height:1.4; margin:.6rem 0 0; }
 </style>
 {% endblock %}
@@ -129,5 +136,13 @@
   {% endfor %}
   </tbody>
 </table></div>
+
+<div class="ersparnis">
+  <div class="burst" role="img" aria-label="Eingesparte Kosten {{ st.gespart_eur | eur }}">
+    <span><b>{{ st.gespart_eur | eur }}</b><small>eingespart ({{ st.gespart_min | minuten }} × {{ st.stundensatz | eur }}/Std)</small></span>
+  </div>
+</div>
+<p class="hinweis">Eingesparte Kosten = gesparte Minuten ÷ 60 × Stundensatz (<code>stundensatz_eur</code> in
+  <code>config/pricing.yaml</code>). Die KI-Kosten sind nicht abgezogen, sie stehen auf der Seite „Kosten“.</p>
 {% endif %}
 {% endblock %}

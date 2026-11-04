@@ -32,7 +32,7 @@ def test_recognition_records_run_and_page_shows_it(env):  # noqa: F811
     assert page.status_code == 200
     assert "Workflow 01 · #4711" in page.text and "(Sonnet 0,21 $)" in page.text
     saved = c.get("/review/statistik/einsparung").text
-    assert "Je Workflow" in saved and "4 Min" in saved
+    assert "Je Workflow" in saved and "4 Min" in saved and "eingespart" in saved and "14,60 €/Std" in saved
     assert 'href="/review/statistik"' in c.get("/review/").text
     assert c.get("/review/statistik", follow_redirects=False).headers["location"] == "/review/statistik/kosten"
     assert c.get("/review/statistik/sonstwas").status_code == 404
