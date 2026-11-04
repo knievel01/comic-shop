@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import statistics
+import time
 from datetime import date
 from urllib.parse import urlparse
 
@@ -124,9 +125,18 @@ def build_suggestion(offers: list[Angebot], cfg: dict, today: date | None = None
     }
 
 
-def suggest(client: anthropic.Anthropic, proposal: dict, cfg: dict, model: str) -> dict | None:
-    """Search offers and build the suggestion. Returns None on any problem (logged)."""
+def suggest(client: anthropic.Anthropic, proposal: dict, cfg: dict, model: str,
+            usage_out: dict | None = None) -> dict | None:
+    """Search offers and build the suggestion. Returns None on any problem (logged).
+
+    `marktpreis.modell` in pricing.yaml overrides `model`. Token and search counts are logged and, if
+    given, summed into `usage_out` (used by scripts/preissuche-vergleich.py).
+    """
     conf = cfg.get("marktpreis") or {}
+    model = conf.get("modell") or model
+    usage = usage_out if usage_out is not None else {}
+    usage.update(model=model, input_tokens=0, output_tokens=0, searches=0, attempts=0, seconds=0.0)
+    started = time.monotonic()
     if not conf.get("aktiv", False) or not proposal.get("titel") or proposal["titel"] == "-":
         return None
     ean = proposal.get("ean_isbn") or ""
@@ -151,9 +161,18 @@ def suggest(client: anthropic.Anthropic, proposal: dict, cfg: dict, model: str) 
             continue
         text = "".join(b.text for b in response.content if b.type == "text")
         offers = parse_offers(text)
-        log.info("price search for %r #%s (attempt %d): %d offers", proposal["titel"], proposal.get("ausgabe"),
-                 attempt, len(offers))
+        u = response.usage
+        usage["attempts"] += 1
+        usage["input_tokens"] += u.input_tokens
+        usage["output_tokens"] += u.output_tokens
+        usage["searches"] += getattr(getattr(u, "server_tool_use", None), "web_search_requests", 0) or 0
+        usage["seconds"] = round(time.monotonic() - started, 1)
+        log.info("price search for %r #%s (attempt %d, %s): %d offers, %d in / %d out tokens, %d searches, %.1fs",
+                 proposal["titel"], proposal.get("ausgabe"), attempt, model, len(offers), u.input_tokens,
+                 u.output_tokens, getattr(getattr(u, "server_tool_use", None), "web_search_requests", 0) or 0,
+                 usage["seconds"])
         if len(offers) >= int(conf.get("min_angebote", 2)):
             break
         log.info("price search answer without usable offers: %s", text[:500].replace("\n", " "))
+    usage["seconds"] = round(time.monotonic() - started, 1)
     return build_suggestion(offers, cfg)

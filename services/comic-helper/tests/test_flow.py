@@ -46,7 +46,9 @@ class FakeClaude:
         self.search_calls.append(kwargs)
         assert kwargs["tools"][0]["allowed_domains"] == ["booklooker.de", "zvab.com"]
         body = {"angebote": [{"preis": p, "beschreibung": "gut", "url": u} for p, u in self.offers]}
-        return SimpleNamespace(content=[SimpleNamespace(type="text", text="Hier: " + json.dumps(body))])
+        return SimpleNamespace(content=[SimpleNamespace(type="text", text="Hier: " + json.dumps(body))],
+                               usage=SimpleNamespace(input_tokens=500, output_tokens=40,
+                                                     server_tool_use=SimpleNamespace(web_search_requests=2)))
 
     def parse(self, **kwargs):
         self.calls += 1
