@@ -52,6 +52,7 @@ def collect(store: Store, cfg: dict) -> dict:
     models: dict[str, dict] = {}
     n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "shopify": 0, "verkauft": 0}
     measured = {"comics": set(), "kosten": 0.0}
+    by_part = {"erkennung": 0.0, "preissuche": 0.0}
     cost_total = 0.0
     for prefix in (EINGANG, AKTIV, VERKAUFT, PAPIERKORB):
         for obj in store.list_scans(prefix):
@@ -73,6 +74,7 @@ def collect(store: Store, cfg: dict) -> dict:
                 run = runs.setdefault(key, {"id": e.get("n8n") or "", "alt": bool(e.get("alt")),
                                             "manuell": not e.get("n8n") and not e.get("alt"), "start": None,
                                             "ende": None, "comics": set(), "nutzbar": 0, "kosten": 0.0,
+                                            "kosten_erkennung": 0.0, "kosten_preissuche": 0.0,
                                             "claude_s": 0.0, "gemessen": True})
                 run["comics"].add(obj.copy_id)
                 start = _ts(e.get("start")) or end
@@ -86,7 +88,9 @@ def collect(store: Store, cfg: dict) -> dict:
                         continue
                     c = part_cost(part, conf)
                     run["kosten"] += c
+                    run["kosten_" + part_name] += c
                     cost_total += c
+                    by_part[part_name] += c
                     if not e.get("alt"):
                         measured["comics"].add(obj.copy_id)
                         measured["kosten"] += c
@@ -122,5 +126,5 @@ def collect(store: Store, cfg: dict) -> dict:
         w["gespart"] = w["anzahl"] * w["je_lauf"]
     hypo = {name: n["preissuchen"] * v["usd"] for name, v in compare.items()}
     return {"gemessene_comics": len(measured["comics"]), "gemessene_kosten": measured["kosten"], "laeufe": run_list,
-            "modelle": models, "zaehler": n, "kosten": cost_total, "workflows": workflows,
+            "modelle": models, "zaehler": n, "kosten": cost_total, "kosten_teile": by_part, "workflows": workflows,
             "gespart_min": sum(w["gespart"] for w in workflows), "vergleich": compare, "klammer": hypo}
