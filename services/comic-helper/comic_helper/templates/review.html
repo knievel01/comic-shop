@@ -10,6 +10,8 @@
   .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); border:solid var(--ink); border-width:0 2px 2px 0;
                      padding:.15rem .6rem .05rem; font:1.15rem var(--display); letter-spacing:.05em; }
   .pics img { width:100%; display:block; cursor:zoom-in; }
+  /* a sticky section is its own stacking context: lift the whole section while an image is enlarged */
+  .grid > section:has(img.zoom) { z-index:20; }
   .pics img.zoom { position:fixed; inset:0; width:100vw; height:100vh; object-fit:contain; background:rgba(0,0,0,.92); z-index:9; cursor:zoom-out; }
   .kopf { display:flex; flex-wrap:wrap; gap:.4rem .6rem; align-items:center; margin:1.4rem 0 .4rem; color:var(--muted); font-size:.95rem; }
   .kopf code { font:inherit; color:var(--ink); }
@@ -213,6 +215,7 @@
 </div>
 
 <script>
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".pics img.zoom").forEach(i => i.classList.remove("zoom")); });
 // Live preview only; the server recalculates authoritatively (comic_helper/pricing.py).
 const CFG = {{ js_cfg|safe }};
 const num = s => { s = (s || "").replace("€", "").replace(",", ".").trim(); return s === "" ? null : Number(s); };
