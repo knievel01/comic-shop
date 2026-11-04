@@ -70,6 +70,7 @@ marktpreis:
   aktiv: true
   min_angebote: 2     # weniger belegte Angebote -> kein Vorschlag
   max_suchen: 4       # Websuchen je Comic (Kostenbremse)
+  versuche: 2         # zweiter Anlauf, wenn der erste zu wenige Angebote liefert
 
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.

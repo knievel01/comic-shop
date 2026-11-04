@@ -129,21 +129,31 @@ def suggest(client: anthropic.Anthropic, proposal: dict, cfg: dict, model: str) 
     conf = cfg.get("marktpreis") or {}
     if not conf.get("aktiv", False) or not proposal.get("titel") or proposal["titel"] == "-":
         return None
+    ean = proposal.get("ean_isbn") or ""
     prompt = PROMPT.format(
         titel=proposal["titel"], untertitel=proposal.get("untertitel") or "-", ausgabe=proposal.get("ausgabe") or "-",
         verlag=proposal.get("verlag") or "-", jahr=proposal.get("jahr") or "-", sprache=proposal.get("sprache") or "-",
-        ean=proposal.get("ean_isbn") or "-")
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=4000,
-            tools=[{"type": "web_search_20250305", "name": "web_search",
-                    "max_uses": int(conf.get("max_suchen", 4)),
-                    "allowed_domains": list(PORTALS)}],
-            messages=[{"role": "user", "content": prompt}],
-        )
-    except anthropic.APIError as e:
-        log.warning("price search failed: %s", e)
-        return None
-    text = "".join(b.text for b in response.content if b.type == "text")
-    return build_suggestion(parse_offers(text), cfg)
+        ean=ean if len(ean) in (10, 13) else "-")  # misread barcodes would only mislead the search
+    attempts = int(conf.get("versuche", 2))
+    offers: list[Angebot] = []
+    for attempt in range(1, attempts + 1):
+        try:
+            response = client.messages.create(
+                model=model,
+                max_tokens=4000,
+                tools=[{"type": "web_search_20250305", "name": "web_search",
+                        "max_uses": int(conf.get("max_suchen", 4)),
+                        "allowed_domains": list(PORTALS)}],
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except anthropic.APIError as e:
+            log.warning("price search failed (attempt %d): %s", attempt, e)
+            continue
+        text = "".join(b.text for b in response.content if b.type == "text")
+        offers = parse_offers(text)
+        log.info("price search for %r #%s (attempt %d): %d offers", proposal["titel"], proposal.get("ausgabe"),
+                 attempt, len(offers))
+        if len(offers) >= int(conf.get("min_angebote", 2)):
+            break
+        log.info("price search answer without usable offers: %s", text[:500].replace("\n", " "))
+    return build_suggestion(offers, cfg)
