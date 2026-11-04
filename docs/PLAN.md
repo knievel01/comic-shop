@@ -13,7 +13,7 @@ Hardware/Konten · ⬜ offen (Entscheidung oder Handarbeit nötig)
 | 4 AWS | 🟡 | `infra/aws/` (terraform validate ok) | `terraform apply` mit Admin-Konto |
 | 5 Ingest | ✅ | Rolle `sync`, Workflow 01, `comic-helper` | in n8n 2.46 getestet (Docker) |
 | 6 Erkennung/Preis | 🟡 | `recognition.py`, `pricing.py`, `config/pricing.yaml`, `scripts/vergleichstest.py` | ⬜ Vergleichstest mit 50 Comics, Modellwahl, Schwelle; ⬜ Datenlizenz Star Media, Anfrage AbeBooks |
-| 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (ADR-0006) |
+| 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (ADR-0006); Live-Fortschritt von Workflow 01 auf der Kachel (ADR-0024); Statistik Kosten/Einsparung (ADR-0023) |
 | 9 Shopify | 🟡 | `shopify.py`, Workflow 02 | gegen Fake-API getestet; App im Dev Dashboard (ADR-0021, docs/SHOPIFY-EINRICHTUNG.md), im PoC-Shop als Entwurf getestet: Comic bestätigt, Produkt angelegt, Workflow 02 (aktiv) verschiebt nach `aktiv/`; ⬜ Kanal veröffentlichen, ⬜ Entscheidung Produktoption vs. Produkt je Zustand |
 | 8 Metadaten | ✅ | `finalize`, `storage.py` | – |
 | 10 Verkauf | ✅ | `webhooks.py`, Workflow 03 | in n8n getestet inkl. Doppelzustellung; Webhooks in Shopify registrieren |

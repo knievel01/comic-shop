@@ -39,7 +39,7 @@ Alles läuft auf einem Rechner (Ubuntu 24.04, K3s), Namespace `comics`:
 | Ort | Tag `status` | Bedeutung |
 | --- | --- | --- |
 | `eingang/` | `neu` | hochgeladen, noch nicht verarbeitet |
-| `eingang/` | `in-arbeit` | von n8n übernommen (nach 30 min ohne Ergebnis wieder frei) |
+| `eingang/` | `in-arbeit` | von n8n übernommen (nach 30 min ohne Ergebnis wieder frei); Tag `schritt` (bilder, erkennung, preissuche) und `lauf` (n8n-Nummer) zeigen den Fortschritt (ADR-0024) |
 | `eingang/` | `offen` | KI-Vorschlag liegt vor, wartet auf Fachkraft |
 | `eingang/` | `fehler` | Erkennung fehlgeschlagen, im Review sichtbar („Erneut erkennen“) |
 | `eingang/` | `bestaetigt` | Fachkraft hat bestätigt, Shopify/Metadaten stehen aus; bis Shopify zurückholbar (ADR-0020) |

@@ -31,6 +31,7 @@ import anthropic
 import boto3
 import httpx2
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -189,6 +190,8 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     if tags.get("status") in ("offen", "bestaetigt") and store.exists(side_key):
         return _summary(copy_id, store.read_json(side_key), s, already=True)
 
+    run_id = "".join(ch for ch in x_n8n_lauf if ch.isalnum())[:20]
+    _step(store, key, "bilder", lauf=run_id or None)
     data = store.get_bytes(key)
     # n8n sends a whole batch at once; rendered pages are large, so render one scan at a time
     # and keep only the small JPEGs while waiting for Claude.
@@ -205,6 +208,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         model_images = [pdf.to_jpeg(im, pdf.MODEL_MAX_EDGE) for im in (cover, back)]
         del cover, back
 
+    _step(store, key, "erkennung")
     t_claude = time.monotonic()
     try:
         result, info = recognition.recognize(
@@ -216,6 +220,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     proposal = recognition.to_proposal(result)
     confidence = recognition.overall_confidence(result)
     ki_status = recognition.classify(confidence, float(cfg["konfidenz_schwelle"]))
+    _step(store, key, "preissuche")
     price_usage: dict = {}
     price_hint = marktpreis.suggest(claude, proposal, cfg, s.anthropic_model, usage_out=price_usage)
     if price_hint is None and proposal["coverpreis"] and pricing.cover_rule_applies(
@@ -242,9 +247,17 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         }],
     }
     store.write_json(side_key, sidecar)
-    store.update_tags(key, status="offen", ki=ki_status, claimed=None)
+    store.update_tags(key, status="offen", ki=ki_status, claimed=None, schritt=None, lauf=None)
     log.info("recognized %s: %s %s (%s %.2f)", copy_id, proposal["titel"], proposal["ausgabe"], ki_status, confidence)
     return _summary(copy_id, sidecar, s)
+
+
+# Progress of a running recognition, shown live on the review list (ADR-0024)
+STEPS = ("bilder", "erkennung", "preissuche")
+
+
+def _step(store: Store, key: str, step: str, **extra: str | None) -> None:
+    store.update_tags(key, schritt=step, **extra)
 
 
 def _prior_runs(store: Store, side_key: str) -> list[dict]:
@@ -292,7 +305,7 @@ async def fail(copy_id: str, request: Request, store: Store = Depends(get_store)
     side = store.read_json(side_key) if store.exists(side_key) else {"id": copy_id}
     side.setdefault("fehler", []).append({"am": _utc(), "fehler": str(body.get("fehler", ""))[:2000]})
     store.write_json(side_key, side)
-    store.update_tags(key, status="fehler", claimed=None)
+    store.update_tags(key, status="fehler", claimed=None, schritt=None, lauf=None)
     return {"id": copy_id, "status": "fehler"}
 
 
@@ -452,8 +465,10 @@ def _inbox_cases(store: Store) -> list[dict]:
     cases = []
     for obj in store.list_scans(EINGANG):
         tags = store.get_tags(obj.key)
+        seit = tags.get("claimed", "")
         cases.append({"id": obj.copy_id, "status": tags.get("status", "neu"), "ki": tags.get("ki", ""),
-                      "gescannt": obj.last_modified})
+                      "gescannt": obj.last_modified, "schritt": tags.get("schritt", ""), "lauf": tags.get("lauf", ""),
+                      "seit": int(seit) if seit.isdigit() else ""})
     cases.sort(key=lambda c: c["gescannt"])
     return cases
 
@@ -496,6 +511,24 @@ def review_statistics(seite: str, request: Request, store: Store = Depends(get_s
     current = (cfg.get("marktpreis") or {}).get("modell") or s.anthropic_model
     return templates.TemplateResponse(request, "statistik.html", {
         "st": statistik.collect(store, cfg), "seite": seite, "aktuell": current})
+
+
+@app.get("/review/fortschritt", dependencies=[Depends(require_reviewer)])
+def review_progress(ids: str = "", store: Store = Depends(get_store)):
+    """Status and current workflow step of scans in eingang/, polled by the list page (ADR-0024)."""
+    wanted = [i for i in ids.split(",") if i][:50]
+    out = {}
+    for copy_id in wanted:
+        _check_id(copy_id)
+        try:
+            tags = store.get_tags(store.pdf_key(EINGANG, copy_id))
+        except ClientError:
+            out[copy_id] = {"status": "weg"}
+            continue
+        seit = tags.get("claimed")
+        out[copy_id] = {"status": tags.get("status", "neu"), "schritt": tags.get("schritt", ""),
+                        "lauf": tags.get("lauf", ""), "seit": int(seit) if seit and seit.isdigit() else None}
+    return out
 
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -612,7 +645,7 @@ def review_retry(copy_id: str, store: Store = Depends(get_store)):
     key = store.pdf_key(EINGANG, copy_id)
     if not store.exists(key):
         raise HTTPException(404)
-    store.update_tags(key, status="neu", claimed=None)
+    store.update_tags(key, status="neu", claimed=None, schritt=None, lauf=None)
     return RedirectResponse("/review/", status_code=303)
 
 
