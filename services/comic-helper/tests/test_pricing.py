@@ -76,3 +76,22 @@ def test_booklooker_offer_has_no_markup(cfg):
     r = pricing.calculate(4.50, 1, "booklooker", cfg)
     assert (r.aufschlag, r.final) == (1.0, 4.50)
     assert pricing.calculate(4.50, 1, "comicguide", cfg).aufschlag == 1.5
+
+
+def test_lot_range_is_filled_and_priced_by_mean(cfg):
+    r = pricing.calculate(10.0, [3, 1], "comicguide", cfg)
+    assert r.zustand == [1, 2, 3] and r.faktor == 0.5333
+    assert r.roh == 8.0 and r.final == 7.99
+    assert pricing.calculate(10.0, [2], "comicguide", cfg).zustand == 2   # one condition stays a number
+
+
+@pytest.mark.parametrize("rule,factor", [("schlechtester", 0.2), ("bester", 1.0), ("mittelwert", 0.5333)])
+def test_lot_price_rule(cfg, rule, factor):
+    assert pricing.combined_factor([1, 2, 3], {**cfg, "sammelposten": {"preisregel": rule}}) == factor
+
+
+def test_lot_texts(cfg):
+    assert pricing.lot_label([1, 2, 3]) == "Sammelposten · Zustand 1–3"
+    assert pricing.lot_label([2]) == "Sammelposten · Zustand 2"
+    assert pricing.condition_key([2, 3]) == "2-3"
+    assert pricing.lot_range_words([1, 2], cfg) == "Zustand 1 bis 2 (sehr gut bis gut)"

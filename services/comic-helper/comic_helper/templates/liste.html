@@ -106,7 +106,7 @@
       {% if link %}<a class="titel ganz" href="/review/{{ c.id }}">{{ d.get('titel') or '(unbekannt)' }}</a>
       {% else %}<span class="titel">{{ d.get('titel') or 'Exemplar ' ~ c.id[:8] }}</span>{% endif %}
       {% if d.get('untertitel') %}<span class="untertitel">{{ d.get('untertitel') }}</span>{% endif %}
-      <div class="meta">{% if status == 'aktiv' and d.get('preis') %}<span class="shop-info">Zustand {{ d.get('zustand') }} · {{ ('%.2f' % d.preis.final)|replace('.', ',') }} €</span>{% endif %}<span class="verlag">{{ d.get('verlag', '') }}</span><span>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</span></div>
+      <div class="meta">{% if status == 'aktiv' and d.get('preis') %}<span class="shop-info">{{ d|posten }} · {{ ('%.2f' % d.preis.final)|replace('.', ',') }} €</span>{% endif %}<span class="verlag">{{ d.get('verlag', '') }}</span><span>{{ c.gescannt|lokalzeit('%d.%m. %H:%M') }}</span></div>
     </div>
   </li>
   {% endfor %}
@@ -129,10 +129,12 @@
     for (const li of liste.querySelectorAll("li[data-id]")) {
       const e = JSON.parse(localStorage.getItem("comics-entwurf:" + li.dataset.id));
       const f = e?.felder;
-      if (e && !e.gesendet && f && f.zustand != null && ((f.basis_z1 || "").trim() || (f.preis_override || "").trim())) {
+      const zs = [f?.zustand ?? []].flat();  // older drafts stored one condition as string
+      if (e && !e.gesendet && f && zs.length && ((f.basis_z1 || "").trim() || (f.preis_override || "").trim())) {
         const notiz = document.createElement("span");
         notiz.className = "entwurf-info";
-        notiz.textContent = "Zustand " + f.zustand + (f.preis_override?.trim() ? " · " + f.preis_override.trim() + " €" : "");
+        const bereich = zs.length > 1 ? zs[0] + "–" + zs[zs.length - 1] : zs[0];
+        notiz.textContent = (Number(f.anzahl) > 1 ? f.anzahl + "× · " : "") + "Zustand " + bereich + (f.preis_override?.trim() ? " · " + f.preis_override.trim() + " €" : "");
         li.querySelector(".meta").prepend(notiz);
         geprueft.push(li);
       }

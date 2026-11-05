@@ -19,6 +19,10 @@
   <label for="rueckseite">Rückseite (Seite 2)</label>
   <input type="file" name="rueckseite" id="rueckseite" accept="{{ upload_typen }}" required>
   <small>JPEG, PNG, WebP oder AVIF, höchstens 25 MB je Bild. Möglichst gerade von oben und ohne Spiegelungen.</small>
+  <label for="anzahl">Anzahl gleicher Hefte</label>
+  <input type="number" name="anzahl" id="anzahl" min="1" max="{{ max_anzahl|default(999) }}" value="1" inputmode="numeric" required>
+  <small>Mehrere gleiche Hefte (gleiche Ausgabe)? Eins fotografieren und hier die Stückzahl eintragen. Im Shop
+    wird daraus ein Sammelposten.</small>
   <div class="vorschau"><img id="v-cover" alt="" hidden><img id="v-rueckseite" alt="" hidden></div>
   <div class="aktionen">
     <button type="submit" id="senden">Hochladen</button>

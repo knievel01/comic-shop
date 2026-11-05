@@ -19,7 +19,11 @@ Pro Comic:
 
 1. **Titel, Ausgabe, Verlag** mit dem Bild vergleichen und bei Bedarf korrigieren.
    Auf ein Bild klicken = groß anzeigen.
-2. **Zustand** 0–4 wählen. Die Beschreibung steht unter jeder Stufe. Im Zweifel die schlechtere Stufe.
+2. **Anzahl** prüfen. Bei mehreren gleichen Heften (Sammelposten) die Stückzahl eintragen,
+   falls sie beim Hochladen noch nicht angegeben wurde.
+   **Zustand** 0–4 wählen. Die Beschreibung steht unter jeder Stufe. Im Zweifel die schlechtere Stufe.
+   Beim Sammelposten den besten und den schlechtesten Zustand im Stapel anklicken, z. B. 1 und 3:
+   Im Shop steht dann „Sammelposten · Zustand 1–3“. Kein Heft darf schlechter sein als die schlechteste Stufe.
 3. **Preis Zustand 1**:
    - Ist er schon ausgefüllt (Quelle „coverpreis“), nur prüfen.
    - Sonst auf **Comicguide** klicken, den Preis für **Zustand 1** ablesen und eintragen.

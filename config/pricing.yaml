@@ -33,6 +33,12 @@ aufschlag: 1.5
 aufschlag_je_quelle:
   booklooker: 1.0
 
+# Sammelposten (ADR-0026): mehrere gleiche Hefte als ein Artikel mit Menge > 1 und Zustandsbereich (z. B. 1–3).
+# Preisfaktor aus den Faktoren aller Zustände im Bereich: mittelwert | schlechtester | bester
+sammelposten:
+  preisregel: mittelwert
+  max_anzahl: 999
+
 # Noch lieferbare Titel: Basis Z1 = Coverpreis × Faktor (Comicguide-Praxis: 2/3)
 coverpreis:
   faktor: 0.6667

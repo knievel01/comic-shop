@@ -103,6 +103,22 @@ def _fmt_eur(value: float | None) -> str:
 templates.env.filters.update(sekunden=_fmt_seconds, minuten=_fmt_minutes, usd=_fmt_usd, eur=_fmt_eur)
 
 
+def conditions_of(d: dict) -> list[int]:
+    """Conditions of a review decision: one, or the range of a lot (ADR-0026). Older decisions only have zustand."""
+    return d.get("zustaende") or [d["zustand"]]
+
+
+def _lot_info(d: dict) -> str:
+    """'Zustand 2' or '20× · Zustand 1–3' for list tiles."""
+    if not d.get("zustaende") and d.get("zustand") is None:
+        return ""
+    text = f"Zustand {pricing.condition_text(conditions_of(d))}"
+    return f"{d['anzahl']}× · {text}" if d.get("anzahl", 1) > 1 else text
+
+
+templates.env.filters["posten"] = _lot_info
+
+
 # --- dependencies (overridden in tests) ---------------------------------------
 @lru_cache
 def _s3():
@@ -343,8 +359,8 @@ def to_shopify(copy_id: str, store: Store = Depends(get_store), cfg: dict = Depe
     d = side["entscheidung"]
     urls = [store.presigned_url(store.image_key(copy_id, p), 6 * 3600) for p in (1, 2)]
     try:
-        res = shop.add_copy(copy_short_id=storage.short_id(copy_id), proposal=d, zustand=d["zustand"],
-                            price=d["preis"]["final"], image_urls=urls, cfg=cfg)
+        res = shop.add_copy(copy_short_id=storage.short_id(copy_id), proposal=d, zustand=conditions_of(d),
+                            price=d["preis"]["final"], image_urls=urls, cfg=cfg, anzahl=d.get("anzahl", 1))
     except (ShopifyError, httpx2.HTTPError) as e:
         raise HTTPException(502, f"Shopify: {e}")
     side["shopify"] = {"product_id": res.product_id, "variant_id": res.variant_id, "sku": res.sku,
@@ -367,7 +383,8 @@ def final_metadata(copy_id: str, side: dict) -> dict:
         "ki-konfidenz": side.get("konfidenz", ""),
         "ki-status": side.get("ki_status", ""),
         "ki-zustand": (side.get("vorschlag") or {}).get("zustand_ki", ""),
-        "zustand": d["zustand"],
+        "zustand": pricing.condition_key(conditions_of(d)),
+        "anzahl": d.get("anzahl", 1),
         "preis-basis-z1": f"{p['basis_z1']:.2f}",
         "preis-quelle": p["quelle"],
         "preis-faktor": p["faktor"],
@@ -528,12 +545,20 @@ def upload_form(request: Request, fehler: str = ""):
     return templates.TemplateResponse(request, "hochladen.html", {"fehler": fehler})
 
 
+def max_lot_size(cfg: dict) -> int:
+    return int((cfg.get("sammelposten") or {}).get("max_anzahl", 999))
+
+
 @app.post("/review/hochladen", dependencies=[Depends(require_reviewer)])
-def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(...),
-                  store: Store = Depends(get_store), s: Settings = Depends(get_settings)):
-    """Second intake besides the scanner (ADR-0018): two photos -> eingang/{uuid}.pdf, status=neu."""
+def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(...), anzahl: int = Form(1),
+                  store: Store = Depends(get_store), s: Settings = Depends(get_settings), cfg: dict = Depends(get_cfg)):
+    """Second intake besides the scanner (ADR-0018): two photos -> eingang/{uuid}.pdf, status=neu.
+    anzahl > 1: the photos show one sample of a lot of identical copies (ADR-0026), kept as tag until review."""
     def back(msg: str):
         return RedirectResponse(f"/review/hochladen?fehler={quote_plus(msg)}", status_code=303)
+
+    if not 1 <= anzahl <= max_lot_size(cfg):
+        return back(f"Anzahl bitte zwischen 1 und {max_lot_size(cfg)}")
 
     images = []
     for name, f in (("Cover", cover), ("Rückseite", rueckseite)):
@@ -549,8 +574,8 @@ def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(.
         except pdf.PdfError as e:
             return back(f"{e}. Erlaubt: JPEG, PNG, WebP, AVIF")
     copy_id = str(uuid.uuid4())
-    store.put_new_scan(copy_id, scan)
-    log.info("uploaded photos as %s (%d bytes)", copy_id, len(scan))
+    store.put_new_scan(copy_id, scan, anzahl=anzahl)
+    log.info("uploaded photos as %s (%d bytes, %d copies)", copy_id, len(scan), anzahl)
     _notify_n8n(s, copy_id, "scan-neu")  # start workflow 01 now instead of waiting for the 2-minute poll
     return RedirectResponse(f"/review/?hochgeladen={copy_id}", status_code=303)
 
@@ -591,9 +616,12 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "aufschlag_je_quelle": cfg.get("aufschlag_je_quelle") or {},
         "beleg_pflicht": cfg.get("beleg_pflicht") or [],
         "rundung": cfg["rundung"],
+        "preisregel": (cfg.get("sammelposten") or {}).get("preisregel", "mittelwert"),
     }
+    anzahl = v.get("anzahl") or int(tags.get("anzahl", "1") or 1)
     return templates.TemplateResponse(request, "review.html", {
-        "id": copy_id, "side": side, "v": v, "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
+        "id": copy_id, "side": side, "v": v, "anzahl": anzahl, "max_anzahl": max_lot_size(cfg),
+        "zustaende": conditions_of(v) if v.get("zustaende") or v.get("zustand") is not None else [], "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
     })
 
@@ -691,7 +719,8 @@ def review_submit(
     sprache: str = Form(""),
     ean_isbn: str = Form(""),
     format: str = Form(""),
-    zustand: int = Form(...),
+    zustand: list[int] = Form([]),
+    anzahl: int = Form(1),
     basis_z1: str = Form(""),
     preisquelle: str = Form(...),
     preis_override: str = Form(""),
@@ -721,10 +750,18 @@ def review_submit(
         return back("Titel fehlt")
     if basis is None:
         return back("Zustand-1-Preis fehlt (Booklooker, Comicguide, Katalog oder Coverpreis)")
+    if not zustand:
+        return back("Zustand fehlt")
+    if not 1 <= anzahl <= max_lot_size(cfg):
+        return back(f"Anzahl bitte zwischen 1 und {max_lot_size(cfg)}")
+    if anzahl == 1 and len(set(zustand)) > 1:
+        return back("Mehrere Zustände nur bei einem Sammelposten (Anzahl größer 1)")
     try:
-        price = pricing.calculate(basis, zustand, preisquelle, cfg).as_dict()
+        zustaende = pricing.condition_range(zustand, cfg)
+        price = pricing.calculate(basis, zustaende, preisquelle, cfg).as_dict()
     except ValueError as e:
         return back(str(e))
+    zustand_wert = zustaende[0] if len(zustaende) == 1 else pricing.condition_key(zustaende)
     beleg = preis_beleg.strip()
     if beleg and not beleg.startswith(("https://", "http://")):
         return back("Beleg bitte als Link angeben (https://…)")
@@ -746,12 +783,14 @@ def review_submit(
         "titel": titel.strip(), "untertitel": untertitel.strip(), "ausgabe": ausgabe.strip() or "-",
         "verlag": verlag.strip(), "jahr": int(jahr) if jahr.strip().isdigit() else None,
         "sprache": sprache.strip().lower(), "ean_isbn": ean_isbn.strip(), "format": format.strip(),
-        "zustand": zustand, "preis": price, "notiz": notiz.strip()[:2000], "am": _utc(),
+        "zustand": zustand_wert, "zustaende": zustaende, "anzahl": anzahl,
+        "preis": price, "notiz": notiz.strip()[:2000], "am": _utc(),
         "korrigiert": any(
             (str(side["vorschlag"].get(f) or "") != str(val).strip())
             for f, val in (("titel", titel), ("ausgabe", ausgabe), ("verlag", verlag))
         ),
-        "sku_vorschau": make_sku(titel.strip(), ausgabe.strip(), zustand, storage.short_id(copy_id)),
+        "sku_vorschau": make_sku(titel.strip(), ausgabe.strip(), pricing.condition_key(zustaende),
+                                 storage.short_id(copy_id)),
     }
     store.write_json(side_key, side)
     store.update_tags(key, status="bestaetigt")

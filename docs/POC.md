@@ -1,9 +1,9 @@
-# Machbarkeits-PoC auf vorhandenem K3s
+# Sandbox (ehemals Machbarkeits-PoC) auf vorhandenem K3s
 
-> **Vorübergehende Testumgebung, keine neue Architekturentscheidung.** Der PoC weicht bewusst
-> von mehreren akzeptierten ADRs ab, ersetzt aber keines davon. Deshalb gibt es dafür **kein ADR**.
-> Das Zielbild bleibt der Comic-Rechner nach `docs/INSTALL.md`. Wird aus dem PoC ein Dauerbetrieb,
-> braucht das vorher ein eigenes ADR (CLAUDE.md, Regel 2).
+> **Dauerhafte Testumgebung (ADR-0027).** Jede Änderung wird zuerst hier ausgerollt und geprüft, erst
+> danach auf dem Comic-Rechner. Die Sandbox weicht bewusst von mehreren akzeptierten ADRs ab (siehe
+> Tabelle unten). Das gilt nur für sie; der Comic-Rechner folgt `docs/INSTALL.md`. Sie arbeitet nie mit
+> Produktivdaten. Im Text heißt sie weiter „PoC“.
 
 ## Zweck
 

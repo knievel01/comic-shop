@@ -55,6 +55,10 @@
   .stufe:has(input:checked) .ziffer { background:var(--ink); color:var(--yellow); }
   .stufe .badge { margin-left:auto; }
   .stufe-hilfe { margin:.7rem 0 0; min-height:2.6em; color:var(--muted); line-height:1.3; }
+  .anzahl { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:0 0 .8rem; }
+  .anzahl label { margin:0; font-weight:800; }
+  .anzahl input { width:6rem; font-weight:800; font-size:1.1rem; }
+  .anzahl small { color:var(--muted); flex-basis:100%; }
 
   .link-knopf { font:inherit; background:none; border:0; padding:0; color:var(--blue); text-decoration:underline; cursor:pointer; box-shadow:none; }
   .vorschlag { margin:.9rem 0 0; padding:.55rem .75rem; background:#fff6c7; border:var(--strich); border-left:6px solid var(--red); font-size:.98rem; line-height:1.35; }
@@ -169,9 +173,12 @@
 
     <section{{ sperre }} class="abschnitt raster zustand">
       <h2>Zustand</h2>
-      <div class="stufen" role="radiogroup" aria-label="Zustand (Comicguide-Skala)">
+      <div class="anzahl"><label for="anzahl">Anzahl</label>
+        <input type="number" name="anzahl" id="anzahl" min="1" max="{{ max_anzahl }}" value="{{ anzahl }}" inputmode="numeric">
+        <small>Mehr als 1: Sammelposten aus gleichen Heften, die Bilder zeigen ein Beispiel. Dann sind mehrere Zustände wählbar.</small></div>
+      <div class="stufen" role="group" aria-label="Zustand (Comicguide-Skala)">
         {% for z, d in cfg.zustaende|dictsort %}
-        <label class="stufe"><input type="radio" name="zustand" value="{{ z }}" required {% if v.zustand is defined and v.zustand == z %}checked{% endif %} data-hilfe="{{ d.hilfe }}">
+        <label class="stufe"><input type="checkbox" name="zustand" value="{{ z }}" {% if z in zustaende %}checked{% endif %} data-hilfe="{{ d.hilfe }}">
           <span class="ziffer">{{ z }}</span><span>{{ d.bezeichnung }}</span>{% if zki == z %}<span class="badge zki">KI-Empfehlung</span>{% endif %}</label>
         {% endfor %}
       </div>
@@ -240,30 +247,56 @@ function update() {
   if (!link.hidden) link.href = beleg;
   document.getElementById("preis-mini").textContent = document.getElementById("preis").textContent;
 }
+const zustaende = () => [...document.querySelectorAll("input[name=zustand]:checked")].map(i => i.value);
+const anzahl = () => Math.max(1, parseInt(document.getElementById("anzahl").value, 10) || 1);
+// Factor of a lot = rule over the factors of all conditions in the range (pricing.combined_factor, ADR-0026)
+function faktor(zs) {
+  const f = zs.map(z => Number(CFG.faktoren[z]));
+  if (f.length === 1) return f[0];
+  if (CFG.preisregel === "schlechtester") return Math.min(...f);
+  if (CFG.preisregel === "bester") return Math.max(...f);
+  return Math.round(f.reduce((a, b) => a + b, 0) / f.length * 10000) / 10000;
+}
 function show() {
-  const z = document.querySelector("input[name=zustand]:checked");
+  const zs = zustaende(), n = anzahl();
   const basis = num(document.getElementById("basis").value), ov = num(document.getElementById("override").value);
   const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
-  document.getElementById("stufe-hilfe").textContent = z ? z.dataset.hilfe : HILFE_LEER;
+  const bereich = zs.length > 1 ? `${zs[0]}–${zs[zs.length - 1]}` : zs[0];
+  document.getElementById("stufe-hilfe").textContent = !zs.length ? HILFE_LEER
+    : n > 1 ? `Sammelposten: ${n} Hefte in Zustand ${bereich}. Im Shop: „Sammelposten · Zustand ${bereich}“, ${n} Stück.`
+    : document.querySelector("input[name=zustand]:checked").dataset.hilfe;
   if (ov) { out.textContent = eur(ov); calc.textContent = "manuell überschrieben"; return; }
-  if (!z || !basis) { out.textContent = "?"; calc.textContent = "Zustand und Preis Z1 eingeben"; return; }
+  if (!zs.length || !basis) { out.textContent = "?"; calc.textContent = "Zustand und Preis Z1 eingeben"; return; }
   const q = document.getElementById("quelle").value, a = CFG.aufschlag_je_quelle[q] ?? CFG.aufschlag;
   document.getElementById("beleg").required = CFG.beleg_pflicht.includes(q);
-  const f = CFG.faktoren[z.value], raw = basis * f * a;
-  out.textContent = eur(roundShop(raw));
-  calc.textContent = `${eur(basis)} × ${f} (Zustand ${z.value}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
+  const f = faktor(zs), raw = basis * f * a;
+  out.textContent = eur(roundShop(raw)) + (n > 1 ? " je Heft" : "");
+  const herkunft = zs.length > 1 ? `${CFG.preisregel} aus Zustand ${bereich}` : `Zustand ${bereich}`;
+  calc.textContent = `${eur(basis)} × ${f} (${herkunft}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
 }
 const form = document.getElementById("f");
 const HILFE_LEER = document.getElementById("stufe-hilfe").textContent;
 
-// Clicking the chosen condition again clears it (radios cannot be unchecked otherwise).
-let gewaehlt = form.querySelector("input[name=zustand]:checked")?.value ?? null;
-for (const r of form.querySelectorAll("input[name=zustand]")) {
-  r.addEventListener("click", () => {
-    if (r.value === gewaehlt) { r.checked = false; gewaehlt = null; } else { gewaehlt = r.value; }
-    update(); speichern();
-  });
+// One condition for a single copy (clicking it again clears it). A lot (Anzahl > 1) takes a range:
+// the gaps between the lowest and highest chosen condition are filled in (pricing.condition_range).
+const stufen = [...form.querySelectorAll("input[name=zustand]")];
+function zustandOrdnen(geklickt) {
+  if (anzahl() <= 1) {
+    for (const s of stufen) if (s !== geklickt && (geklickt || s !== stufen.find(x => x.checked))) s.checked = false;
+    return;
+  }
+  const an = stufen.filter(s => s.checked).map(s => Number(s.value));
+  if (an.length < 2) return;
+  const lo = Math.min(...an), hi = Math.max(...an);
+  // unchecking an inner condition shrinks the range from that side
+  if (geklickt && !geklickt.checked && Number(geklickt.value) > lo && Number(geklickt.value) < hi) {
+    for (const s of stufen) if (Number(s.value) > Number(geklickt.value)) s.checked = false;
+    return;
+  }
+  for (const s of stufen) s.checked = Number(s.value) >= lo && Number(s.value) <= hi;
 }
+for (const s of stufen) s.addEventListener("change", () => { zustandOrdnen(s); update(); speichern(); });
+document.getElementById("anzahl").addEventListener("input", () => { zustandOrdnen(null); });
 
 // Draft in browser storage, per copy: survives reloads and leaving the page without confirming.
 // Only a convenience on this device; the server stores nothing until "Bestätigen".
@@ -274,7 +307,8 @@ function speichern(gesendet = false) {
   const felder = {};
   for (const el of form.elements) {
     if (!el.name || el.type === "submit") continue;
-    if (el.type === "radio") { if (el.checked) felder[el.name] = el.value; else if (!(el.name in felder)) felder[el.name] = null; }
+    if (el.type === "checkbox") { felder[el.name] ??= []; if (el.checked) felder[el.name].push(el.value); }
+    else if (el.type === "radio") { if (el.checked) felder[el.name] = el.value; else if (!(el.name in felder)) felder[el.name] = null; }
     else felder[el.name] = el.value;
   }
   try { speicher.setItem(SCHLUESSEL, JSON.stringify({ am: Date.now(), gesendet, felder })); } catch {}
@@ -303,10 +337,12 @@ if (entwurf && entwurf.gesendet && !fehlerSeite) {
   for (const [name, wert] of Object.entries(entwurf.felder)) {
     const els = form.elements.namedItem(name);
     if (!els) continue;
-    if (els instanceof RadioNodeList && els[0]?.type === "radio") { for (const r of els) r.checked = r.value === wert; }
+    if (els instanceof RadioNodeList && ["radio", "checkbox"].includes(els[0]?.type)) {
+      const werte = [wert].flat();  // older drafts stored one condition as string
+      for (const r of els) r.checked = werte.includes(r.value);
+    }
     else els.value = wert ?? "";
   }
-  gewaehlt = form.querySelector("input[name=zustand]:checked")?.value ?? null;
   const hinweis = document.getElementById("entwurf");
   hinweis.querySelector("span").textContent = "Entwurf vom " + new Date(entwurf.am).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) + " wiederhergestellt.";
   hinweis.hidden = false;
@@ -315,7 +351,10 @@ document.getElementById("entwurf-weg").addEventListener("click", verwerfen);
 
 form.addEventListener("input", () => { update(); speichern(); });
 document.getElementById("quelle").addEventListener("change", update);
-form.addEventListener("submit", () => speichern(true));
+form.addEventListener("submit", e => {
+  if (!zustaende().length) { e.preventDefault(); alert("Bitte einen Zustand wählen."); return; }
+  speichern(true);
+});
 update();
 </script>
 {% endblock %}

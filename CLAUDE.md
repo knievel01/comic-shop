@@ -21,6 +21,12 @@ Comic-Shop-Automatisierung: Scan → S3 → Erkennung (Claude) → Review → Sh
 Weitere Doku: `docs/ARCHITEKTUR.md` (Datenfluss, Zustände), `docs/PLAN.md` (Plan und Status).
 `future-improvements/` enthält nur Ideen und Ausbaupläne; daraus wird erst nach einem akzeptierten ADR umgesetzt.
 
+## Sandbox zuerst (ADR-0027)
+
+Jede Änderung wird zuerst in der Sandbox auf `pro-mini` ausgerollt und dort geprüft (`docs/POC.md`:
+`scripts/poc-host-k3s.sh build` und `deploy`, geänderte Workflows per `n8n-import.sh`), erst danach auf dem
+Comic-Rechner (`sudo comics-update`). Die Sandbox nutzt nie Produktivdaten.
+
 ## Regeln
 
 - **Keine Secrets im Repo** (ADR-0003). Weder AWS-Keys, Shopify-/Ximilar-/Anthropic-Token, `N8N_ENCRYPTION_KEY`

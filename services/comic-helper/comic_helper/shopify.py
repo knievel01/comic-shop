@@ -3,6 +3,9 @@
 Options: "Zustand" (e.g. "1 – sehr gut") and "Exemplar" (a, b, c, ...). Every variant has
 quantity 1 and a unique SKU ending in the copy's short id, so a copy in the shop can be traced
 back to its scan in S3 (ADR-0013). Sales are handled in Shopify only (ADR-0025).
+
+Lots (ADR-0026): several identical copies, one scan as sample, one variant with quantity n and
+Zustand "Sammelposten · Zustand 1–3". The product description then explains what a lot means.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ import re
 import threading
 import time
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from string import ascii_lowercase
 
@@ -55,7 +59,8 @@ def product_title(titel: str, ausgabe: str, untertitel: str, verlag: str) -> str
     return t
 
 
-def make_sku(titel: str, ausgabe: str, zustand: int, short: str) -> str:
+def make_sku(titel: str, ausgabe: str, zustand: int | str, short: str) -> str:
+    """zustand: 2 or '1-3' for a lot (pricing.condition_key)."""
     issue = slugify(ausgabe, 15) if ausgabe and ausgabe != "-" else "x"
     return f"{slugify(titel, 30) or 'comic'}-{issue}-z{zustand}-{short}"
 
@@ -92,9 +97,23 @@ def description_html(proposal: dict, cfg: dict) -> str:
     )
     return (
         f"<ul>{info}</ul>"
-        "<p>Jede Variante ist ein einzelnes, von uns gescanntes Exemplar. "
+        "<p>Einzelne Exemplare haben wir selbst gescannt: "
         "Die Bilder zeigen genau das Heft, das Sie erhalten.</p>"
         f"<p><strong>Unsere Zustandsstufen</strong></p><ul>{zust}</ul>"
+    )
+
+
+LOT_MARKER = "Sammelposten:</strong>"
+
+
+def lot_paragraph(zustaende: Sequence[int], cfg: dict) -> str:
+    """Explains lots in the product description (ADR-0026), with this lot as example."""
+    label = html.escape(pricing.lot_label(zustaende))
+    return (
+        f"<p><strong>{LOT_MARKER} Von diesem Heft haben wir mehrere Exemplare. "
+        f"Bei der Variante „{label}“ erhalten Sie eines davon in "
+        f"{html.escape(pricing.lot_range_words(zustaende, cfg))}, nie schlechter. "
+        "Die Bilder dieser Variante zeigen ein Beispielexemplar; Ihr Heft kann davon leicht abweichen.</p>"
     )
 
 
@@ -116,6 +135,7 @@ PRODUCT_BY_HANDLE = """
 query($handle: String!) {
   productByIdentifier(identifier: {handle: $handle}) {
     id
+    descriptionHtml
     variants(first: 250) { nodes { id sku selectedOptions { name value } } }
   }
 }"""
@@ -133,6 +153,14 @@ mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!, $media: [Crea
   productVariantsBulkCreate(productId: $productId, variants: $variants, media: $media, strategy: $strategy) {
     productVariants { id sku }
     userErrors { field message code }
+  }
+}"""
+
+PRODUCT_UPDATE = """
+mutation($product: ProductUpdateInput!) {
+  productUpdate(product: $product) {
+    product { id }
+    userErrors { field message }
   }
 }"""
 
@@ -202,11 +230,14 @@ class Shopify:
         nodes = self.gql(FIND_VARIANT, {"q": f"sku:{sku}"})["productVariants"]["nodes"]
         return next((n for n in nodes if n["sku"] == sku), None)
 
-    def add_copy(self, *, copy_short_id: str, proposal: dict, zustand: int, price: float,
-                 image_urls: list[str], cfg: dict) -> VariantResult:
-        """Idempotent: if a variant with this copy's SKU suffix exists, return it."""
+    def add_copy(self, *, copy_short_id: str, proposal: dict, zustand: int | Sequence[int], price: float,
+                 image_urls: list[str], cfg: dict, anzahl: int = 1) -> VariantResult:
+        """Idempotent: if a variant with this copy's SKU suffix exists, return it.
+        anzahl > 1 creates a lot: quantity anzahl, condition range as option value (ADR-0026)."""
         titel, ausgabe, verlag = proposal["titel"], proposal.get("ausgabe", ""), proposal.get("verlag", "")
-        sku = make_sku(titel, ausgabe, zustand, copy_short_id)
+        zustaende = pricing.condition_range([zustand] if isinstance(zustand, int) else zustand, cfg)
+        lot = anzahl > 1
+        sku = make_sku(titel, ausgabe, pricing.condition_key(zustaende), copy_short_id)
         existing = self.find_variant_by_sku(sku)
         if existing:
             ex = next((o["value"] for o in existing["selectedOptions"] if o["name"] == "Exemplar"), "")
@@ -214,7 +245,7 @@ class Shopify:
 
         handle = product_handle(titel, ausgabe, verlag)
         product = self.gql(PRODUCT_BY_HANDLE, {"handle": handle})["productByIdentifier"]
-        zustand_label = pricing.condition_label(zustand, cfg)
+        zustand_label = pricing.lot_label(zustaende) if lot else pricing.condition_label(zustaende[0], cfg)
         strategy = "DEFAULT"
         if product is None:
             exemplar = "a"
@@ -224,7 +255,7 @@ class Shopify:
             created = self._check(self.gql(PRODUCT_CREATE, {"product": {
                 "title": product_title(titel, ausgabe, proposal.get("untertitel", ""), verlag),
                 "handle": handle,
-                "descriptionHtml": description_html(proposal, cfg),
+                "descriptionHtml": description_html(proposal, cfg) + (lot_paragraph(zustaende, cfg) if lot else ""),
                 "vendor": verlag if shop_cfg.get("hersteller_aus_verlag", True) else None,
                 "productType": shop_cfg.get("produkt_typ", "Comic"),
                 "status": shop_cfg.get("produkt_status", "ACTIVE"),
@@ -250,8 +281,16 @@ class Shopify:
                 and any(x["name"] == "Zustand" and x["value"] == zustand_label for x in v["selectedOptions"])
             }
             exemplar = next_exemplar(used)
+            desc = product.get("descriptionHtml") or ""
+            if lot and LOT_MARKER not in desc:  # first lot of this title: explain lots, keep manual edits
+                self._check(self.gql(PRODUCT_UPDATE, {"product": {
+                    "id": product_id, "descriptionHtml": desc + lot_paragraph(zustaende, cfg)}})["productUpdate"],
+                    "productUpdate")
 
-        alt = f"{titel} {ausgabe} – Exemplar {exemplar}, Zustand {zustand_label}"
+        if lot:
+            alt = f"{titel} {ausgabe} – Beispielexemplar, {zustand_label}"
+        else:
+            alt = f"{titel} {ausgabe} – Exemplar {exemplar}, Zustand {zustand_label}"
         media = [{"originalSource": u, "mediaContentType": "IMAGE", "alt": alt} for u in image_urls]
         result = self._check(self.gql(VARIANTS_CREATE, {
             "productId": product_id,
@@ -265,7 +304,7 @@ class Shopify:
                 "price": f"{price:.2f}",
                 "inventoryPolicy": "DENY",
                 "inventoryItem": {"sku": sku, "tracked": True},
-                "inventoryQuantities": [{"locationId": self.location_id, "availableQuantity": 1}],
+                "inventoryQuantities": [{"locationId": self.location_id, "availableQuantity": anzahl}],
                 "mediaSrc": image_urls[:1],
             }],
         })["productVariantsBulkCreate"], "productVariantsBulkCreate")

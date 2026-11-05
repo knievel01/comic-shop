@@ -31,3 +31,5 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0023](0023-statistik-seite-fuer-kosten-laufzeit-und-zeitersparnis.md) | Statistik-Seite für KI-Kosten, Laufzeiten und gesparte Handarbeit | Akzeptiert (PoC), ergänzt 0004/0022, in Teilen ersetzt durch 0025 |
 | [0024](0024-fortschritt-der-erkennung-als-s3-tag.md) | Fortschritt von Workflow 01 als S3-Tag, die Review fragt ihn ab | Akzeptiert (PoC), ergänzt 0004/0018 |
 | [0025](0025-kein-rueckkanal-von-shopify-verkauf-nur-in-shopify.md) | Kein Rückkanal von Shopify, Verkäufe werden nur in Shopify geführt | Akzeptiert, ersetzt 0009/0016 |
+| [0026](0026-sammelposten-mehrere-gleiche-hefte-als-eine-variante.md) | Sammelposten: mehrere gleiche Hefte als eine Variante mit Zustandsbereich | Akzeptiert, ergänzt 0011/0012/0013/0018 |
+| [0027](0027-poc-bleibt-als-sandbox-aenderungen-zuerst-dort.md) | Der PoC bleibt als Sandbox, Änderungen laufen zuerst dort | Akzeptiert, ergänzt 0002 |

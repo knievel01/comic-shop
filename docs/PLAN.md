@@ -24,6 +24,9 @@ PoC (01.11.2026): Machbarkeitstest von Postgres, n8n und `comic-helper` im vorha
 Entwickler-Rechners (`infra/k3s-poc/`, `scripts/poc-host-k3s.sh`, Anleitung `docs/POC.md`). Vorübergehende
 Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den Rollout aus Phase 2/3.
 
+Sandbox (05.11.2026): Der PoC bleibt als Sandbox, jede Änderung läuft zuerst dort (ADR-0027).
+Sammelposten (05.11.2026): mehrere gleiche Hefte als eine Variante mit Zustandsbereich (ADR-0026).
+
 Go-Live (05.11.2026): PoC abgenommen, Rollout auf den Comic-Rechner in der Woche ab 09.11.2026,
 Entscheidungen, Aufgaben und Zeitplan in `docs/GO-LIVE.md`.
 

@@ -117,11 +117,13 @@ class Store:
     def put_bytes(self, key: str, data: bytes, content_type: str) -> None:
         self.s3.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
 
-    def put_new_scan(self, copy_id: str, pdf: bytes) -> str:
-        """Same contract as comics-scan-sync: never overwrite, tagged status=neu in one call."""
+    def put_new_scan(self, copy_id: str, pdf: bytes, anzahl: int = 1) -> str:
+        """Same contract as comics-scan-sync: never overwrite, tagged status=neu in one call.
+        anzahl > 1 (lot, ADR-0026) is kept as tag until the review takes it over."""
         key = self.pdf_key(EINGANG, copy_id)
+        tagging = "status=neu" + (f"&anzahl={anzahl}" if anzahl > 1 else "")
         self.s3.put_object(Bucket=self.bucket, Key=key, Body=pdf, ContentType="application/pdf",
-                           Tagging="status=neu", IfNoneMatch="*")
+                           Tagging=tagging, IfNoneMatch="*")
         return key
 
     def get_tags(self, key: str) -> dict[str, str]:

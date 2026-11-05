@@ -73,7 +73,7 @@ class FakeShopifyAPI:
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content)
         q, v = body["query"], body["variables"]
-        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|publishablePublish)", q).group(1)
+        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish)", q).group(1)
         self.calls.append(op)
         if op == "productVariants":
             sku = v["q"].removeprefix("sku:")
@@ -81,11 +81,16 @@ class FakeShopifyAPI:
             data = {"productVariants": {"nodes": nodes}}
         elif op == "productByIdentifier":
             p = self.products.get(v["handle"])
-            data = {"productByIdentifier": p and {"id": p["id"], "variants": {"nodes": p["variants"]}}}
+            data = {"productByIdentifier": p and {"id": p["id"], "descriptionHtml": p["input"]["descriptionHtml"],
+                                                  "variants": {"nodes": p["variants"]}}}
         elif op == "productCreate":
             pid = f"gid://shopify/Product/{len(self.products) + 1}"
             self.products[v["product"]["handle"]] = {"id": pid, "variants": [], "input": v["product"]}
             data = {"productCreate": {"product": {"id": pid}, "userErrors": []}}
+        elif op == "productUpdate":
+            p = next(p for p in self.products.values() if p["id"] == v["product"]["id"])
+            p["input"]["descriptionHtml"] = v["product"]["descriptionHtml"]
+            data = {"productUpdate": {"product": {"id": p["id"]}, "userErrors": []}}
         elif op == "productVariantsBulkCreate":
             p = next(p for p in self.products.values() if p["id"] == v["productId"])
             out = []
@@ -482,8 +487,8 @@ def test_condition_recommendation_shown_not_preselected(env):
     assert (side["vorschlag"]["zustand_ki"], side["vorschlag"]["zustand_ki_begruendung"]) == (1, "Kanten minimal bestoßen, sonst sauber.")
     page = c.get(f"/review/{cid}").text
     assert "KI-Zustandsempfehlung:" in page and "1 – sehr gut" in page and "KI-Empfehlung</span>" in page
-    radio = re.search(r'<input type="radio" name="zustand" value="1"[^>]*>', page).group(0)
-    assert "checked" not in radio  # recommendation is shown, not preselected
+    stufe = re.search(r'<input type="checkbox" name="zustand" value="1"[^>]*>', page).group(0)
+    assert "checked" not in stufe  # recommendation is shown, not preselected
     assert 'id="entwurf"' in page and "comics-entwurf:" in page  # draft autosave in browser storage
 
 
@@ -506,3 +511,78 @@ def test_upload_triggers_workflow_01(env, monkeypatch):
     assert env.client.post("/review/hochladen", files=files, follow_redirects=False).status_code == 303
     assert len(calls) == 1 and calls[0][0].endswith("/webhook/scan-neu")
     assert calls[0][1]["headers"]["X-Helper-Token"] == TOKEN
+
+
+def _upload_lot(env, monkeypatch, anzahl: str) -> str:
+    monkeypatch.setattr(app_module.httpx2, "post", lambda url, **kw: None)
+    files = {"cover": ("c.jpg", _photo("red"), "image/jpeg"), "rueckseite": ("r.jpg", _photo("red"), "image/jpeg")}
+    r = env.client.post("/review/hochladen", files=files, data={"anzahl": anzahl}, follow_redirects=False)
+    assert r.status_code == 303, r.headers["location"]
+    return r.headers["location"].split("hochgeladen=")[1]
+
+
+def test_lot_from_upload_to_shopify(env, monkeypatch):
+    """ADR-0026: one sample photo, 20 copies, condition range 1-3 -> one variant with quantity 20."""
+    c = env.client
+    cid = _upload_lot(env, monkeypatch, "20")
+    assert env.store.get_tags(f"eingang/{cid}.pdf") == {"status": "neu", "anzahl": "20"}
+    c.post("/api/scans/claim", headers=H)
+    assert c.post(f"/api/scans/{cid}/recognize", headers=H).status_code == 200
+    assert env.store.get_tags(f"eingang/{cid}.pdf")["anzahl"] == "20"   # survives the status change
+    assert 'name="anzahl" id="anzahl" min="1" max="999" value="20"' in c.get(f"/review/{cid}").text
+
+    # 1 and 3 chosen: the range is filled in, price factor = mean of 1.0, 0.4, 0.2
+    r = c.post(f"/review/{cid}", data=review_form(zustand=["1", "3"], anzahl="20"), follow_redirects=False)
+    assert r.status_code == 303 and "fehler" not in r.headers["location"]
+    d = env.store.read_json(f"eingang/{cid}.json")["entscheidung"]
+    assert (d["zustand"], d["zustaende"], d["anzahl"]) == ("1-3", [1, 2, 3], 20)
+    assert d["preis"]["faktor"] == 0.5333 and d["preis"]["final"] == 7.99   # 10 x 0.5333 x 1.5 = 8.00
+
+    sku = c.post(f"/api/scans/{cid}/shopify", headers=H).json()["sku"]
+    assert sku == f"asterix-12-z1-3-{storage.short_id(cid)}"
+    product = env.shop.products["asterix-12-ehapa"]
+    variant = product["variants"][0]
+    assert variant["qty"] == 20 and variant["price"] == "7.99"
+    assert {"name": "Zustand", "value": "Sammelposten · Zustand 1–3"} in variant["selectedOptions"]
+    desc = product["input"]["descriptionHtml"]
+    assert "Sammelposten:</strong> Von diesem Heft haben wir mehrere Exemplare." in desc
+    assert "Zustand 1 bis 3 (sehr gut bis noch sammelwürdig), nie schlechter" in desc
+
+    meta = c.post(f"/api/scans/{cid}/finalize", headers=H).json()["metadata"]
+    assert (meta["zustand"], meta["anzahl"]) == ("1-3", 20)
+    assert "20× · Zustand 1–3 · 7,99 €" in c.get("/review/").text
+
+
+def test_lot_added_to_existing_product_explains_lots_once(env, monkeypatch):
+    c = env.client
+    for zustand, anzahl in (("2", "1"), (["2", "3"], "5"), (["1", "2"], "8")):
+        cid = str(uuid.uuid4())
+        upload_scan(env.s3, cid)
+        c.post("/api/scans/claim", headers=H)
+        c.post(f"/api/scans/{cid}/recognize", headers=H)
+        c.post(f"/review/{cid}", data=review_form(zustand=zustand, anzahl=anzahl))
+        assert c.post(f"/api/scans/{cid}/shopify", headers=H).status_code == 200
+    product = env.shop.products["asterix-12-ehapa"]
+    assert [v["qty"] for v in product["variants"]] == [1, 5, 8]
+    assert product["input"]["descriptionHtml"].count("Sammelposten:</strong>") == 1
+    assert "Zustand 2 bis 3 (gut bis noch sammelwürdig)" in product["input"]["descriptionHtml"]
+    assert env.shop.calls.count("productUpdate") == 1
+
+
+def test_several_conditions_need_a_lot(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    r = c.post(f"/review/{cid}", data=review_form(zustand=["1", "2"], anzahl="1"), follow_redirects=False)
+    assert "Mehrere+Zust%C3%A4nde" in r.headers["location"]
+    r = c.post(f"/review/{cid}", data=review_form(zustand=[], anzahl="1"), follow_redirects=False)
+    assert "Zustand+fehlt" in r.headers["location"]
+    assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"
+
+
+def test_upload_rejects_invalid_count(env, monkeypatch):
+    monkeypatch.setattr(app_module.httpx2, "post", lambda url, **kw: None)
+    files = {"cover": ("c.jpg", _photo("red"), "image/jpeg"), "rueckseite": ("r.jpg", _photo("red"), "image/jpeg")}
+    r = env.client.post("/review/hochladen", files=files, data={"anzahl": "0"}, follow_redirects=False)
+    assert "Anzahl" in unquote_plus(r.headers["location"])

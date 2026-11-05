@@ -23,6 +23,10 @@ Beispiel: Comicguide Z1 = 10,00 €, Zustand 2 → 10 × 0,4 × 1,5 = 6,00 € �
 
 Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den Shop.
 
+**Sammelposten** (ADR-0026, mehrere gleiche Hefte mit Zustandsbereich): Der Faktor ist der Mittelwert der
+Faktoren aller Zustände im Bereich (`sammelposten.preisregel`, alternativ `schlechtester` oder `bester`).
+Beispiel: Z1 = 10,00 €, Zustand 1–3 → 10 × (1,0 + 0,4 + 0,2) / 3 × 1,5 = 8,00 € → **7,99 €** je Heft.
+
 **KI-Zustandsempfehlung:** Claude schlägt anhand der Bilder eine Stufe 0–4 mit kurzer Begründung vor
 (Skala aus `pricing.yaml`). Das Formular zeigt sie an und markiert die Stufe, wählt sie aber nicht vor:
 den Zustand legt die Fachkraft am Exemplar fest. Gespeichert als S3-Metadatum `ki-zustand`, damit sich
