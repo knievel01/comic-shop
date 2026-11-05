@@ -29,6 +29,8 @@ Die Review-Oberfläche unterscheidet sich danach nur im Zugang:
 ## Entscheidungen bis Freitag, 06.11. (blockieren den Zeitplan)
 
 Entschieden am 05.11.: kein Rückkanal von Shopify, kein Cloudflare-Tunnel (ADR-0025).
+Entschieden am 05.11. (ADR-0028): **E2** Booklooker mit Beleg und Websuche-Vorschlag, **E3** Opus bleibt,
+**E4** echter Shop, erste Woche `DRAFT`. **E5** neuer Bucket per Terraform. Offen: **E1** Rechner, **E6** Deploy-Key.
 
 | Nr. | Frage | Empfehlung |
 | --- | --- | --- |
@@ -43,16 +45,18 @@ Entschieden am 05.11.: kein Rückkanal von Shopify, kein Cloudflare-Tunnel (ADR-
 
 1. ✅ **Push** (05.11.): ansible-pull holt den Stand von GitHub, also zuerst
    pushen und die CI (`test.yml`) grün sehen.
-2. **ADR-0028** nach E2 bis E4 schreiben, `docs/adr/README.md` und die Status der alten ADRs nachziehen.
-3. **`config/pricing.yaml`** für den Zielbetrieb anpassen:
-   `standard_preisquelle` (nach E2), `marktpreis.modell` (E3), `shopify.produkt_status` (E4),
-   Kommentare „PoC“ entfernen. `docs/PREISFINDUNG.md` angleichen.
+2. ✅ **ADR-0028** geschrieben, Status der alten ADRs nachgezogen (05.11.).
+3. ✅ **`config/pricing.yaml`** für den Zielbetrieb kommentiert (05.11.). Werte bleiben: `booklooker`, Opus, `DRAFT`.
+   `docs/PREISFINDUNG.md` angeglichen.
 4. **Ingress im Zielbetrieb prüfen** (`infra/k3s/base/ingress.yaml`): Er gilt für alle Hostnamen und
    beide Entrypoints, auf dem eigenen Rechner hinter ufw ist das richtig. Testen, dass Foto-Uploads vom
    Handy über https mit selbstsigniertem Zertifikat funktionieren und dass der Name `comics-01` im
    Laden-WLAN auflöst.
 5. ✅ **`docs/BETRIEB.md`** um den Workflow-Import mit Aktivierung per CLI ergänzt (05.11.).
-6. **ISO-Release** bauen (`build-iso.yml`, ADR-0015) mit `REPO_URL` auf dieses Repo.
+6. **ISO-Release** bauen (`build-iso.yml`, ADR-0015, Tag `v*` oder manuell). Vorher im GitHub-Repo unter
+   Settings → Secrets and variables → Actions → Variables setzen: `ADMIN_SSH_KEYS` (öffentliche SSH-Schlüssel
+   für den Admin-Zugang) und `COMICS_REPO_URL=git@github.com:knievel01/comic-shop.git` (Repo ist privat,
+   ansible-pull klont per Deploy-Key, E6).
 7. Commit „Go-Live-Vorbereitung (gemäß ADR-0028)“, Status in `docs/PLAN.md` nachziehen.
 
 ## Zeitplan

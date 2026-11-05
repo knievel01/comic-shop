@@ -34,11 +34,11 @@ die Trefferquote später auswerten lässt.
 
 ## Ablauf im Formular
 
-> **PoC (ADR-0017):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den
+> **Preisquelle (ADR-0028):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den
 > Booklooker-Link, wählt ein vergleichbares Angebot (gleiche Ausgabe, Zustand 1) und trägt dessen
 > Preis als Z1 ein, dazu als **Beleg** den Link auf das Angebot (Pflicht). Aufschlag für diese Quelle
 > 1,0 (`aufschlag_je_quelle`), weil Angebote schon Endkundenpreise sind. Kein automatischer Abruf:
-> Booklooker sperrt Programme per `robots.txt`. Zielbetrieb: `standard_preisquelle: comicguide`.
+> Booklooker sperrt Programme per `robots.txt`. Mit einer Comicguide-Lizenz wird per Folge-ADR auf `comicguide` umgestellt.
 >
 > **Automatischer Vorschlag (ADR-0022):** Bei der Erkennung sucht die Anthropic-Websuche gebrauchte
 > Angebote bei Booklooker und ZVAB (der Dienst ruft die Seiten nicht selbst ab). Der **Median** der

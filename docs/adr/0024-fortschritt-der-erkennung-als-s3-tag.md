@@ -1,6 +1,6 @@
 # ADR-0024: Fortschritt von Workflow 01 als S3-Tag, die Review fragt ihn ab
 
-- **Status:** Akzeptiert (PoC)
+- **Status:** Akzeptiert (durch ADR-0028 auch für den Zielbetrieb)
 - **Datum:** 2026-11-04
 
 ## Kontext

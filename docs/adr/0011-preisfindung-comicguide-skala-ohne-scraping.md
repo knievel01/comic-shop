@@ -1,6 +1,6 @@
 # ADR-0011: Preisfindung nach Comicguide-Skala, zentral konfiguriert, kein Scraping
 
-- **Status:** Akzeptiert
+- **Status:** Akzeptiert, Preisquelle vorläufig durch ADR-0028 ergänzt
 - **Datum:** 2026-10-27
 
 ## Kontext

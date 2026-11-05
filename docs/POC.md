@@ -45,7 +45,7 @@ Bestandteile:
 | Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Fotos über `/review/hochladen` (ADR-0018) oder Test-PDF von Hand nach `eingang/` |
 | Backup | `comics-backup.timer` (pg_dump, Workflow-Export nach S3) | kein Backup; PoC-Daten sind Wegwerfdaten |
 | Image | per Ansible gebaut und importiert | per `docker build` gebaut, Push in die PoC-Registry `localhost:5000`, kein `sudo` |
-| Preisquelle | Comicguide Z1 × Zustand × 1,5 (ADR-0011) | Booklooker-Angebot vorausgewählt, mit Pflicht-Beleg (Link), Aufschlag 1,0 (ADR-0017); vor dem Zielbetrieb `standard_preisquelle` zurücksetzen |
+| Preisquelle | Booklooker-Angebot mit Beleg, Websuche-Vorschlag (ADR-0028) | gleich |
 
 Unverändert gelten S3 als einziger Zustandsspeicher (ADR-0004), die Fachlogik im `comic-helper`
 (ADR-0005), die Review-Oberfläche dort (ADR-0006) und n8n als Einzelinstanz mit Postgres (ADR-0008).

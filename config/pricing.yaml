@@ -29,7 +29,7 @@ zustaende:
 
 # Sepps Aufschlag auf den Comicguide-Preis
 aufschlag: 1.5
-# Abweichender Aufschlag je Preisquelle. Booklooker-Angebote sind bereits Endkundenpreise (ADR-0017).
+# Abweichender Aufschlag je Preisquelle. Booklooker-Angebote sind bereits Endkundenpreise (ADR-0028).
 aufschlag_je_quelle:
   booklooker: 1.0
 
@@ -57,7 +57,7 @@ konfidenz_schwelle: 0.80
 
 # Erlaubte Preisquellen (werden als S3-Metadatum gespeichert)
 preisquellen: [booklooker, comicguide, coverpreis, katalog, manuell]
-# Im Formular vorausgewählt. PoC: booklooker (ADR-0017), Zielbetrieb: comicguide (ADR-0011)
+# Im Formular vorausgewählt: booklooker, bis eine Comicguide-Lizenz vorliegt (ADR-0028)
 standard_preisquelle: booklooker
 # Quellen, bei denen ein Beleg (Link auf das Angebot) Pflicht ist
 beleg_pflicht: [booklooker]
@@ -71,7 +71,7 @@ suchlinks:
   GCD: https://www.comics.org/searchNew/?q={q}
 
 # Automatischer Preisvorschlag (ADR-0022): Median gebrauchter Angebote bei Booklooker/ZVAB, gefunden per
-# Anthropic-Websuche (kein eigener Abruf dieser Seiten, ADR-0017). Aus = nur Coverpreis-Vorschlag.
+# Anthropic-Websuche (kein eigener Abruf dieser Seiten, ADR-0028). Aus = nur Coverpreis-Vorschlag.
 marktpreis:
   aktiv: true
   min_angebote: 2     # weniger belegte Angebote -> kein Vorschlag
@@ -82,7 +82,7 @@ marktpreis:
 
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
-  # PoC im echten Shop (ADR-0021): DRAFT, bis der Ablauf geprüft ist.
+  # Erste Woche nach dem Go-Live DRAFT, danach ACTIVE (ADR-0028). Änderung zuerst in der Sandbox (ADR-0027).
   produkt_status: DRAFT
   produkt_typ: Comic
   hersteller_aus_verlag: true

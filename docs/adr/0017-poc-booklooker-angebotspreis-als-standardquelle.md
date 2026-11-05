@@ -1,6 +1,6 @@
 # ADR-0017: PoC: Booklooker-Angebotspreis als Standard-Preisquelle, mit Beleg
 
-- **Status:** Akzeptiert (nur PoC, siehe `docs/POC.md`)
+- **Status:** Ersetzt durch ADR-0028
 - **Datum:** 2026-11-02
 - **Ergänzt:** ADR-0011 (für den PoC; ADR-0011 bleibt für den Zielbetrieb gültig)
 

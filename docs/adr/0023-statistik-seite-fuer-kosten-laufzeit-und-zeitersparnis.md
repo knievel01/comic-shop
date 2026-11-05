@@ -1,6 +1,6 @@
 # ADR-0023: Statistik-Seite zeigt KI-Kosten, Laufzeiten und gesparte Handarbeit
 
-- **Status:** Akzeptiert (PoC), in Teilen ersetzt durch ADR-0025 (kein Workflow 03)
+- **Status:** Akzeptiert (durch ADR-0028 auch für den Zielbetrieb), in Teilen ersetzt durch ADR-0025 (kein Workflow 03)
 - **Datum:** 2026-11-04
 
 ## Kontext

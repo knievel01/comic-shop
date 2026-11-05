@@ -1,6 +1,6 @@
 # ADR-0022: Automatischer Preisvorschlag aus Booklooker/ZVAB per Anthropic-Websuche
 
-- **Status:** Akzeptiert (PoC)
+- **Status:** Akzeptiert (durch ADR-0028 auch für den Zielbetrieb)
 - **Datum:** 2026-11-03
 - **Ergänzt:** ADR-0017 (Booklooker als PoC-Preisquelle), ADR-0011 (Preisfindung)
 
