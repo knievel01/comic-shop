@@ -1,8 +1,8 @@
 # Feasibility PoC on an existing, shared K3s (not the comic machine, see docs/POC.md).
 # Differences to the base:
-# - no ingress: the shared Traefik is reachable from the whole LAN and there is no ufw
-#   in front of it (ADR-0008/0009 assume the dedicated machine). Access only via
-#   `scripts/poc-host-k3s.sh forward` (kubectl port-forward on localhost).
+# - ingress only for the host pro-mini.fritz.box and plain http (entrypoint web): the
+#   shared Traefik serves other hosts (paperless), so no catch-all rule. Reachable by every
+#   device in the LAN, no ufw in front of Traefik (ADR-0008/0009 assume the dedicated machine).
 # - namespace label, so `poc-host-k3s.sh delete` only removes the PoC namespace.
 # - comic-helper comes from the local registry on localhost:5000 (no sudo needed),
 #   pulled on every start so a rebuilt image with the same tag is picked up.
@@ -27,12 +27,13 @@ patches:
       kind: Ingress
       name: comics
     patch: |-
-      $patch: delete
-      apiVersion: networking.k8s.io/v1
-      kind: Ingress
-      metadata:
-        name: comics
-  # Plain http on localhost through port-forward, no proxy in front of n8n.
+      - op: replace
+        path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.entrypoints
+        value: web
+      - op: add
+        path: /spec/rules/0/host
+        value: pro-mini.fritz.box
+  # Plain http (Traefik in front, or port-forward without proxy): no secure cookie.
   - target:
       kind: Deployment
       name: n8n
@@ -47,7 +48,6 @@ patches:
             containers:
               - name: n8n
                 env:
-                  - { name: N8N_PROXY_HOPS, value: "0" }
                   - { name: N8N_SECURE_COOKIE, value: "false" }
   - target:
       kind: Namespace

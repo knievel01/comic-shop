@@ -7,7 +7,8 @@
 #   build    build the comic-helper image and push it to the PoC registry on localhost:5000
 #   deploy   create the Kubernetes secret from the env file and apply infra/k3s-poc
 #   status   show pods and volumes
-#   forward  port-forward n8n and the review UI to localhost (Ctrl-C to stop)
+#   forward  port-forward n8n and the review UI to localhost (Ctrl-C to stop; the ingress
+#            on http://$POC_HOST/ makes this optional)
 #   forward-lan  like forward, additionally on the LAN IP (plain http, every LAN device can connect)
 #   delete   remove the PoC namespace comics including volumes (env file is kept)
 #
@@ -20,6 +21,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="${COMICS_ENV_FILE:-$HOME/.config/comics/comics.env}"
+# must match the ingress host in infra/k3s-poc/kustomization.yaml
+POC_HOST=pro-mini.fritz.box
 N8N_PORT="${N8N_PORT:-5678}"
 HELPER_PORT="${HELPER_PORT:-8080}"
 IMAGE=localhost/comic-helper:local
@@ -40,8 +43,8 @@ cmd_env() {
   for key in N8N_ENCRYPTION_KEY POSTGRES_PASSWORD HELPER_TOKEN; do
     sed -i "s|^$key=.*|$key=$(openssl rand -hex 32)|" "$ENV_FILE"
   done
-  sed -i -e "s|^WEBHOOK_URL=.*|WEBHOOK_URL=http://localhost:$N8N_PORT/|" \
-         -e "s|^REVIEW_BASE_URL=.*|REVIEW_BASE_URL=http://localhost:$HELPER_PORT|" "$ENV_FILE"
+  sed -i -e "s|^WEBHOOK_URL=.*|WEBHOOK_URL=http://$POC_HOST/|" \
+         -e "s|^REVIEW_BASE_URL=.*|REVIEW_BASE_URL=http://$POC_HOST|" "$ENV_FILE"
   echo "Created $ENV_FILE (mode 600)."
   echo "Fill in at least S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ANTHROPIC_API_KEY."
   echo "Shopify: use a development store only."
@@ -102,9 +105,10 @@ cmd_deploy() {
 cmd_status() {
   kubectl -n "$NS" get pods,pvc
   echo
-  echo "Access only via: $0 forward"
-  echo "  n8n:       http://localhost:$N8N_PORT/"
-  echo "  Review-UI: http://localhost:$HELPER_PORT/review/   (password only if REVIEW_PASSWORD is set)"
+  echo "Access in the LAN via ingress (plain http):"
+  echo "  n8n:       http://$POC_HOST/"
+  echo "  Review-UI: http://$POC_HOST/review/   (password only if REVIEW_PASSWORD is set)"
+  echo "Alternatively on localhost: $0 forward"
 }
 
 cmd_forward() {

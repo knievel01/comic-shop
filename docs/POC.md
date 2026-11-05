@@ -18,12 +18,14 @@ wieder entfernen.
 
 Bestandteile:
 
-- `infra/k3s-poc/kustomization.yaml`: Overlay über `infra/k3s`. Es **entfernt den Ingress**:
-  Der gemeinsame Traefik ist aus dem ganzen LAN erreichbar, und anders als auf dem Comic-Rechner
-  steht keine ufw davor (ADR-0008/0009). Ein n8n ohne Owner-Konto und eine Review-Oberfläche, die
-  nach Shopify veröffentlichen kann, wären sonst für jeden im Netz offen. Außerdem bekommt der
-  Namespace das Label `app.kubernetes.io/part-of=comics-poc`, und n8n wird für reines http auf
-  localhost eingestellt (`N8N_SECURE_COOKIE=false`, `N8N_PROXY_HOPS=0`). `comic-helper` kommt aus
+- `infra/k3s-poc/kustomization.yaml`: Overlay über `infra/k3s`. Es **beschränkt den Ingress** auf
+  den Hostnamen `pro-mini.fritz.box` und reines http (Entrypoint `web`), damit er im gemeinsamen
+  Traefik keine anderen Hosts wie `paperless.fritz.box` abfängt. Der gemeinsame Traefik ist aus dem
+  ganzen LAN erreichbar, und anders als auf dem Comic-Rechner steht keine ufw davor (ADR-0008/0009):
+  n8n und die Review-Oberfläche, die nach Shopify veröffentlichen kann, sind für jedes Gerät im
+  Netz offen (siehe „Zugriff“). Außerdem bekommt der Namespace das Label
+  `app.kubernetes.io/part-of=comics-poc`, und n8n wird für reines http eingestellt
+  (`N8N_SECURE_COOKIE=false`). `comic-helper` kommt aus
   der lokalen Registry `localhost:5000` und wird bei jedem Start neu gezogen (`imagePullPolicy: Always`).
 - `infra/k3s-poc/registry.yaml`: Image-Registry (`registry:2.8.3`) mit Host-Netz, gebunden nur an
   `127.0.0.1:5000`, ohne Anmeldung, Images auf einem local-path-Volume (5 GiB). Damit gelangt das Image ohne `sudo` in K3s
@@ -39,7 +41,7 @@ Bestandteile:
 | Installation | Autoinstall-ISO und `ansible-pull` (ADR-0002) | kein ISO, kein Ansible; manuell per `scripts/poc-host-k3s.sh` |
 | Öffentliche Webhooks | nur `/webhook/*` über Cloudflare-Tunnel (ADR-0009) | **kein Tunnel**; Shopify-Webhooks kommen nicht an, nur lokale Tests per `curl` |
 | Geheimnisse | `/etc/comics/comics.env`, Rechte 600, oder SOPS (ADR-0003) | `~/.config/comics/comics.env`, Rechte 600 (Benutzer statt root). Grundsatz von ADR-0003 gilt unverändert: nichts davon ins Repo |
-| Zugriff | `https://comics-01/` im LAN über Traefik, ufw nur für LAN-Netze | kein Ingress; nur `kubectl port-forward` auf `127.0.0.1` (`http://localhost:5678/`, `:8080/review/`) |
+| Zugriff | `https://comics-01/` im LAN über Traefik, ufw nur für LAN-Netze | `http://pro-mini.fritz.box/` im LAN über den gemeinsamen Traefik, nur http, keine ufw davor; zusätzlich `kubectl port-forward` auf `127.0.0.1` möglich |
 | Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Fotos über `/review/hochladen` (ADR-0018) oder Test-PDF von Hand nach `eingang/` |
 | Backup | `comics-backup.timer` (pg_dump, Workflow-Export nach S3) | kein Backup; PoC-Daten sind Wegwerfdaten |
 | Image | per Ansible gebaut und importiert | per `docker build` gebaut, Push in die PoC-Registry `localhost:5000`, kein `sudo` |
@@ -73,7 +75,7 @@ scripts/poc-host-k3s.sh env
 
 Legt `~/.config/comics/comics.env` (Rechte 600) aus `.env.example` an, erzeugt
 `N8N_ENCRYPTION_KEY`, `POSTGRES_PASSWORD` und `HELPER_TOKEN` zufällig und setzt
-`WEBHOOK_URL` auf `http://localhost:5678/` und `REVIEW_BASE_URL` auf `http://localhost:8080`.
+`WEBHOOK_URL` auf `http://pro-mini.fritz.box/` und `REVIEW_BASE_URL` auf `http://pro-mini.fritz.box`.
 Bricht ab, wenn die Datei schon existiert, damit der `N8N_ENCRYPTION_KEY` stabil bleibt.
 
 Danach die Datei **im Editor** ergänzen, mindestens:
@@ -109,25 +111,33 @@ gestartet (neues Image, geänderte Secrets). Fehlt das Image, bricht es nach 3 M
 
 ```bash
 scripts/poc-host-k3s.sh status
-scripts/poc-host-k3s.sh forward      # läuft, bis Strg-C
 ```
 
 ## Zugriff
 
-Standardmäßig nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN nicht erreichbar):
+Über den Ingress, vom Rechner und von jedem Gerät im WLAN (auch dem Handy), ohne laufenden
+Port-Forward und auch nach einem Neustart:
 
-- **n8n:** <http://localhost:5678/>. **Gleich nach dem ersten Deploy** das Owner-Konto anlegen
-  (nur für den PoC, nicht das spätere Produktivkonto).
-- **Review-Oberfläche:** <http://localhost:8080/review/>. Im PoC ohne Anmeldung (`REVIEW_PASSWORD`
-  leer, ADR-0006). Wer ein Passwort will, trägt es in die Geheimnisdatei ein und ruft `deploy` auf;
-  dann HTTP Basic mit beliebigem Benutzernamen.
-- Andere Ports: `N8N_PORT=… HELPER_PORT=… scripts/poc-host-k3s.sh forward` (dann vorher
-  `WEBHOOK_URL`/`REVIEW_BASE_URL` in der Datei anpassen und `deploy`).
+- **n8n:** <http://pro-mini.fritz.box/>. **Gleich nach dem ersten Deploy** das Owner-Konto anlegen
+  (nur für den PoC, nicht das spätere Produktivkonto); bis dahin wird der erste Besucher im LAN Owner.
+- **Review-Oberfläche:** <http://pro-mini.fritz.box/review/>. Im PoC ohne Anmeldung
+  (`REVIEW_PASSWORD` leer, ADR-0006). Wer ein Passwort will, trägt es in die Geheimnisdatei ein und
+  ruft `deploy` auf; dann HTTP Basic mit beliebigem Benutzernamen.
+- Den Namen löst die Fritzbox auf. Traefik lauscht nur auf IPv4; Browser weichen darauf aus.
 - Logs: `kubectl -n comics logs deploy/comic-helper` bzw. `deploy/n8n`.
 
-### Vom Handy im WLAN
+Sicherheit: nur unverschlüsseltes http, die n8n-Anmeldung geht im Klartext durchs WLAN, und jedes
+Gerät im Netz kann die Seiten aufrufen. Ohne `REVIEW_PASSWORD` kann es auch Comics prüfen,
+bestätigen und hochladen. Nur im eigenen, vertrauten WLAN betreiben. Den Zugang schließt
+`scripts/poc-host-k3s.sh delete` oder `kubectl -n comics delete ingress comics` (kommt beim
+nächsten `deploy` wieder).
 
-`scripts/poc-host-k3s.sh forward-lan` lauscht zusätzlich auf der LAN-IP des Rechners
+Alternativ nur lokal: `scripts/poc-host-k3s.sh forward` (Port-Forward auf `127.0.0.1`, läuft bis
+Strg-C, <http://localhost:5678/> und <http://localhost:8080/review/>).
+
+### Port-Forward im WLAN (ohne Ingress)
+
+Durch den Ingress normalerweise nicht mehr nötig. `scripts/poc-host-k3s.sh forward-lan` lauscht zusätzlich auf der LAN-IP des Rechners
 (automatisch ermittelt, sonst `LAN_IP=…`) und zeigt die Adressen an, z. B.
 `http://192.168.40.123:5678/` und `http://192.168.40.123:8080/review/`.
 
@@ -139,7 +149,7 @@ Standardmäßig nur über `forward` (Port-Forward auf `127.0.0.1`, aus dem LAN n
 - Ist ufw aktiv, die Ports einmalig für das LAN freigeben (braucht root, selbst ausführen):
   `sudo ufw allow from 192.168.40.0/24 to any port 5678,8080 proto tcp`.
   Nach dem PoC wieder entfernen: `sudo ufw delete allow from 192.168.40.0/24 to any port 5678,8080 proto tcp`.
-- Links in n8n-Mails und Webhook-Adressen zeigen weiter auf `localhost`.
+- Links in n8n-Mails und Webhook-Adressen zeigen auf `pro-mini.fritz.box`.
 
 ## Workflows einspielen
 
@@ -163,7 +173,7 @@ Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „3. n8n“, mit folgenden 
    Sinnvoll im PoC: **01** (Scan-Ingest und Erkennung, Polling alle 2 Minuten) und **02**
    (Bestätigt → Shopify, nur mit Entwicklungsshop). **03** (Shopify-Verkauf) bekommt ohne Tunnel
    keine echten Webhooks, lässt sich aber lokal mit `curl` gegen
-   `http://localhost:5678/webhook/shopify-orders` (bei laufendem `forward`) anstoßen (Signatur nötig, siehe
+   `http://pro-mini.fritz.box/webhook/shopify-orders` anstoßen (Signatur nötig, siehe
    `SHOPIFY_WEBHOOK_SECRET`). **04** und **99** nur mit SMTP-Credential.
 4. Der Schritt „exportieren und committen“ aus `docs/BETRIEB.md` entfällt im Normalfall. Nur wenn
    im PoC bewusst eine Workflow-Änderung entstanden ist, die ins Repo soll:
@@ -186,7 +196,7 @@ aws s3api put-object --bucket <S3_BUCKET> --key "eingang/$(uuidgen).pdf" \
 
 Zugangsdaten dafür über ein eigenes AWS-Profil oder Umgebungsvariablen in der eigenen Shell,
 nicht auf der Kommandozeile. Innerhalb von etwa 3 Minuten steht das Exemplar unter
-`http://localhost:8080/review/` und hat in S3 den Tag `status=offen`.
+`http://pro-mini.fritz.box/review/` und hat in S3 den Tag `status=offen`.
 
 ## Aufräumen
 
