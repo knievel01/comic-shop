@@ -23,7 +23,18 @@
    - „SMTP Comics“: Typ *SMTP*, Werte aus dem Passwort-Manager.
 3. Workflows einspielen: `sudo /opt/comic-shop/scripts/n8n-import.sh`.
 4. In jedem Workflow die beiden Credentials auswählen, falls n8n sie nicht automatisch zuordnet,
-   dann alle Workflows aktivieren. „Comics 99 Fehler-Alarm“ ist bereits als Error-Workflow eingetragen.
+   dann die Workflows 01, 02, 04 und 99 aktivieren. „Comics 99 Fehler-Alarm“ ist bereits als Error-Workflow eingetragen.
+   Aktivieren per CLI statt Oberfläche (in der Sandbox erprobt):
+
+   ```bash
+   sudo k3s kubectl -n comics exec deploy/n8n -c n8n -- n8n list:workflow          # IDs
+   sudo k3s kubectl -n comics exec deploy/n8n -c n8n -- n8n update:workflow --id=<ID> --active=true
+   sudo k3s kubectl -n comics rollout restart deployment/n8n                       # ohne Neustart greift es nicht
+   sudo k3s kubectl -n comics exec deploy/n8n -c n8n -- n8n list:workflow --active=true   # Kontrolle
+   ```
+
+   Den Aktiv-Zustand hält die Datenbank von n8n, nicht die Exporte im Repo (dort bleibt `active: false`).
+   Ein erneuter Import überschreibt die Workflows und deaktiviert sie, danach wieder aktivieren.
 5. `sudo /opt/comic-shop/scripts/n8n-export.sh` und den Export committen.
 
 ### 3. Erste Prüfung

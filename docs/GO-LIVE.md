@@ -41,7 +41,7 @@ Entschieden am 05.11.: kein Rückkanal von Shopify, kein Cloudflare-Tunnel (ADR-
 
 ## Aufgaben im Repo (Montag, 09.11.)
 
-1. **Push:** `main` ist 30 Commits vor `origin/main`. ansible-pull holt den Stand von GitHub, also zuerst
+1. ✅ **Push** (05.11.): ansible-pull holt den Stand von GitHub, also zuerst
    pushen und die CI (`test.yml`) grün sehen.
 2. **ADR-0028** nach E2 bis E4 schreiben, `docs/adr/README.md` und die Status der alten ADRs nachziehen.
 3. **`config/pricing.yaml`** für den Zielbetrieb anpassen:
@@ -51,8 +51,7 @@ Entschieden am 05.11.: kein Rückkanal von Shopify, kein Cloudflare-Tunnel (ADR-
    beide Entrypoints, auf dem eigenen Rechner hinter ufw ist das richtig. Testen, dass Foto-Uploads vom
    Handy über https mit selbstsigniertem Zertifikat funktionieren und dass der Name `comics-01` im
    Laden-WLAN auflöst.
-5. **`docs/BETRIEB.md`** um den Workflow-Import mit Aktivierung per CLI ergänzen, so wie er im PoC
-   funktioniert hat (`docs/POC.md`, Abschnitt „Workflows einspielen“).
+5. ✅ **`docs/BETRIEB.md`** um den Workflow-Import mit Aktivierung per CLI ergänzt (05.11.).
 6. **ISO-Release** bauen (`build-iso.yml`, ADR-0015) mit `REPO_URL` auf dieses Repo.
 7. Commit „Go-Live-Vorbereitung (gemäß ADR-0028)“, Status in `docs/PLAN.md` nachziehen.
 
