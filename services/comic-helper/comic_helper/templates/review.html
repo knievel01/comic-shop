@@ -77,6 +77,7 @@
            color:var(--paper); text-shadow:2px 2px 0 var(--ink); transform:rotate(-4deg); }
   .calc { color:var(--muted); font-size:.95rem; }
   .ergebnis .calc { color:var(--ink); }
+  .je-heft { flex:none; margin-left:-.5rem; font:1.3rem/1 var(--display); letter-spacing:.03em; white-space:nowrap; }
   .hint { font-size:.95rem; color:var(--bad); font-weight:700; }
   button { margin-top:1rem; width:100%; padding:.7rem .8rem .55rem; font:1.5rem/1 var(--display); letter-spacing:.05em; cursor:pointer;
            color:var(--paper); background:var(--red); border:var(--strich); text-shadow:1px 1px 0 var(--ink); box-shadow:var(--druck); }
@@ -207,6 +208,7 @@
       {% elif preis_vorschlag %}<p class="vorschlag"><strong>Vorschlag aus Coverpreis: {{ '%.2f' % preis_vorschlag.basis_z1 }} €</strong><br>{{ '%.2f' % v.coverpreis if v.coverpreis else '' }} {{ v.waehrung }} × {{ cfg.coverpreis.faktor }}, noch lieferbar{% if not prefill %}; Quelle „coverpreis“ wählen, um ihn zu übernehmen{% endif %}.</p>
       {% endif %}{% if side.get('preis_suche') and not (preis_vorschlag and preis_vorschlag.quelle == 'booklooker') %}<p class="vorschlag">Automatische Preissuche: keine passenden Angebote bei Booklooker/ZVAB gefunden. Bitte über die Links suchen.</p>{% endif %}{% if not gesperrt %}<p class="links"><button type="submit" form="preissuche" class="link-knopf">Preis automatisch neu suchen</button> <small>dauert etwa eine halbe Minute</small></p>{% endif %}<p class="links">Nachschlagen: {% for name, url in links.items() %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{% endfor %}</p>
       <div class="ergebnis"><div class="price burst" aria-live="polite"><span id="preis">?</span></div>
+        <span class="je-heft" id="je-heft" hidden>je Heft</span>
         <div class="calc" id="rechnung"></div></div>
       <label>Endpreis überschreiben <small>(optional, €)</small></label>
       <input name="preis_override" id="override" inputmode="decimal" placeholder="leer = berechneter Preis">
@@ -245,7 +247,8 @@ function update() {
   const beleg = document.getElementById("beleg").value.trim(), link = document.getElementById("beleg-link");
   link.hidden = !/^https?:\/\//i.test(beleg);  // only real web links become clickable
   if (!link.hidden) link.href = beleg;
-  document.getElementById("preis-mini").textContent = document.getElementById("preis").textContent;
+  document.getElementById("preis-mini").textContent = document.getElementById("preis").textContent
+    + (document.getElementById("je-heft").hidden ? "" : " je Heft");
 }
 const zustaende = () => [...document.querySelectorAll("input[name=zustand]:checked")].map(i => i.value);
 const anzahl = () => Math.max(1, parseInt(document.getElementById("anzahl").value, 10) || 1);
@@ -261,6 +264,7 @@ function show() {
   const zs = zustaende(), n = anzahl();
   const basis = num(document.getElementById("basis").value), ov = num(document.getElementById("override").value);
   const out = document.getElementById("preis"), calc = document.getElementById("rechnung");
+  document.getElementById("je-heft").hidden = n <= 1;
   const bereich = zs.length > 1 ? `${zs[0]}–${zs[zs.length - 1]}` : zs[0];
   document.getElementById("stufe-hilfe").textContent = !zs.length ? HILFE_LEER
     : n > 1 ? `Sammelposten: ${n} Hefte in Zustand ${bereich}. Im Shop: „Sammelposten · Zustand ${bereich}“, ${n} Stück.`
@@ -270,7 +274,7 @@ function show() {
   const q = document.getElementById("quelle").value, a = CFG.aufschlag_je_quelle[q] ?? CFG.aufschlag;
   document.getElementById("beleg").required = CFG.beleg_pflicht.includes(q);
   const f = faktor(zs), raw = basis * f * a;
-  out.textContent = eur(roundShop(raw)) + (n > 1 ? " je Heft" : "");
+  out.textContent = eur(roundShop(raw));
   const herkunft = zs.length > 1 ? `${CFG.preisregel} aus Zustand ${bereich}` : `Zustand ${bereich}`;
   calc.textContent = `${eur(basis)} × ${f} (${herkunft}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
 }
