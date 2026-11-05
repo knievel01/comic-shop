@@ -24,6 +24,9 @@ PoC (01.11.2026): Machbarkeitstest von Postgres, n8n und `comic-helper` im vorha
 Entwickler-Rechners (`infra/k3s-poc/`, `scripts/poc-host-k3s.sh`, Anleitung `docs/POC.md`). Vorübergehende
 Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den Rollout aus Phase 2/3.
 
+Go-Live (05.11.2026): PoC abgenommen, Rollout auf den Comic-Rechner in der Woche ab 09.11.2026,
+Entscheidungen, Aufgaben und Zeitplan in `docs/GO-LIVE.md`.
+
 Abweichungen vom Plan und Begründungen: ADRs in `docs/adr/` (v. a. 0005, 0006, 0013). Die wichtigsten:
 Fachlogik im Python-Dienst `comic-helper` statt in n8n-Nodes; Review-Oberfläche dort statt n8n-Form/Wait;
 SKU endet auf 12 Stellen der Exemplar-UUID statt auf a/b/c (der Buchstabe bleibt Shopify-Option).
