@@ -39,8 +39,8 @@
   .fortschritt .stufen li.aktiv { background:var(--yellow); color:var(--ink); box-shadow:var(--druck);
                                   transform:rotate(-2deg); }
   .fortschritt .stufen li.aktiv::before { content:"▶ "; }
-  .fall .bild .fortschritt .lauf-info { background:none; border:0; padding:0; font:800 .85rem/1.25 var(--text);
-                                        color:var(--ink); text-align:center; }
+  .fall .bild .fortschritt .lauf-info { background:var(--paper); border:var(--strich); padding:.25rem .6rem; align-self:center;
+                                        font:800 .85rem/1.25 var(--text); color:var(--ink); text-align:center; }
   @media (prefers-reduced-motion: no-preference) {
     .fortschritt .stufen li.aktiv { animation:pochen 1.4s ease-in-out infinite; }
     @keyframes pochen { 50% { transform:rotate(-2deg) scale(1.04); } }
