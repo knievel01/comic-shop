@@ -39,7 +39,7 @@ Bestandteile:
 | --- | --- | --- |
 | Rechner | eigener Comic-Rechner für Scan-Station und Server (ADR-0001) | vorhandener Entwickler-Rechner, K3s mit anderen Anwendungen geteilt |
 | Installation | Autoinstall-ISO und `ansible-pull` (ADR-0002) | kein ISO, kein Ansible; manuell per `scripts/poc-host-k3s.sh` |
-| Öffentliche Webhooks | nur `/webhook/*` über Cloudflare-Tunnel (ADR-0009) | **kein Tunnel**; Shopify-Webhooks kommen nicht an, nur lokale Tests per `curl` |
+| Zugang aus dem Internet | keiner, kein Rückkanal von Shopify (ADR-0025) | keiner |
 | Geheimnisse | `/etc/comics/comics.env`, Rechte 600, oder SOPS (ADR-0003) | `~/.config/comics/comics.env`, Rechte 600 (Benutzer statt root). Grundsatz von ADR-0003 gilt unverändert: nichts davon ins Repo |
 | Zugriff | `https://comics-01/` im LAN über Traefik, ufw nur für LAN-Netze | `http://pro-mini.fritz.box/` im LAN über den gemeinsamen Traefik, nur http, keine ufw davor; zusätzlich `kubectl port-forward` auf `127.0.0.1` möglich |
 | Scan und Upload | Scanner, `comics-scan-sync` mit UUID (ADR-0007) | kein Scanner, kein Sync-Timer; Fotos über `/review/hochladen` (ADR-0018) oder Test-PDF von Hand nach `eingang/` |
@@ -153,7 +153,7 @@ Durch den Ingress normalerweise nicht mehr nötig. `scripts/poc-host-k3s.sh forw
 
 ## Workflows einspielen
 
-Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „3. n8n“, mit folgenden Anpassungen:
+Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „2. n8n“, mit folgenden Anpassungen:
 
 1. In n8n die Credentials mit **genau diesen Namen** anlegen:
    - „Comic Helper Token“: Typ *Header Auth*, Name `X-Helper-Token`, Wert = `HELPER_TOKEN` aus
@@ -171,10 +171,8 @@ Es gilt der Ablauf aus `docs/BETRIEB.md`, Abschnitt „3. n8n“, mit folgenden 
    danach `kubectl -n comics rollout restart deployment/n8n` (ohne Neustart greift es nicht). Workflow-IDs: `n8n list:workflow`.
    Den Aktiv-Zustand halten die Datenbank von n8n, nicht die Exporte im Repo (dort bleibt `active: false`).
    Sinnvoll im PoC: **01** (Scan-Ingest und Erkennung, Polling alle 2 Minuten) und **02**
-   (Bestätigt → Shopify, nur mit Entwicklungsshop). **03** (Shopify-Verkauf) bekommt ohne Tunnel
-   keine echten Webhooks, lässt sich aber lokal mit `curl` gegen
-   `http://pro-mini.fritz.box/webhook/shopify-orders` anstoßen (Signatur nötig, siehe
-   `SHOPIFY_WEBHOOK_SECRET`). **04** und **99** nur mit SMTP-Credential.
+   (Bestätigt → Shopify, nur mit Entwicklungsshop). **04** und **99** nur mit SMTP-Credential.
+   Workflow 03 (Shopify-Verkauf) gibt es nicht mehr (ADR-0025). Ist er im PoC-n8n noch vorhanden, dort löschen.
 4. Der Schritt „exportieren und committen“ aus `docs/BETRIEB.md` entfällt im Normalfall. Nur wenn
    im PoC bewusst eine Workflow-Änderung entstanden ist, die ins Repo soll:
    `KUBECONFIG=~/.kube/config scripts/n8n-export.sh`, dann `git diff workflows/` prüfen und wie
@@ -211,4 +209,4 @@ wenn er das PoC-Label trägt. Andere Namespaces des K3s bleiben unberührt. Bewu
   Darin stehende echte Schlüssel (AWS, Anthropic, Shopify) nach dem PoC gegebenenfalls widerrufen.
 - das lokale Image in Docker: `docker image rm localhost/comic-helper:local localhost:5000/comic-helper:local`.
   Die Registry selbst verschwindet mit dem Namespace.
-- Testdaten im S3-Bucket (`eingang/`, `aktiv/`, `verkauft/`) und Testprodukte im Shopify-Entwicklungsshop.
+- Testdaten im S3-Bucket (`eingang/`, `aktiv/`, `papierkorb/`) und Testprodukte im Shopify-Entwicklungsshop.

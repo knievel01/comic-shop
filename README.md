@@ -2,8 +2,8 @@
 
 Automatisierung für Sepps Comic-Shop: Ein A3-Scanner erzeugt pro Comic eine zweiseitige PDF,
 n8n und der `comic-helper` erkennen Titel/Ausgabe/Verlag mit Claude, eine Fachkraft bestätigt
-Zustand und Preis, das Exemplar landet als eigene Variante in Shopify. Verkäufe verschieben
-den Scan in S3 nach `verkauft/`, jeden Morgen um 7 Uhr kommt eine Sammel-Mail.
+Zustand und Preis, das Exemplar landet als eigene Variante in Shopify. Verkauft wird nur über
+Shopify, ohne Rückmeldung an den Rechner. Jeden Morgen um 7 Uhr kommt eine Sammel-Mail.
 
 | Dokument | Inhalt |
 | --- | --- |

@@ -47,5 +47,4 @@ sie: der Dienst braucht sie nicht, und sie gehören nicht auf die Platte.
 - Ob die Verbindung steht, zeigt ein Aufruf mit dem Token, nicht die Installation allein.
 - Weitere Bereiche später: neue Version im Dev Dashboard veröffentlichen, dann im Shop die neuen Zugriffe
   bestätigen.
-- Webhook-Signaturen (Verkauf, Workflow 03) prüft der Dienst mit `SHOPIFY_WEBHOOK_SECRET`; bei dieser App
-  ist das der Client-Schlüssel.
+- Keine Webhooks: Verkäufe werden nur in Shopify geführt (ADR-0025).

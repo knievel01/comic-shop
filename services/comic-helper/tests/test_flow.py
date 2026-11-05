@@ -1,9 +1,6 @@
 """End-to-end flow through the HTTP API with fake Claude and fake Shopify:
-scan -> claim -> recognize -> review -> Shopify -> finalize -> sale webhook -> cancel."""
+scan -> claim -> recognize -> review -> Shopify -> finalize."""
 
-import base64
-import hashlib
-import hmac
 import io
 import json
 import re
@@ -25,7 +22,6 @@ from comic_helper.shopify import Shopify
 from .conftest import BUCKET, upload_scan
 
 TOKEN = "t0ken"
-SECRET = "whsec"
 
 
 def feld(w, s=0.95):
@@ -108,7 +104,7 @@ class FakeShopifyAPI:
 
 @pytest.fixture
 def env(s3, store):
-    settings = Settings(s3_bucket=BUCKET, helper_token=TOKEN, shopify_webhook_secret=SECRET,
+    settings = Settings(s3_bucket=BUCKET, helper_token=TOKEN,
                         review_base_url="https://comics-01", n8n_internal_url="http://127.0.0.1:9")
     claude = FakeClaude()
     shop_api = FakeShopifyAPI()
@@ -126,12 +122,6 @@ def env(s3, store):
 
 
 H = {"X-Helper-Token": TOKEN}
-
-
-def signed(payload: dict, topic: str):
-    raw = json.dumps(payload).encode()
-    sig = base64.b64encode(hmac.new(SECRET.encode(), raw, hashlib.sha256).digest()).decode()
-    return raw, {**H, "X-Shopify-Hmac-Sha256": sig, "X-Shopify-Topic": topic, "Content-Type": "application/json"}
 
 
 def review_form(**over):
@@ -210,31 +200,17 @@ def test_full_lifecycle(env):
     assert c.post(f"/api/scans/{cid}/finalize", headers=H).json()["bereits_erledigt"] is True
     # copies in the shop stay visible in their own greyed-out group, read-only and not counted as open
     page = c.get("/review/").text
-    assert 'id="status-aktiv"' in page and "Im Shop" in page and 'class="fall panel im-shop"' in page
+    assert 'id="status-aktiv"' in page and "Zuletzt in den Shop" in page and 'class="fall panel im-shop"' in page
     assert f'/review/bild/{cid}/1' in page and f'href="/review/{cid}"' not in page
     assert "Zustand 2 · 5,99 €" in page and "Offene Comics (0)" in page
 
-    # sale: exactly this copy moves to verkauft/; duplicate delivery changes nothing
-    order = {"id": 1, "name": "#1001", "line_items": [{"sku": sku}, {"sku": "GUTSCHEIN"}]}
-    raw, hdr = signed(order, "orders/paid")
-    res = c.post("/api/shopify/webhook", content=raw, headers=hdr).json()["ergebnis"]
-    assert res[0]["status"] == "nach-verkauft" and res[1]["status"] == "keine-comic-sku"
-    assert env.store.locate(cid) == "verkauft"
-    meta = storage.decode_metadata(env.s3.head_object(Bucket=BUCKET, Key=f"verkauft/{cid}.pdf")["Metadata"])
-    assert meta["bestellung"] == "#1001" and meta["titel"] == "Asterix"
-    res = c.post("/api/shopify/webhook", content=raw, headers=hdr).json()["ergebnis"]
-    assert res[0]["status"] == "bereits-erledigt"
 
-    # cancellation moves it back
-    raw, hdr = signed(order, "orders/cancelled")
-    assert c.post("/api/shopify/webhook", content=raw, headers=hdr).json()["ergebnis"][0]["status"] == "nach-aktiv"
-    assert env.store.locate(cid) == "aktiv"
-
-
-def test_webhook_rejects_bad_hmac(env):
-    raw, hdr = signed({"line_items": []}, "orders/paid")
-    hdr["X-Shopify-Hmac-Sha256"] = "AAAA"
-    assert env.client.post("/api/shopify/webhook", content=raw, headers=hdr).status_code == 401
+def test_shop_group_shows_only_last_copies(env):
+    """Sold copies stay in aktiv/ (ADR-0025), so the review shows only the latest SHOP_LIST_LIMIT."""
+    for _ in range(app_module.SHOP_LIST_LIMIT + 1):
+        upload_scan(env.s3, str(uuid.uuid4()), prefix="aktiv", tags="status=aktiv")
+    page = env.client.get("/review/").text
+    assert page.count('class="fall panel im-shop"') == app_module.SHOP_LIST_LIMIT == 30
 
 
 def test_second_copy_gets_next_exemplar_letter(env):

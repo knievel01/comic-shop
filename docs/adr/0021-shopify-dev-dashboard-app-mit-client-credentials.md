@@ -1,6 +1,6 @@
 # ADR-0021: Shopify-Anbindung über eine Dev-Dashboard-App mit Client-Credentials
 
-- **Status:** Akzeptiert
+- **Status:** Akzeptiert, in Teilen ersetzt durch ADR-0025 (`SHOPIFY_WEBHOOK_SECRET` entfällt)
 - **Datum:** 2026-11-03
 - **Ergänzt:** ADR-0012 (Shopify-Datenmodell), ADR-0003 (Geheimnisse)
 

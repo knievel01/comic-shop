@@ -1,6 +1,6 @@
 # ADR-0013: SKU enthält die Kurz-ID des Exemplars
 
-- **Status:** Akzeptiert
+- **Status:** Akzeptiert, in Teilen ersetzt durch ADR-0025 (kein Verkaufs-Webhook mehr)
 - **Datum:** 2026-10-27
 
 ## Kontext

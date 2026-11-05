@@ -36,10 +36,10 @@ def conn(*pairs):
             c[src]["main"][out].append({"node": dst, "type": "main", "index": 0})
     return c
 
-# Successful runs are stored only for workflows that run rarely and on events (confirmation, sale, daily mail),
+# Successful runs are stored only for workflows that run rarely and on events (confirmation, daily mail),
 # so the execution list shows what happened. 01 polls every 2 minutes and 99 only runs on errors: errors are
 # stored for all, successes of 01 would be ~700 empty entries a day.
-SAVE_SUCCESS = {"cmxShopify000001", "cmxVerkauf000001", "cmxTagesmail0001"}
+SAVE_SUCCESS = {"cmxShopify000001", "cmxTagesmail0001"}
 
 
 def wf(wid, name, nodes, connections, error_wf=True):
@@ -108,31 +108,6 @@ flows.append(wf("cmxShopify000001", "Comics 02 Bestätigt nach Shopify und aktiv
            ("S3: Metadaten und nach aktiv/", "Später erneut (15-Min-Lauf)", 1)),
 }))
 
-# Phase 10: sales webhook
-flows.append(wf("cmxVerkauf000001", "Comics 03 Shopify-Verkauf", [
-    node("Shopify Webhook", "n8n-nodes-base.webhook", 2, [0, 0],
-         {"httpMethod": "POST", "path": "shopify-orders", "responseMode": "responseNode",
-          "options": {"rawBody": True}}, webhookId=nid("wh-shopify")),
-    node("An comic-helper (HMAC-Prüfung)", "n8n-nodes-base.httpRequest", 4.2, [240, 0], {
-        "method": "POST", "url": f"={HELPER}/api/shopify/webhook",
-        "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": True, "headerParameters": {"parameters": [
-            {"name": "X-Shopify-Hmac-Sha256", "value": "={{ $json.headers['x-shopify-hmac-sha256'] }}"},
-            {"name": "X-Shopify-Topic", "value": "={{ $json.headers['x-shopify-topic'] }}"},
-            {"name": "X-Shopify-Webhook-Id", "value": "={{ $json.headers['x-shopify-webhook-id'] }}"}]},
-        "sendBody": True, "contentType": "binaryData", "inputDataFieldName": "data",
-        "options": {"timeout": 30000}}, credentials=CRED_HELPER, onError="continueErrorOutput"),
-    node("200 an Shopify", "n8n-nodes-base.respondToWebhook", 1.1, [480, -100],
-         {"respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {"responseCode": 200}}),
-    node("500 an Shopify (Shopify wiederholt)", "n8n-nodes-base.respondToWebhook", 1.1, [480, 100],
-         {"respondWith": "text", "responseBody": "error", "options": {"responseCode": 500}}),
-    node("Fehler melden", "n8n-nodes-base.stopAndError", 1, [720, 100],
-         {"errorMessage": "={{ 'Verkaufs-Webhook fehlgeschlagen: ' + ($json.error?.message || 'unbekannt') }}"}),
-], conn(("Shopify Webhook", "An comic-helper (HMAC-Prüfung)", 0),
-        ("An comic-helper (HMAC-Prüfung)", "200 an Shopify", 0),
-        ("An comic-helper (HMAC-Prüfung)", "500 an Shopify (Shopify wiederholt)", 1),
-        ("500 an Shopify (Shopify wiederholt)", "Fehler melden", 0))))
-
 # Phase 11: daily mail
 flows.append(wf("cmxTagesmail0001", "Comics 04 Tagesmail 7 Uhr", [
     node("Täglich 7:00", "n8n-nodes-base.scheduleTrigger", 1.2, [0, 0],
@@ -187,13 +162,6 @@ RENAMES = {
         "Fertig": "Fertig: Comic ist im Shop",
         "Später erneut (15-Min-Lauf)": "Klappt später nochmal",
     },
-    "cmxVerkauf000001": {
-        "Shopify Webhook": "Shopify meldet eine Bestellung",
-        "An comic-helper (HMAC-Prüfung)": "Echtheit prüfen und Comic als verkauft ablegen",
-        "200 an Shopify": "Shopify: „Erledigt“",
-        "500 an Shopify (Shopify wiederholt)": "Shopify: „Bitte nochmal“",
-        "Fehler melden": "Alarm auslösen",
-    },
     "cmxTagesmail0001": {
         "Täglich 7:00": "Jeden Morgen um 7 Uhr",
         "Zahlen holen": "Zahlen von gestern zusammenstellen",
@@ -218,10 +186,8 @@ CAPTIONS = {
     "Als „im Shop“ ablegen": "Ordner aktiv/ im Archiv",
     "Fertig: Comic ist im Shop": "Taucht grau in der Review auf",
     "Klappt später nochmal": "Neuer Versuch in 15 Minuten",
-    "Shopify meldet eine Bestellung": "Startet bei jedem Verkauf",
-    "Alarm auslösen": "Fehler wird per Mail gemeldet",
     "Jeden Morgen um 7 Uhr": "Startet von selbst",
-    "Zahlen von gestern zusammenstellen": "Gescannt, geprüft, verkauft",
+    "Zahlen von gestern zusammenstellen": "Gescannt und geprüft",
     "Mail schreiben": "Ein Absatz, ein Link",
     "Irgendwo ist etwas schiefgelaufen": "Startet bei jedem Fehler",
     "Alarm-Mail senden": "An die Betreiber",
@@ -257,19 +223,10 @@ STICKIES = {
         ("d", [1060, -190], 280, 210, 4, "### Klappt"),
         ("e", [1060, 130], 280, 230, 5, "### Klappt nicht\nKein Schaden: Das Comic bleibt bestätigt und wird später nochmal versucht."),
     ],
-    "cmxVerkauf000001": [
-        ("titel", [-40, -360], 1000, 150, 7,
-         "## Was passiert bei einem Verkauf\nShopify meldet jede Bestellung. Der Ablauf prüft, "
-         "dass die Meldung echt ist, und legt verkaufte Comics im Archiv unter „verkauft“ ab. "
-         "Danach bekommt Shopify eine Antwort."),
-        ("a", [-40, -190], 560, 340, 3, "### Meldung prüfen"),
-        ("b", [520, -190], 240, 210, 4, "### Klappt"),
-        ("c", [520, 40], 520, 230, 5, "### Klappt nicht\nShopify versucht es selbst erneut, wir bekommen einen Alarm."),
-    ],
     "cmxTagesmail0001": [
         ("titel", [-40, -300], 760, 150, 7,
          "## Die Tagesmail\nJeden Morgen um 7 Uhr schickt dieser Ablauf eine kurze Zusammenfassung: "
-         "wie viele Comics gescannt, wie viele noch zu prüfen und wie viele verkauft wurden."),
+         "wie viele Comics gescannt wurden und wie viele noch zu prüfen sind."),
     ],
     "cmxFehlerAlarm01": [
         ("titel", [-40, -300], 760, 150, 7,

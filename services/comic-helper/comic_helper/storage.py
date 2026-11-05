@@ -4,8 +4,8 @@ Layout per copy ("Exemplar", id = UUID from the scan upload):
 
     eingang/<id>.pdf     scan, status in object tags (status=neu|in-arbeit|offen|bestaetigt|fehler)
     eingang/<id>.json    sidecar: AI proposal, review decision, Shopify ids (mutable working state)
-    aktiv/<id>.pdf       confirmed + in Shopify; final metadata on the object
-    verkauft/<id>.pdf    sold
+    aktiv/<id>.pdf       confirmed + in Shopify; final metadata on the object. Stays here when
+                         sold: sales live in Shopify only (ADR-0025)
     papierkorb/<id>.pdf  deleted in the review UI, restorable (ADR-0019)
     bilder/<id>-1.jpg    cover / bilder/<id>-2.jpg back (for review UI and Shopify media)
 
@@ -25,7 +25,7 @@ from urllib.parse import quote, unquote
 
 from botocore.exceptions import ClientError
 
-EINGANG, AKTIV, VERKAUFT, BILDER = "eingang", "aktiv", "verkauft", "bilder"
+EINGANG, AKTIV, BILDER = "eingang", "aktiv", "bilder"
 PAPIERKORB = "papierkorb"
 ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 METADATA_LIMIT = 2048  # bytes, S3 user-defined metadata (keys + values)
@@ -43,10 +43,6 @@ def is_copy_id(value: str) -> bool:
 def short_id(copy_id: str) -> str:
     """12 hex chars, used as SKU suffix. 2^48 space -> collisions negligible at 40k copies."""
     return copy_id.replace("-", "")[:12]
-
-
-def key_prefix_for_short_id(short: str) -> str:
-    return f"{short[:8]}-{short[8:12]}"
 
 
 def encode_metadata(meta: dict[str, object]) -> dict[str, str]:
@@ -174,21 +170,10 @@ class Store:
 
     def locate(self, copy_id: str) -> str:
         """Prefix where the copy currently lives."""
-        for prefix in (EINGANG, AKTIV, VERKAUFT):
+        for prefix in (EINGANG, AKTIV):
             if self.exists(self.pdf_key(prefix, copy_id)):
                 return prefix
         raise NotFound(copy_id)
-
-    def find_by_short_id(self, short: str, prefixes=(AKTIV, VERKAUFT, EINGANG)) -> tuple[str, str]:
-        """(copy_id, prefix) for a SKU suffix. Uses a prefix listing, no full scan."""
-        kp = key_prefix_for_short_id(short)
-        for prefix in prefixes:
-            hits = list(self.list_scans(prefix, kp))
-            if len(hits) == 1:
-                return hits[0].copy_id, prefix
-            if len(hits) > 1:
-                raise ValueError(f"ambiguous short id {short}: {[h.copy_id for h in hits]}")
-        raise NotFound(short)
 
     # --- workflow state -------------------------------------------------------
     def claim_new(self, limit: int, stale_after_s: int = 1800, now: float | None = None) -> list[str]:

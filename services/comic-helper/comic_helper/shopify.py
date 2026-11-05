@@ -1,8 +1,8 @@
 """Shopify Admin GraphQL: one product per title/issue/publisher, one variant per physical copy.
 
 Options: "Zustand" (e.g. "1 – sehr gut") and "Exemplar" (a, b, c, ...). Every variant has
-quantity 1 and a unique SKU ending in the copy's short id, so the sales webhook can find
-the scan in S3 by prefix listing.
+quantity 1 and a unique SKU ending in the copy's short id, so a copy in the shop can be traced
+back to its scan in S3 (ADR-0013). Sales are handled in Shopify only (ADR-0025).
 """
 
 from __future__ import annotations
@@ -58,11 +58,6 @@ def product_title(titel: str, ausgabe: str, untertitel: str, verlag: str) -> str
 def make_sku(titel: str, ausgabe: str, zustand: int, short: str) -> str:
     issue = slugify(ausgabe, 15) if ausgabe and ausgabe != "-" else "x"
     return f"{slugify(titel, 30) or 'comic'}-{issue}-z{zustand}-{short}"
-
-
-def short_id_from_sku(sku: str) -> str | None:
-    m = re.search(r"-([0-9a-f]{12})$", sku or "")
-    return m.group(1) if m else None
 
 
 def exemplar_label(n: int) -> str:

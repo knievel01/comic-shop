@@ -1,6 +1,6 @@
 # ADR-0004: S3 als einziger Zustandsspeicher, keine Comic-Datenbank
 
-- **Status:** Akzeptiert
+- **Status:** Akzeptiert, in Teilen ersetzt durch ADR-0025 (Präfix `verkauft/` entfällt)
 - **Datum:** 2026-10-27
 
 ## Kontext

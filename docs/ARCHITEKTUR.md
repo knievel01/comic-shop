@@ -22,17 +22,16 @@
                          │  2. S3: Metadaten per CopyObject REPLACE, nach aktiv/
                          ▼
  S3  aktiv/<id>.pdf (alle Metadaten am Objekt)          Shopify: Variante, Menge 1
-                                                            │ orders/paid
- Cloudflare-Tunnel (nur /webhook/*) ──> n8n 03 ──> comic-helper (HMAC)
-                         ▼
- S3  verkauft/<id>.pdf       (orders/cancelled, refunds/create: zurück nach aktiv/)
+                                                            │
+                                     Verkauf, Storno, Retoure nur in Shopify,
+                                     kein Rückkanal zum Rechner (ADR-0025)
 
  n8n 04 täglich 7:00 ──> comic-helper /api/report/daily ──> Mail
  n8n 99 Fehler-Alarm  <── errorWorkflow aller Workflows
 ```
 
 Alles läuft auf einem Rechner (Ubuntu 24.04, K3s), Namespace `comics`:
-`postgres` (nur n8n-intern), `n8n`, `comic-helper`, optional `cloudflared`.
+`postgres` (nur n8n-intern), `n8n`, `comic-helper`. Aus dem Internet ist nichts erreichbar (ADR-0025).
 
 ## Zustände eines Exemplars
 
@@ -43,8 +42,7 @@ Alles läuft auf einem Rechner (Ubuntu 24.04, K3s), Namespace `comics`:
 | `eingang/` | `offen` | KI-Vorschlag liegt vor, wartet auf Fachkraft |
 | `eingang/` | `fehler` | Erkennung fehlgeschlagen, im Review sichtbar („Erneut erkennen“) |
 | `eingang/` | `bestaetigt` | Fachkraft hat bestätigt, Shopify/Metadaten stehen aus; bis Shopify zurückholbar (ADR-0020) |
-| `aktiv/` | `aktiv` | im Shop, Metadaten final |
-| `verkauft/` | `verkauft` | verkauft |
+| `aktiv/` | `aktiv` | in Shopify angelegt, Metadaten final; bleibt auch nach dem Verkauf hier (ADR-0025) |
 | `papierkorb/` | `geloescht` | im Review gelöscht, wiederherstellbar (ADR-0019) |
 
 Der Arbeitsstand (KI-Rohantwort, Entscheidung, Shopify-IDs) steht in `<prefix>/<id>.json`
@@ -60,6 +58,6 @@ Kurzüberblick:
 | Ein Rechner, reproduzierbare Installation, Geheimnisse | [0001](adr/0001-ein-rechner-fuer-scan-station-und-server.md), [0002](adr/0002-autoinstall-iso-und-ansible-pull.md), [0003](adr/0003-geheimnisse-nie-in-repo-oder-image.md), [0015](adr/0015-iso-als-release-artefakt-in-teilen.md) |
 | S3 als einziger Zustandsspeicher | [0004](adr/0004-s3-als-einziger-zustandsspeicher-keine-comic-datenbank.md) |
 | comic-helper vs. n8n, Review-Oberfläche | [0005](adr/0005-fachlogik-im-dienst-comic-helper-n8n-orchestriert.md), [0006](adr/0006-review-oberflaeche-im-comic-helper-statt-n8n-formular.md) |
-| Scan-Upload, n8n-Betrieb, Webhook-Zugang | [0007](adr/0007-scan-upload-per-sync-skript-mit-uuid.md), [0008](adr/0008-n8n-als-einzelinstanz-mit-postgres-auf-k3s.md), [0009](adr/0009-oeffentlich-nur-webhook-ueber-cloudflare-tunnel.md) |
+| Scan-Upload, n8n-Betrieb, kein Zugang aus dem Internet | [0007](adr/0007-scan-upload-per-sync-skript-mit-uuid.md), [0008](adr/0008-n8n-als-einzelinstanz-mit-postgres-auf-k3s.md), [0025](adr/0025-kein-rueckkanal-von-shopify-verkauf-nur-in-shopify.md) |
 | Erkennung und Preise | [0010](adr/0010-erkennung-mit-claude-ximilar-nur-nach-vergleichstest.md), [0011](adr/0011-preisfindung-comicguide-skala-ohne-scraping.md) |
-| Shopify, SKU, Reihenfolge, Verkauf | [0012](adr/0012-shopify-datenmodell-variante-je-exemplar.md), [0013](adr/0013-sku-enthaelt-die-kurz-id-des-exemplars.md), [0014](adr/0014-reihenfolge-erst-shopify-dann-s3-metadaten.md), [0016](adr/0016-verkauf-ueber-order-webhooks-idempotent.md) |
+| Shopify, SKU, Reihenfolge, Verkauf | [0012](adr/0012-shopify-datenmodell-variante-je-exemplar.md), [0013](adr/0013-sku-enthaelt-die-kurz-id-des-exemplars.md), [0014](adr/0014-reihenfolge-erst-shopify-dann-s3-metadaten.md), [0025](adr/0025-kein-rueckkanal-von-shopify-verkauf-nur-in-shopify.md) |

@@ -1,6 +1,6 @@
 # LAN access via Traefik (bundled with K3s), self-signed default certificate.
 # Ports 80/443 are only open for LAN ranges (ufw, role base).
-# The public internet reaches ONLY /webhook/* through the Cloudflare tunnel (optional/cloudflared).
+# Nothing is reachable from the internet: no tunnel, no inbound webhooks (ADR-0025).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

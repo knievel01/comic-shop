@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import storage
-from .storage import AKTIV, EINGANG, VERKAUFT, Store
+from .storage import AKTIV, EINGANG, Store
 
 TZ = ZoneInfo("Europe/Berlin")
 
@@ -34,26 +34,22 @@ def daily(store: Store, now: datetime | None = None, hours: int = 24) -> dict:
             elif tags.get("ki") == "nachkontrolle" or status == "fehler":
                 nachkontrolle += 1
 
-    # Copies scanned in the window and already confirmed: moved to aktiv/verkauft (copy changes
+    # Copies scanned in the window and already confirmed: moved to aktiv/ (copy changes
     # LastModified, so only recently moved objects can qualify; the scan time is in metadata).
     lo, hi = since.strftime("%Y-%m-%dT%H:%M:%SZ"), now.strftime("%Y-%m-%dT%H:%M:%SZ")
     bestaetigt_heute = 0
-    verkauft_heute = 0
-    for prefix in (AKTIV, VERKAUFT):
-        for obj in store.list_scans(prefix):
-            if not since <= obj.last_modified:
-                continue
-            meta = storage.decode_metadata(store.head(obj.key).get("Metadata", {}))
-            if prefix == VERKAUFT and lo <= meta.get("verkauft-am", "") <= hi:
-                verkauft_heute += 1
-            scanned_at = meta.get("gescannt-am", "")
-            if scanned_at and lo <= scanned_at <= hi:
-                gescannt += 1
-                bestaetigt_heute += 1
-                if meta.get("ki-status") == "sicher":
-                    sicher += 1
-                else:
-                    nachkontrolle += 1
+    for obj in store.list_scans(AKTIV):
+        if not since <= obj.last_modified:
+            continue
+        meta = storage.decode_metadata(store.head(obj.key).get("Metadata", {}))
+        scanned_at = meta.get("gescannt-am", "")
+        if scanned_at and lo <= scanned_at <= hi:
+            gescannt += 1
+            bestaetigt_heute += 1
+            if meta.get("ki-status") == "sicher":
+                sicher += 1
+            else:
+                nachkontrolle += 1
 
     result = {
         "zeitraum_von": since.astimezone(TZ).isoformat(timespec="minutes"),
@@ -63,7 +59,6 @@ def daily(store: Store, now: datetime | None = None, hours: int = 24) -> dict:
         "sicher": sicher,
         "nachkontrolle": nachkontrolle,
         "bestaetigt_aus_zeitraum": bestaetigt_heute,
-        "verkauft": verkauft_heute,
         "gesamt_offen": totals.get("offen", 0) + totals.get("neu", 0) + totals.get("in-arbeit", 0),
         "gesamt_offen_sicher": totals.get("sicher", 0),
         "gesamt_offen_nachkontrolle": totals.get("nachkontrolle", 0),
@@ -80,8 +75,7 @@ def format_text(r: dict) -> str:
         f"Gescannt:            {r['gescannt']}\n"
         f"davon noch offen:    {r['offen']}\n"
         f"KI sicher:           {r['sicher']}\n"
-        f"KI Nachkontrolle:    {r['nachkontrolle']}\n"
-        f"Verkauft:            {r['verkauft']}\n\n"
+        f"KI Nachkontrolle:    {r['nachkontrolle']}\n\n"
         f"Insgesamt offen:     {r['gesamt_offen']} "
         f"({r['gesamt_offen_sicher']} sicher, {r['gesamt_offen_nachkontrolle']} Nachkontrolle)\n"
         f"Fehler (Nacharbeit): {r['gesamt_fehler']}\n"

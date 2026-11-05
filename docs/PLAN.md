@@ -9,14 +9,14 @@ Hardware/Konten · ⬜ offen (Entscheidung oder Handarbeit nötig)
 | --- | --- | --- | --- |
 | 1 Repo | ✅ | `CLAUDE.md`, `.gitignore`, `.env.example` | – |
 | 2 OS/ISO | 🟡 | `os/`, `scripts/verify.sh`, `docs/INSTALL.md` | ISO auf echter Hardware bauen und installieren, Stromausfall-Test, SANE-Prüfung des Scanners (⬜ Kaufentscheidung) |
-| 3 K3s/n8n | 🟡 | `infra/k3s/` | Rollout auf dem Rechner, Cloudflare-Tunnel einrichten |
+| 3 K3s/n8n | 🟡 | `infra/k3s/` | Rollout auf dem Rechner (kein Tunnel, ADR-0025) |
 | 4 AWS | 🟡 | `infra/aws/` (terraform validate ok) | `terraform apply` mit Admin-Konto |
 | 5 Ingest | ✅ | Rolle `sync`, Workflow 01, `comic-helper` | in n8n 2.46 getestet (Docker) |
 | 6 Erkennung/Preis | 🟡 | `recognition.py`, `pricing.py`, `config/pricing.yaml`, `scripts/vergleichstest.py` | ⬜ Vergleichstest mit 50 Comics, Modellwahl, Schwelle; ⬜ Datenlizenz Star Media, Anfrage AbeBooks |
 | 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (ADR-0006); Live-Fortschritt von Workflow 01 auf der Kachel (ADR-0024); Statistik Kosten/Einsparung (ADR-0023) |
 | 9 Shopify | 🟡 | `shopify.py`, Workflow 02 | gegen Fake-API getestet; App im Dev Dashboard (ADR-0021, docs/SHOPIFY-EINRICHTUNG.md), im PoC-Shop als Entwurf getestet: Comic bestätigt, Produkt angelegt, Workflow 02 (aktiv) verschiebt nach `aktiv/`; ⬜ Kanal veröffentlichen, ⬜ Entscheidung Produktoption vs. Produkt je Zustand |
 | 8 Metadaten | ✅ | `finalize`, `storage.py` | – |
-| 10 Verkauf | ✅ | `webhooks.py`, Workflow 03 | in n8n getestet inkl. Doppelzustellung; Webhooks in Shopify registrieren |
+| 10 Verkauf | – | entfällt | Verkäufe nur in Shopify, kein Rückkanal, kein Workflow 03 (ADR-0025) |
 | 11 Tagesmail | ✅ | `report.py`, Workflow 04 | SMTP-Credential anlegen |
 | 12 Betrieb | 🟡 | `docs/BETRIEB.md`, `docs/SCANNEN-UND-BESTAETIGEN.md`, Workflow 99, CI | E2E mit 50 Comics, Restore-Test, Preise nach 100 Verkäufen |
 
@@ -46,7 +46,7 @@ Dieser Plan ist als Arbeitsgrundlage für Claude Code gedacht. Jede Phase hat Zi
 - Eine Fachkraft bestätigt im n8n-Formular Titel, Zustand und den Zustand-1-Preis (bei noch lieferbaren Titeln automatisch aus dem Coverpreis).
 - Alle Metadaten liegen als S3-Objekt-Metadaten am Bild. Es gibt keine eigene Comic-Datenbank.
 - Shopify ist Quelle der Wahrheit für den Lagerbestand. Pro Exemplar gibt es eine eigene Variante mit eindeutiger SKU (Variante B).
-- Ein Verkaufs-Webhook verschiebt das zur SKU gehörende Bild in den Ordner `verkauft/`.
+- ~~Ein Verkaufs-Webhook verschiebt das zur SKU gehörende Bild in den Ordner `verkauft/`.~~ Entfällt: Verkäufe nur in Shopify (ADR-0025).
 - Täglich um 7 Uhr geht eine Sammel-Mail raus (gescannt, offen, sicher vs. Nachkontrolle).
 
 Mengenrahmen: ca. 2.000 Scans pro Monat, Gesamtbestand 20.000 bis 40.000 Comics.
@@ -262,6 +262,8 @@ Aufgaben:
 Abnahme: Ein bestätigtes Exemplar erscheint im Testshop mit korrekter SKU, Preis und Bestand 1.
 
 ## 10. Verkaufs-Webhook
+
+> **Entfällt** (ADR-0025): kein Rückkanal von Shopify, Verkäufe werden nur in Shopify geführt.
 
 Aufgaben:
 - Shopify-Webhook `orders/paid` (oder `orders/create`) an n8n. Der Order-Payload enthält die Line Items mit SKU, damit ist die Zuordnung direkt möglich. (`inventory_levels/update` liefert nur die Inventory-Item-ID und braucht einen zusätzlichen Lookup, daher ist der Order-Webhook hier die bessere Wahl.)

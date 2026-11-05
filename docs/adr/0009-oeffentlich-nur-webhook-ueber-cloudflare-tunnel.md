@@ -1,6 +1,6 @@
 # ADR-0009: Öffentlich nur /webhook/* über Cloudflare-Tunnel
 
-- **Status:** Akzeptiert
+- **Status:** Ersetzt durch ADR-0025
 - **Datum:** 2026-10-27
 
 ## Kontext

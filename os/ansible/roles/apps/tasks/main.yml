@@ -85,28 +85,10 @@
       changed_when: false
       no_log: true
 
-    - name: Cloudflare tunnel token as its own secret
-      ansible.builtin.shell: |
-        set -o pipefail
-        k3s kubectl -n comics create secret generic cloudflared \
-          --from-literal=token="$TOKEN" --dry-run=client -o yaml | k3s kubectl apply -f -
-      args:
-        executable: /bin/bash
-      environment:
-        TOKEN: "{{ comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('') }}"
-      when: (comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('')) | length > 0
-      changed_when: false
-      no_log: true
-
     - name: Apply manifests (kustomize)
       ansible.builtin.command: k3s kubectl apply -k {{ comics_repo_dir }}/infra/k3s
       register: apply_out
       changed_when: "'configured' in apply_out.stdout or 'created' in apply_out.stdout"
-
-    - name: Cloudflare tunnel (only with token)
-      ansible.builtin.command: k3s kubectl apply -k {{ comics_repo_dir }}/infra/k3s/optional/cloudflared
-      when: (comics_env.CLOUDFLARE_TUNNEL_TOKEN | default('')) | length > 0
-      changed_when: false
 
     - name: Restart comic-helper to pick up a freshly built image
       ansible.builtin.command: k3s kubectl -n comics rollout restart deployment/comic-helper

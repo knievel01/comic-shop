@@ -13,8 +13,7 @@ Präfixe (entstehen von selbst):
 
 ```
 eingang/     frisch gescannte PDFs (+ KI-Vorschlag als <id>.ki.json), Status als Objekt-Tag
-aktiv/       bestätigt und in Shopify angelegt
-verkauft/    verkaufte Exemplare
+aktiv/       bestätigt und in Shopify angelegt (bleibt auch nach dem Verkauf, ADR-0025)
 backup/      pg_dump und Workflow-Export (Rolle backup)
 ```
 

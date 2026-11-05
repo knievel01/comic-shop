@@ -20,7 +20,7 @@ jobs:
           pip install -r requirements-dev.txt
           python -m pytest -q
       - name: Kubernetes manifests render
-        run: kubectl kustomize infra/k3s >/dev/null && kubectl kustomize infra/k3s/optional/cloudflared >/dev/null
+        run: kubectl kustomize infra/k3s >/dev/null
       - name: Ansible syntax and lint
         working-directory: os/ansible
         run: |

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from .storage import AKTIV, EINGANG, PAPIERKORB, VERKAUFT, NotFound, Store
+from .storage import AKTIV, EINGANG, PAPIERKORB, NotFound, Store
 
 
 def _ts(value: str | None) -> datetime | None:
@@ -50,11 +50,11 @@ def collect(store: Store, cfg: dict) -> dict:
     compare = conf.get("preissuche_vergleich") or {}
     runs: dict[str, dict] = {}
     models: dict[str, dict] = {}
-    n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "shopify": 0, "verkauft": 0}
+    n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "shopify": 0}
     measured = {"comics": set(), "kosten": 0.0}
     by_part = {"erkennung": 0.0, "preissuche": 0.0}
     cost_total = 0.0
-    for prefix in (EINGANG, AKTIV, VERKAUFT, PAPIERKORB):
+    for prefix in (EINGANG, AKTIV, PAPIERKORB):
         for obj in store.list_scans(prefix):
             try:
                 side = store.read_json(store.sidecar_key(prefix, obj.copy_id))
@@ -67,7 +67,6 @@ def collect(store: Store, cfg: dict) -> dict:
             n["comics"] += 1
             n["alt"] += not side.get("laeufe")
             n["shopify"] += bool(useful and side.get("shopify"))
-            n["verkauft"] += prefix == VERKAUFT
             for e in entries:
                 end = _ts(e.get("zeit"))
                 key = "alt" if e.get("alt") else e.get("n8n") or f"manuell-{obj.copy_id}-{e.get('zeit')}"
@@ -120,7 +119,6 @@ def collect(store: Store, cfg: dict) -> dict:
     workflows = [
         {"name": "01 Erkennung und Preisvorschlag", "anzahl": n["nutzbar"], "je_lauf": float(minutes.get("erkennung", 0))},
         {"name": "02 Nach Shopify", "anzahl": n["shopify"], "je_lauf": float(minutes.get("shopify", 0))},
-        {"name": "03 Verkauf", "anzahl": n["verkauft"], "je_lauf": float(minutes.get("verkauf", 0))},
     ]
     for w in workflows:
         w["gespart"] = w["anzahl"] * w["je_lauf"]

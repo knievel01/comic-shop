@@ -7,7 +7,6 @@ Internal API (header X-Helper-Token), orchestrated by n8n:
     GET  /api/scans/confirmed             confirmed but not yet in Shopify (retry)
     POST /api/scans/{id}/shopify          create product/variant (idempotent)
     POST /api/scans/{id}/finalize         write S3 metadata, move to aktiv/
-    POST /api/shopify/webhook             orders/paid, orders/cancelled, refunds/create
     GET  /api/report/daily                numbers for the 7 o'clock mail
     GET  /api/mail-config                 mail recipients for n8n
 
@@ -38,7 +37,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import marktpreis, pdf, pricing, recognition, report, statistik, storage, webhooks
+from . import marktpreis, pdf, pricing, recognition, report, statistik, storage
 from .config import Settings, pricing_config, settings
 from .shopify import Shopify, ShopifyError, make_sku
 from .storage import AKTIV, EINGANG, Store
@@ -397,19 +396,6 @@ def finalize(copy_id: str, store: Store = Depends(get_store)):
     return {"id": copy_id, "status": "aktiv", "metadata": meta}
 
 
-# --- Shopify webhooks (forwarded raw by n8n) ----------------------------------------
-@app.post("/api/shopify/webhook", dependencies=[Depends(require_token)])
-async def shopify_webhook(request: Request, store: Store = Depends(get_store), s: Settings = Depends(get_settings),
-                          x_shopify_hmac_sha256: str = Header(default=""), x_shopify_topic: str = Header(default="")):
-    raw = await request.body()
-    if not webhooks.verify_hmac(raw, x_shopify_hmac_sha256, s.shopify_webhook_secret):
-        raise HTTPException(401, "invalid Shopify HMAC")
-    payload = json.loads(raw)
-    results = webhooks.handle(x_shopify_topic, payload, store)
-    log.info("webhook %s: %s", x_shopify_topic, results)
-    return {"topic": x_shopify_topic, "ergebnis": results}
-
-
 @app.get("/api/report/daily", dependencies=[Depends(require_token)])
 def daily_report(hours: int = 24, store: Store = Depends(get_store), s: Settings = Depends(get_settings)):
     return {**report.daily(store, hours=hours), "empfaenger": s.mail_to_daily, "absender": s.mail_from,
@@ -452,13 +438,13 @@ STATUS_LABELS = {
     "offen": "Zu prüfen",
     "bestaetigt": "Bestätigt, wartet auf Shop",
     "fehler": "Fehler",
-    "aktiv": "Im Shop",
+    "aktiv": "Zuletzt in den Shop",
 }
 REVIEWABLE = ("offen", "fehler")
 # Group order on the list page: scans still in workflow 01 on top (live progress, ADR-0024), then work to do,
 # then what is still in the pipeline
 GROUP_ORDER = ("in-arbeit", "neu", "offen", "fehler", "bestaetigt", "aktiv")
-SHOP_LIST_LIMIT = 60  # copies already in the shop are shown greyed out, newest first (read-only)
+SHOP_LIST_LIMIT = 30  # last copies added to the shop, shown greyed out, newest first (read-only, ADR-0025)
 
 
 def _inbox_cases(store: Store) -> list[dict]:

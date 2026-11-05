@@ -67,12 +67,15 @@ Gespeichert werden als S3-Metadaten: `preis-basis-z1`, `preis-quelle`, `preis-fa
 
 Nach den ersten 100 Verkäufen mit Sepp prüfen (Plan Phase 12). Daten:
 
+Verkäufe stehen nur in Shopify (ADR-0025): Shopify-Admin → Bestellungen → Exportieren (CSV, Spalte
+`Lineitem sku`). Die Preisdaten je Exemplar liegen in S3 und werden über die SKU zugeordnet:
+
 ```bash
-# alle verkauften Exemplare mit Preisdaten als CSV
-aws s3api list-objects-v2 --bucket "$S3_BUCKET" --prefix verkauft/ --query 'Contents[?ends_with(Key, `.pdf`)].Key' --output text \
+# alle Exemplare in aktiv/ mit SKU und Preisdaten (tab-getrennt), per SKU mit dem Bestellexport verbinden
+aws s3api list-objects-v2 --bucket "$S3_BUCKET" --prefix aktiv/ --query 'Contents[?ends_with(Key, `.pdf`)].Key' --output text \
  | tr '\t' '\n' | while read k; do
      aws s3api head-object --bucket "$S3_BUCKET" --key "$k" \
-       --query 'Metadata.[titel,ausgabe,zustand,"preis-quelle","preis-basis-z1","preis-final","verkauft-am"]' --output text
+       --query 'Metadata.[sku,titel,ausgabe,zustand,"preis-quelle","preis-basis-z1","preis-final"]' --output text
    done
 ```
 

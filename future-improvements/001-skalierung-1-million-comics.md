@@ -70,7 +70,7 @@ Ausbaustufen: Start = Server + USV + 1 Kamera-Station (ca. 2.300–3.200 €), d
 6. **Erkennung günstiger:** Modell nach Vergleichstest; Batch-API für nicht eilige Scans; Prompt-Caching des
    System-Prompts.
 7. **USV-Anbindung:** Rolle `ups` mit NUT, sauberes Herunterfahren von K3s.
-8. **Speicherklassen:** Lifecycle `verkauft/` und alte `aktiv/` nach Intelligent-Tiering bzw. Glacier Instant Retrieval.
+8. **Speicherklassen:** Lifecycle alte `aktiv/` (auch Verkauftes, ADR-0025) nach Intelligent-Tiering bzw. Glacier Instant Retrieval.
 
 ### C. Organisatorisch / extern
 

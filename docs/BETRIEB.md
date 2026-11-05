@@ -9,22 +9,13 @@
    Shop-Domain (`xyz.myshopify.com`) → `SHOPIFY_SHOP_DOMAIN`. (Ältere benutzerdefinierte App: Token → `SHOPIFY_ADMIN_TOKEN`.)
 2. Standort-ID (Einstellungen → Standorte, Zahl in der URL) → `SHOPIFY_LOCATION_ID`.
 3. Publication-ID des Online Stores (GraphQL `publications { nodes { id name } }`) → `SHOPIFY_PUBLICATION_IDS`.
-4. Webhooks (Einstellungen → Benachrichtigungen → Webhooks, Format JSON, aktuelle API-Version), jeweils an
-   `https://hooks.<domain>/webhook/shopify-orders`:
-   `Bestellung bezahlt` (orders/paid), `Bestellstornierung` (orders/cancelled), `Rückerstattung erstellt` (refunds/create).
-   Das dort angezeigte Signatur-Secret → `SHOPIFY_WEBHOOK_SECRET`.
-   (Bei Webhooks einer Custom App ist das Secret der API-Secret-Key der App.)
+4. Keine Webhooks einrichten: Verkäufe werden nur in Shopify geführt (ADR-0025).
 5. Theme: ausverkaufte Varianten ausblenden.
 6. Zuerst mit einem **Entwicklungs-/Testshop** und `produkt_status: DRAFT` in `config/pricing.yaml` beginnen.
 
-### 2. Cloudflare-Tunnel (öffentliche Webhooks)
+### 2. n8n
 
-Zero Trust → Networks → Tunnels → „comics“ anlegen, Token → `CLOUDFLARE_TUNNEL_TOKEN`.
-Public Hostname: `hooks.<domain>`, **Path `^/webhook/`**, Service `http://n8n.comics.svc.cluster.local:5678`.
-`WEBHOOK_URL=https://hooks.<domain>/`. Nach `sudo comics-update` läuft der Pod `cloudflared`.
-Test: `curl https://hooks.<domain>/` liefert 404, `curl https://hooks.<domain>/webhook/…` erreicht n8n.
-
-### 3. n8n
+`WEBHOOK_URL=https://comics-01/` in `/etc/comics/comics.env`. Aus dem Internet ist nichts erreichbar (ADR-0025).
 
 1. `https://comics-01/` im LAN öffnen, Owner-Konto anlegen (Zugang in den Passwort-Manager).
 2. Credentials anlegen, **Namen genau so**:
@@ -35,7 +26,7 @@ Test: `curl https://hooks.<domain>/` liefert 404, `curl https://hooks.<domain>/w
    dann alle Workflows aktivieren. „Comics 99 Fehler-Alarm“ ist bereits als Error-Workflow eingetragen.
 5. `sudo /opt/comic-shop/scripts/n8n-export.sh` und den Export committen.
 
-### 4. Erste Prüfung
+### 3. Erste Prüfung
 
 Eine Test-PDF mit zwei Seiten nach `/srv/scans/neu/` legen. Innerhalb von 3 Minuten:
 `eingang/<id>.pdf` in S3 hat den Tag `status=offen`, das Exemplar steht unter `https://comics-01/review/`.
@@ -96,9 +87,9 @@ Danach prüfen: Workflows vorhanden und aktiv, `verify.sh` grün.
 | Claude-API | 2–72 $/Monat bei 2.000 Scans, je nach Modell (siehe PREISFINDUNG.md) | Anthropic Console → Usage; Token je Scan in `eingang/<id>.json` (`ki_info`) |
 | S3 | 40.000 PDFs à ~5 MB + Bilder ≈ 300 GB → ca. 7 $/Monat Standard; Requests vernachlässigbar | AWS Cost Explorer, Tag `project=comic-shop` |
 | Transfer | Shopify lädt Bilder einmal; gering | |
-| Cloudflare-Tunnel | kostenlos | |
 
-Speicherkosten senken: alte `verkauft/`-PDFs per Lifecycle nach Glacier Instant Retrieval (in
+Speicherkosten senken: alte `aktiv/`-PDFs per Lifecycle nach Glacier Instant Retrieval (dort bleiben auch
+verkaufte Exemplare, ADR-0025; in
 `infra/aws/main.tf` ergänzen, wenn gewünscht).
 
 ## End-to-End-Test vor dem Livegang (Phase 12)
@@ -106,7 +97,6 @@ Speicherkosten senken: alte `verkauft/`-PDFs per Lifecycle nach Glacier Instant 
 1. 50 echte Comics scannen und bestätigen (mindestens 1 mit Korrektur, 1 mit überschriebenem Preis).
 2. Zwischen Scan und Bestätigung `kubectl -n comics rollout restart deploy/n8n deploy/comic-helper`. Nichts geht verloren.
 3. Im Testshop: Variante mit SKU, Preis, Bestand 1 und Bild prüfen.
-4. Testbestellung → PDF liegt in `verkauft/`. Webhook in Shopify erneut senden → keine Änderung.
-5. Bestellung stornieren → PDF wieder in `aktiv/`.
-6. Tagesmail am nächsten Morgen mit S3-Stand vergleichen.
-7. `aws s3api head-object --bucket <bucket> --key aktiv/<id>.pdf` zeigt alle Metadaten.
+4. Testbestellung → in Shopify Bestand 0, Variante im Shop ausgeblendet. In S3 ändert sich nichts (ADR-0025).
+5. Tagesmail am nächsten Morgen mit S3-Stand vergleichen.
+6. `aws s3api head-object --bucket <bucket> --key aktiv/<id>.pdf` zeigt alle Metadaten.

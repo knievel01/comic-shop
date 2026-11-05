@@ -33,7 +33,6 @@ class Settings:
     shopify_admin_token: str = ""
     shopify_client_id: str = ""
     shopify_client_secret: str = ""
-    shopify_webhook_secret: str = ""
     shopify_api_version: str = "2026-07"
     shopify_location_id: str = ""
     shopify_publication_ids: list[str] = field(default_factory=list)
@@ -58,7 +57,6 @@ class Settings:
             shopify_admin_token=env("SHOPIFY_ADMIN_TOKEN", ""),
             shopify_client_id=env("SHOPIFY_CLIENT_ID", ""),
             shopify_client_secret=env("SHOPIFY_CLIENT_SECRET", ""),
-            shopify_webhook_secret=env("SHOPIFY_WEBHOOK_SECRET", ""),
             shopify_api_version=env("SHOPIFY_API_VERSION", "2026-07"),
             shopify_location_id=env("SHOPIFY_LOCATION_ID", ""),
             shopify_publication_ids=[p for p in env("SHOPIFY_PUBLICATION_IDS", "").split(",") if p],

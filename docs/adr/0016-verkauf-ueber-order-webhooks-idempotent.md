@@ -1,6 +1,6 @@
 # ADR-0016: Verkauf über Order-Webhooks, idempotent
 
-- **Status:** Akzeptiert
+- **Status:** Ersetzt durch ADR-0025
 - **Datum:** 2026-10-27
 
 ## Kontext

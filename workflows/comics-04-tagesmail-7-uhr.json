@@ -13,7 +13,7 @@
         -300
       ],
       "parameters": {
-        "content": "## Die Tagesmail\nJeden Morgen um 7 Uhr schickt dieser Ablauf eine kurze Zusammenfassung: wie viele Comics gescannt, wie viele noch zu prüfen und wie viele verkauft wurden.",
+        "content": "## Die Tagesmail\nJeden Morgen um 7 Uhr schickt dieser Ablauf eine kurze Zusammenfassung: wie viele Comics gescannt wurden und wie viele noch zu prüfen sind.",
         "height": 150,
         "width": 760,
         "color": 7
@@ -68,7 +68,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "notes": "Gescannt, geprüft, verkauft",
+      "notes": "Gescannt und geprüft",
       "notesInFlow": true
     },
     {
