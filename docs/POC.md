@@ -132,6 +132,18 @@ bestätigen und hochladen. Nur im eigenen, vertrauten WLAN betreiben. Den Zugang
 `scripts/poc-host-k3s.sh delete` oder `kubectl -n comics delete ingress comics` (kommt beim
 nächsten `deploy` wieder).
 
+### Über Tailscale (VPN, auch unterwegs)
+
+Der Tailscale-Operator im K3s stellt für die Sandbox zwei Geräte ins Tailnet (`infra/k3s-poc/tailscale.yaml`),
+die direkt auf die Dienste zeigen, ohne Traefik dazwischen:
+
+- **Review-Oberfläche:** <http://comics-sandbox.taile85194.ts.net/review/>
+- **n8n:** <http://comics-sandbox-n8n.taile85194.ts.net/>
+
+Voraussetzung: Tailscale-App auf dem Gerät, angemeldet im Tailnet `taile85194`. In der Adminkonsole ist nichts
+einzustellen (MagicDNS ist an). Unverschlüsseltes http, aber im Tailnet per WireGuard verschlüsselt und nur für
+Tailnet-Geräte erreichbar. Links in Mails und Webhook-Adressen zeigen weiter auf `pro-mini.fritz.box`.
+
 Alternativ nur lokal: `scripts/poc-host-k3s.sh forward` (Port-Forward auf `127.0.0.1`, läuft bis
 Strg-C, <http://localhost:5678/> und <http://localhost:8080/review/>).
 

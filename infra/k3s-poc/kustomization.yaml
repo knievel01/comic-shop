@@ -3,6 +3,7 @@
 # - ingress only for the host pro-mini.fritz.box and plain http (entrypoint web): the
 #   shared Traefik serves other hosts (paperless), so no catch-all rule. Reachable by every
 #   device in the LAN, no ufw in front of Traefik (ADR-0008/0009 assume the dedicated machine).
+#   Additionally reachable over Tailscale VPN through the operator's proxies (tailscale.yaml).
 # - namespace label, so `poc-host-k3s.sh delete` only removes the PoC namespace.
 # - comic-helper comes from the local registry on localhost:5000 (no sudo needed),
 #   pulled on every start so a rebuilt image with the same tag is picked up.
@@ -12,6 +13,7 @@ namespace: comics
 resources:
   - ../k3s
   - registry.yaml
+  - tailscale.yaml
 images:
   - name: localhost/comic-helper
     newName: localhost:5000/comic-helper
