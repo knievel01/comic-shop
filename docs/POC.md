@@ -137,7 +137,7 @@ nächsten `deploy` wieder).
 Der Tailscale-Operator im K3s stellt für die Sandbox zwei Geräte ins Tailnet (`infra/k3s-poc/tailscale.yaml`),
 die direkt auf die Dienste zeigen, ohne Traefik dazwischen:
 
-- **Review-Oberfläche:** <http://comics-sandbox.taile85194.ts.net/review/>
+- **Review-Oberfläche:** <http://comics-sandbox-review.taile85194.ts.net/review/>
 - **n8n:** <http://comics-sandbox-n8n.taile85194.ts.net/>
 
 Voraussetzung: Tailscale-App auf dem Gerät, angemeldet im Tailnet `taile85194`. In der Adminkonsole ist nichts

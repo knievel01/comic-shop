@@ -1,7 +1,7 @@
 # Sandbox over Tailscale VPN (ADR-0027): the Tailscale operator already running in this K3s puts one proxy
 # per service into the tailnet, straight to the pods (no Traefik in between):
-#   http://comics-sandbox.taile85194.ts.net/review/   review UI
-#   http://comics-sandbox-n8n.taile85194.ts.net/      n8n
+#   http://comics-sandbox-review.taile85194.ts.net/review/   review UI
+#   http://comics-sandbox-n8n.taile85194.ts.net/             n8n
 # Plain http, but WireGuard-encrypted inside the tailnet; only tailnet devices can reach it.
 # No change in the Tailscale admin console needed (MagicDNS is on). Removed with the namespace.
 apiVersion: v1
@@ -9,7 +9,7 @@ kind: Service
 metadata:
   name: comic-helper-tailnet
   annotations:
-    tailscale.com/hostname: comics-sandbox
+    tailscale.com/hostname: comics-sandbox-review
     # same tag as the existing subnet router, the operator is allowed to assign it
     tailscale.com/tags: tag:k8s-operator
 spec:
