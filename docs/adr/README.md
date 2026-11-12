@@ -34,3 +34,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0026](0026-sammelposten-mehrere-gleiche-hefte-als-eine-variante.md) | Sammelposten: mehrere gleiche Hefte als eine Variante mit Zustandsbereich | Akzeptiert, ergänzt 0011/0012/0013/0018 |
 | [0027](0027-poc-bleibt-als-sandbox-aenderungen-zuerst-dort.md) | Der PoC bleibt als Sandbox, Änderungen laufen zuerst dort | Akzeptiert, ergänzt 0002 |
 | [0028](0028-poc-ergebnisse-im-zielbetrieb.md) | PoC-Ergebnisse gelten im Zielbetrieb: Booklooker-Preis mit Beleg, Websuche-Vorschlag, Statistik, Fortschritt | Akzeptiert, ersetzt 0017 |
+| [0029](0029-laptop-als-comic-rechner.md) | Laptop als Comic-Rechner, WLAN nur als Fallback | Akzeptiert, ergänzt 0001/0002 |

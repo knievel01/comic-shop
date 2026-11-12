@@ -35,6 +35,14 @@ SSH_KEYS_FILE=~/.ssh/id_ed25519.pub REPO_URL=https://github.com/<user>/comic-sho
 > Bei privatem Repo nach dem ersten Boot einen Deploy-Key unter `/root/.ssh/` hinterlegen,
 > `REPO_URL` in `/etc/comics/repo.conf` auf die SSH-URL ändern und `sudo comics-update` ausführen.
 
+## Laptop als Rechner (ADR-0029)
+
+- Erster Lauf von ansible-pull braucht **Kabel-LAN** (Adapter reicht). WLAN als Fallback: `WIFI_SSID` und
+  `WIFI_PASSWORD` in `/etc/comics/comics.env`, dann `sudo comics-update --tags laptop`.
+- Deckel zuklappen ist erlaubt, der Rechner schläft nicht. BIOS: „Power on after AC loss“ falls vorhanden,
+  Ladelimit 80 %.
+- Scanner ist per Standard aus (`comics_scanner_enabled: false`); Eingang per Foto-Upload.
+
 ## 1. ISO herunterladen und prüfen
 
 ```bash

@@ -6,7 +6,10 @@ comics_admin_user: comicadmin
 
 # Single machine for everything (decision 1). Set to false on a headless server.
 comics_desktop_enabled: true
-comics_scanner_enabled: true
+# Laptop as host (ADR-0029): lid closed keeps running, optional Wi-Fi fallback from comics.env.
+comics_laptop: true
+# Off until a SANE scanner is connected; intake is photo upload meanwhile (ADR-0018, ADR-0029).
+comics_scanner_enabled: false
 
 # Scan station
 comics_scan_user: scan

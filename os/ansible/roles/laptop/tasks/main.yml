@@ -1,0 +1,67 @@
+---
+# Laptop as the comic machine (ADR-0029): keep running with the lid closed, optional Wi-Fi fallback.
+- name: Lid and idle never suspend the machine
+  ansible.builtin.copy:
+    dest: /etc/systemd/logind.conf.d/10-comics-laptop.conf
+    mode: "0644"
+    content: |
+      [Login]
+      HandleLidSwitch=ignore
+      HandleLidSwitchExternalPower=ignore
+      HandleLidSwitchDocked=ignore
+      HandlePowerKey=ignore
+      IdleAction=ignore
+  notify: Reload logind
+
+- name: Mask suspend and hibernate targets
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+  loop: [sleep.target, suspend.target, hibernate.target, hybrid-sleep.target]
+
+- name: Wi-Fi tools
+  ansible.builtin.apt:
+    name: [wpasupplicant, iw, rfkill]
+    state: present
+
+- name: Read secrets file
+  ansible.builtin.slurp:
+    src: "{{ comics_env_file }}"
+  register: laptop_env_raw
+
+- name: Parse Wi-Fi settings
+  ansible.builtin.set_fact:
+    laptop_wifi_ssid: "{{ laptop_env.WIFI_SSID | default('') }}"
+    laptop_wifi_password: "{{ laptop_env.WIFI_PASSWORD | default('') }}"
+  vars:
+    laptop_env: >-
+      {{ dict((laptop_env_raw.content | b64decode).splitlines()
+         | map('trim') | reject('match', '^(#|$)') | select('search', '=')
+         | map('split', '=', 1)) }}
+  no_log: true
+
+- name: Wi-Fi fallback (only with WIFI_SSID in comics.env)
+  when: laptop_wifi_ssid | length > 0
+  block:
+    - name: Netplan Wi-Fi (wired keeps priority via route metric)
+      ansible.builtin.copy:
+        dest: /etc/netplan/60-comics-wifi.yaml
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          network:
+            version: 2
+            wifis:
+              any-wifi:
+                match:
+                  name: "w*"
+                dhcp4: true
+                optional: true
+                dhcp4-overrides:
+                  route-metric: 600
+                access-points:
+                  "{{ laptop_wifi_ssid }}":
+                    password: "{{ laptop_wifi_password }}"
+      no_log: true
+      notify: Apply netplan
