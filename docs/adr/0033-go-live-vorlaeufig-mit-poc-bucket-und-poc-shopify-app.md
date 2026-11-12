@@ -1,6 +1,6 @@
 # ADR-0033: Go-Live startet vorläufig mit PoC-Bucket und PoC-Shopify-App
 
-- **Status:** Akzeptiert (vorläufig, bis Produktiv-Bucket per Terraform angelegt ist)
+- **Status:** Ersetzt durch ADR-0035
 - **Datum:** 2026-11-12
 
 ## Kontext

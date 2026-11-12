@@ -38,5 +38,6 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0030](0030-kamera-station-per-gphoto2-am-laptop.md) | Erfassung per Canon-Kamera am Laptop (gphoto2) statt Flachbett | Akzeptiert, ergänzt 0007/0018/0029 |
 | [0031](0031-installation-per-netzwerkboot-als-alternative-zum-usb-stick.md) | Installation per Netzwerkboot als Alternative zum USB-Stick | Akzeptiert, ergänzt 0002 |
 | [0032](0032-cinnamon-statt-xfce-als-desktop.md) | Cinnamon (Linux-Mint-Oberfläche) statt XFCE als Desktop | Akzeptiert, ergänzt 0001 |
-| [0033](0033-go-live-vorlaeufig-mit-poc-bucket-und-poc-shopify-app.md) | Go-Live startet vorläufig mit PoC-Bucket und PoC-Shopify-App | Akzeptiert (vorläufig), weicht von GO-LIVE E5 ab |
+| [0033](0033-go-live-vorlaeufig-mit-poc-bucket-und-poc-shopify-app.md) | Go-Live startet vorläufig mit PoC-Bucket und PoC-Shopify-App | Ersetzt durch 0035 |
 | [0034](0034-lan-betrieb-ueber-http-ohne-review-passwort.md) | LAN-Betrieb über http, Review-Oberfläche ohne Passwort | Akzeptiert, ergänzt 0006/0008 |
+| [0035](0035-eigener-produktiv-bucket-per-terraform.md) | Eigener Produktiv-Bucket per Terraform, IAM-Namen mit Präfix | Akzeptiert, ersetzt 0033 |

@@ -1,6 +1,6 @@
 # --- comics-app: n8n / comic-helper / backup (whole bucket, nothing else) ---
 resource "aws_iam_user" "app" {
-  name = "comics-app"
+  name = "${var.name_prefix}-app"
 }
 
 data "aws_iam_policy_document" "app" {
@@ -25,7 +25,7 @@ data "aws_iam_policy_document" "app" {
 }
 
 resource "aws_iam_user_policy" "app" {
-  name   = "comics-app-bucket"
+  name   = "${var.name_prefix}-app-bucket"
   user   = aws_iam_user.app.name
   policy = data.aws_iam_policy_document.app.json
 }
@@ -36,7 +36,7 @@ resource "aws_iam_access_key" "app" {
 
 # --- comics-scan-upload: scan station, may only add new objects to eingang/ ---
 resource "aws_iam_user" "scan_upload" {
-  name = "comics-scan-upload"
+  name = "${var.name_prefix}-scan-upload"
 }
 
 data "aws_iam_policy_document" "scan_upload" {
@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "scan_upload" {
 }
 
 resource "aws_iam_user_policy" "scan_upload" {
-  name   = "comics-scan-upload-eingang"
+  name   = "${var.name_prefix}-scan-upload-eingang"
   user   = aws_iam_user.scan_upload.name
   policy = data.aws_iam_policy_document.scan_upload.json
 }

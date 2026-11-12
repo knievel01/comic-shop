@@ -18,3 +18,9 @@ variable "backup_retention_days" {
   type    = number
   default = 90
 }
+
+variable "name_prefix" {
+  description = "Prefix of the IAM user names (<prefix>-app, <prefix>-scan-upload); IAM names are unique per account"
+  type        = string
+  default     = "comics"
+}
