@@ -105,18 +105,21 @@
     - name: kubectl for the scan user (namespace comics only, ADR-0036)
       when: scan_user_entry.ansible_facts.getent_passwd is defined
       block:
-        - name: Read service account token and CA
-          ansible.builtin.shell: |
-            set -o pipefail
-            k3s kubectl -n comics get secret scan-operator-token -o jsonpath='{.data.token}{"\n"}{.data.ca\.crt}'
-          args:
-            executable: /bin/bash
-          register: scan_operator_secret
+        - name: Read service account token
+          ansible.builtin.command: >-
+            k3s kubectl -n comics get secret scan-operator-token -o jsonpath={.data.token}
+          register: scan_operator_token
           changed_when: false
           no_log: true
-          until: scan_operator_secret.stdout.split('\n')[0] | length > 0
+          until: scan_operator_token.stdout | length > 0
           retries: 10
           delay: 3
+
+        - name: Read cluster CA
+          ansible.builtin.command: >-
+            k3s kubectl -n comics get secret scan-operator-token -o jsonpath={.data.ca\.crt}
+          register: scan_operator_ca
+          changed_when: false
 
         - name: kube directory for the scan user
           ansible.builtin.file:
@@ -139,11 +142,11 @@
                 - name: comics
                   cluster:
                     server: https://127.0.0.1:6443
-                    certificate-authority-data: {{ scan_operator_secret.stdout.split('\n')[1] }}
+                    certificate-authority-data: {{ scan_operator_ca.stdout }}
               users:
                 - name: scan-operator
                   user:
-                    token: {{ scan_operator_secret.stdout.split('\n')[0] | b64decode }}
+                    token: {{ scan_operator_token.stdout | b64decode }}
               contexts:
                 - name: comics
                   context: { cluster: comics, user: scan-operator, namespace: comics }
