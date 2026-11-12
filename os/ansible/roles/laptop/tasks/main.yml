@@ -1,5 +1,11 @@
 ---
 # Laptop as the comic machine (ADR-0029): keep running with the lid closed, optional Wi-Fi fallback.
+- name: logind drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    mode: "0755"
+
 - name: Lid and idle never suspend the machine
   ansible.builtin.copy:
     dest: /etc/systemd/logind.conf.d/10-comics-laptop.conf
