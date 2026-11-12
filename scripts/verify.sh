@@ -20,8 +20,8 @@ echo "System"
 check "Erstkonfiguration abgeschlossen" test -f /var/lib/comics/firstboot.done
 check "Geheimnisse vorhanden (comics.env, Rechte 600)" \
   bash -c '[[ -s /etc/comics/comics.env && "$(stat -c %a /etc/comics/comics.env)" == 600 ]]'
-check "Firewall aktiv" bash -c 'ufw status | grep -q "Status: active"'
-check "Zeit synchron" bash -c 'chronyc tracking | grep -q "Leap status *: Normal"'
+check "Firewall aktiv" bash -c 'LC_ALL=C ufw status | grep -q "Status: active"'
+check "Zeit synchron" bash -c 'LC_ALL=C chronyc tracking | grep -q "Leap status *: Normal"'
 
 echo "K3s"
 check "k3s-Dienst aktiv und beim Boot aktiviert" bash -c 'systemctl is-active -q k3s && systemctl is-enabled -q k3s'
