@@ -41,3 +41,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0033](0033-go-live-vorlaeufig-mit-poc-bucket-und-poc-shopify-app.md) | Go-Live startet vorläufig mit PoC-Bucket und PoC-Shopify-App | Ersetzt durch 0035 |
 | [0034](0034-lan-betrieb-ueber-http-ohne-review-passwort.md) | LAN-Betrieb über http, Review-Oberfläche ohne Passwort | Akzeptiert, ergänzt 0006/0008 |
 | [0035](0035-eigener-produktiv-bucket-per-terraform.md) | Eigener Produktiv-Bucket per Terraform, IAM-Namen mit Präfix | Akzeptiert, ersetzt 0033 |
+| [0036](0036-kubectl-fuer-den-scan-benutzer-nur-im-namespace-comics.md) | kubectl für den Scan-Benutzer nur im Namespace comics | Akzeptiert, ergänzt 0001/0008 |

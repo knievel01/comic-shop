@@ -56,3 +56,4 @@
     mode: "0644"
     content: |
       [ "$(id -u)" = 0 ] && export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+      [ "$(id -un)" = "{{ comics_scan_user }}" ] && export KUBECONFIG="$HOME/.kube/config"

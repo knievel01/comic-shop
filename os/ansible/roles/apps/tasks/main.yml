@@ -95,6 +95,61 @@
       when: helper_build_local | bool
       changed_when: true
 
+    - name: Does the scan user exist?
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ comics_scan_user }}"
+      failed_when: false
+      register: scan_user_entry
+
+    - name: kubectl for the scan user (namespace comics only, ADR-0036)
+      when: scan_user_entry.ansible_facts.getent_passwd is defined
+      block:
+        - name: Read service account token and CA
+          ansible.builtin.shell: |
+            set -o pipefail
+            k3s kubectl -n comics get secret scan-operator-token -o jsonpath='{.data.token}{"\n"}{.data.ca\.crt}'
+          args:
+            executable: /bin/bash
+          register: scan_operator_secret
+          changed_when: false
+          no_log: true
+          until: scan_operator_secret.stdout.split('\n')[0] | length > 0
+          retries: 10
+          delay: 3
+
+        - name: kube directory for the scan user
+          ansible.builtin.file:
+            path: "/home/{{ comics_scan_user }}/.kube"
+            state: directory
+            owner: "{{ comics_scan_user }}"
+            group: "{{ comics_scan_user }}"
+            mode: "0700"
+
+        - name: Kubeconfig for the scan user (mode 600)
+          ansible.builtin.copy:
+            dest: "/home/{{ comics_scan_user }}/.kube/config"
+            owner: "{{ comics_scan_user }}"
+            group: "{{ comics_scan_user }}"
+            mode: "0600"
+            content: |
+              apiVersion: v1
+              kind: Config
+              clusters:
+                - name: comics
+                  cluster:
+                    server: https://127.0.0.1:6443
+                    certificate-authority-data: {{ scan_operator_secret.stdout.split('\n')[1] }}
+              users:
+                - name: scan-operator
+                  user:
+                    token: {{ scan_operator_secret.stdout.split('\n')[0] | b64decode }}
+              contexts:
+                - name: comics
+                  context: { cluster: comics, user: scan-operator, namespace: comics }
+              current-context: comics
+          no_log: true
+
     - name: Wait for rollouts
       ansible.builtin.command: k3s kubectl -n comics rollout status {{ item }} --timeout=600s
       loop: [statefulset/postgres, deployment/n8n, deployment/comic-helper]
