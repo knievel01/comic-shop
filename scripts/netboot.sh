@@ -15,6 +15,8 @@ ISO="${ISO:-$BUILD/comics-comics-01.iso}"
 IFACE="${IFACE:-$(ip route show default | awk '{print $5; exit}')}"
 HTTP_PORT="${HTTP_PORT:-8000}"
 ROOT="$BUILD/netboot"
+# dnsmasq drops its capabilities, so it cannot read below a 750 home directory: TFTP root lives outside.
+TFTP_ROOT=/var/lib/comics-netboot/tftp
 SHIM=/usr/lib/shim/shimx64.efi.signed
 GRUBNET=/usr/lib/grub/x86_64-efi-signed/grubnetx64.efi.signed
 
@@ -41,7 +43,7 @@ cat > "$ROOT/tftp/grub/grub.cfg" <<GRUB
 set timeout=-1
 set default=0
 menuentry "Comic-Rechner per Netzwerk installieren (LOESCHT DIE GANZE SSD)" {
-    linux  (http,$IP:$HTTP_PORT)/vmlinuz ip=dhcp url=http://$IP:$HTTP_PORT/comics.iso autoinstall ds=nocloud\;s=/cdrom/nocloud/ ---
+    linux  (http,$IP:$HTTP_PORT)/vmlinuz ip=dhcp rootfstype=ramfs url=http://$IP:$HTTP_PORT/comics.iso autoinstall ds=nocloud\;s=/cdrom/nocloud/ ---
     initrd (http,$IP:$HTTP_PORT)/initrd
 }
 GRUB
@@ -55,16 +57,21 @@ dhcp-range=${NET%/*},proxy
 pxe-service=X86-64_EFI,"Comic-Rechner installieren",bootx64.efi
 pxe-service=BC_EFI,"Comic-Rechner installieren",bootx64.efi
 enable-tftp
-tftp-root=$ROOT/tftp
+tftp-root=$TFTP_ROOT
 log-dhcp
 CONF
 
+# Publish the TFTP files where dnsmasq can read them.
+sudo rm -rf "$TFTP_ROOT"; sudo mkdir -p "$TFTP_ROOT"; sudo cp -r "$ROOT/tftp/." "$TFTP_ROOT/"; sudo chmod -R a+rX "$TFTP_ROOT"
+
 # 2. Firewall (opened only for this network, removed on exit).
-RULES=("from $NET to any port 67,69,4011 proto udp" "from $NET to any port $HTTP_PORT proto tcp")
+# DHCP discovers come from 0.0.0.0, so port 67 must be open on the interface, not just for $NET.
+RULES=("in on $IFACE to any port 67 proto udp" "from $NET to any port 69,4011 proto udp" "from $NET to any port $HTTP_PORT proto tcp")
 cleanup() {
   trap - EXIT INT TERM
   [[ -n "${HTTP_PID:-}" ]] && kill "$HTTP_PID" 2>/dev/null || true
   for r in "${RULES[@]}"; do sudo ufw --force delete allow $r >/dev/null 2>&1 || true; done
+  sudo rm -rf /var/lib/comics-netboot
   echo "Netboot stopped, firewall rules removed."
 }
 trap cleanup EXIT INT TERM
