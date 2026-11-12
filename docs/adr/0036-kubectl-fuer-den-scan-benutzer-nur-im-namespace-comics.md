@@ -1,6 +1,6 @@
 # ADR-0036: kubectl für den Scan-Benutzer nur im Namespace comics
 
-- **Status:** Akzeptiert
+- **Status:** Ersetzt durch ADR-0037
 - **Datum:** 2026-11-12
 
 ## Kontext
