@@ -11,7 +11,7 @@
 3. Publication-ID des Online Stores (GraphQL `publications { nodes { id name } }`) → `SHOPIFY_PUBLICATION_IDS`.
 4. Keine Webhooks einrichten: Verkäufe werden nur in Shopify geführt (ADR-0025).
 5. Theme: ausverkaufte Varianten ausblenden.
-6. Zuerst mit einem **Entwicklungs-/Testshop** und `produkt_status: DRAFT` in `config/pricing.yaml` beginnen.
+6. Zuerst mit einem **Entwicklungs-/Testshop** und `produkt_status: DRAFT` in `config/pricing.yaml` beginnen (im Zielbetrieb seit 12.11.2026 `ACTIVE`).
 
 ### 2. n8n
 

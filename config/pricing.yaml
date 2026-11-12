@@ -82,8 +82,9 @@ marktpreis:
 
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
-  # Erste Woche nach dem Go-Live DRAFT, danach ACTIVE (ADR-0028). Änderung zuerst in der Sandbox (ADR-0027).
-  produkt_status: DRAFT
+  # Go-Live: erst DRAFT, ab 12.11.2026 auf Wunsch des Betreibers ACTIVE (ADR-0028). Änderung zuerst in der Sandbox (ADR-0027).
+  # Sichtbar im Online-Shop nur mit SHOPIFY_PUBLICATION_IDS in comics.env (sonst aktiv, aber ohne Vertriebskanal).
+  produkt_status: ACTIVE
   produkt_typ: Comic
   hersteller_aus_verlag: true
 
