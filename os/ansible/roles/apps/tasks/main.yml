@@ -116,10 +116,11 @@
           delay: 3
 
         - name: Read cluster CA
-          ansible.builtin.command: >-
-            k3s kubectl -n comics get secret scan-operator-token -o jsonpath={.data.ca\.crt}
+          ansible.builtin.command:
+            argv: [k3s, kubectl, -n, comics, get, secret, scan-operator-token, -o, 'jsonpath={.data.ca\.crt}']
           register: scan_operator_ca
           changed_when: false
+          failed_when: scan_operator_ca.stdout | length == 0
 
         - name: kube directory for the scan user
           ansible.builtin.file:
