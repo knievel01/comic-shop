@@ -41,7 +41,7 @@ curl -fsSLO "$MIRROR/SHA256SUMS.gpg"
 GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
 gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$UBUNTU_KEY_FPR" >/dev/null 2>&1 \
   || die "could not fetch Ubuntu signing key"
-gpg --batch --verify SHA256SUMS.gpg SHA256SUMS 2>&1 | grep -q "Good signature" \
+LC_ALL=C gpg --batch --verify SHA256SUMS.gpg SHA256SUMS 2>&1 | grep -q "Good signature" \
   || die "SHA256SUMS signature invalid"
 rm -rf "$GNUPGHOME"
 

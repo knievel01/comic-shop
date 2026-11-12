@@ -60,6 +60,12 @@ lsblk                                   # Stick identifizieren!
 sudo dd if=comics-comics-01.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
+## 2b. Alternative: Netzwerkboot ohne USB-Stick (ADR-0031)
+
+Auf einem Rechner im selben LAN: `scripts/netboot.sh` (braucht `dnsmasq`, `xorriso`, signiertes Shim/GRUB, ufw).
+Das Laptop per **Kabel** anschließen, per UEFI-Netzwerkboot starten (F12), Menüeintrag bestätigen.
+Mindestens 8 GB RAM am Laptop (ISO liegt im RAM). Danach weiter mit Schritt 4; Server mit Ctrl+C beenden.
+
 ## 3. BIOS/UEFI einstellen (manuell)
 
 - Boot von USB erlauben, Stick als erstes Boot-Gerät (oder Boot-Menü per F12/F8/Esc).

@@ -36,3 +36,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0028](0028-poc-ergebnisse-im-zielbetrieb.md) | PoC-Ergebnisse gelten im Zielbetrieb: Booklooker-Preis mit Beleg, Websuche-Vorschlag, Statistik, Fortschritt | Akzeptiert, ersetzt 0017 |
 | [0029](0029-laptop-als-comic-rechner.md) | Laptop als Comic-Rechner, WLAN nur als Fallback | Akzeptiert, ergänzt 0001/0002 |
 | [0030](0030-kamera-station-per-gphoto2-am-laptop.md) | Erfassung per Canon-Kamera am Laptop (gphoto2) statt Flachbett | Akzeptiert, ergänzt 0007/0018/0029 |
+| [0031](0031-installation-per-netzwerkboot-als-alternative-zum-usb-stick.md) | Installation per Netzwerkboot als Alternative zum USB-Stick | Akzeptiert, ergänzt 0002 |
