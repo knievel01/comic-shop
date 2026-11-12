@@ -1,7 +1,7 @@
 ---
-- name: Minimal XFCE desktop
+- name: Cinnamon desktop (ADR-0032)
   ansible.builtin.apt:
-    name: [xfce4, xfce4-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg]
+    name: [cinnamon-desktop-environment, gnome-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg]
     state: present
     install_recommends: false
 
@@ -37,7 +37,7 @@
     content: |
       [Seat:*]
       autologin-user={{ comics_scan_user }}
-      autologin-session=xfce
+      autologin-session=cinnamon
   when: comics_scan_autologin | bool
 
 - name: No auto-login

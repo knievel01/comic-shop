@@ -37,3 +37,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0029](0029-laptop-als-comic-rechner.md) | Laptop als Comic-Rechner, WLAN nur als Fallback | Akzeptiert, ergänzt 0001/0002 |
 | [0030](0030-kamera-station-per-gphoto2-am-laptop.md) | Erfassung per Canon-Kamera am Laptop (gphoto2) statt Flachbett | Akzeptiert, ergänzt 0007/0018/0029 |
 | [0031](0031-installation-per-netzwerkboot-als-alternative-zum-usb-stick.md) | Installation per Netzwerkboot als Alternative zum USB-Stick | Akzeptiert, ergänzt 0002 |
+| [0032](0032-cinnamon-statt-xfce-als-desktop.md) | Cinnamon (Linux-Mint-Oberfläche) statt XFCE als Desktop | Akzeptiert, ergänzt 0001 |
