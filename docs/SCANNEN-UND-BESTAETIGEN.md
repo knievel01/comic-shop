@@ -12,7 +12,7 @@ Hat eine PDF nicht genau 2 Seiten, landet sie in `Scans/fehler`. Dann den Comic 
 
 ## Bestätigen
 
-Im Browser **https://comics-01/review/** öffnen. Die Liste zeigt alle offenen Comics.
+Im Browser **http://comics-01/review/** öffnen. Die Liste zeigt alle offenen Comics.
 „Nachkontrolle“ heißt: Die KI ist sich nicht sicher, also genau hinschauen.
 
 Pro Comic:

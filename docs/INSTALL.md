@@ -119,7 +119,7 @@ sudo /opt/comic-shop/scripts/verify.sh            # mit Probe-Scan (Scanner ange
 sudo /opt/comic-shop/scripts/verify.sh --skip-scan
 ```
 
-Danach n8n im Browser öffnen: `https://comics-01/` (selbstsigniertes Zertifikat im LAN),
+Danach n8n im Browser öffnen: `http://comics-01/` (nur LAN, kein Zertifikat, ADR-0034),
 Owner-Konto anlegen, Workflows importieren (`docs/BETRIEB.md` → „Workflows einspielen“).
 
 ## Abnahme (Phase 2)

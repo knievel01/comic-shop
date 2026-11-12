@@ -21,8 +21,8 @@ Die Review-Oberfläche unterscheidet sich danach nur im Zugang:
 
 | | PoC | Zielbetrieb |
 | --- | --- | --- |
-| Adresse | `http://pro-mini.fritz.box/review/` | `https://comics-01/review/` (LAN, ufw, selbstsigniertes Zertifikat) |
-| Anmeldung | keine | `REVIEW_PASSWORD` Pflicht (ADR-0006) |
+| Adresse | `http://pro-mini.fritz.box/review/` | `http://<Rechnername>/review/` (LAN, ufw, http, ADR-0034) |
+| Anmeldung | keine | keine, `REVIEW_PASSWORD` leer (ADR-0034, ADR-0006 nennt das Passwort optional) |
 | Preisquelle vorausgewählt | Booklooker (ADR-0017) | nach Entscheidung E2 |
 | Statistik | PoC-Läufe | beginnt leer (neuer Bucket) |
 

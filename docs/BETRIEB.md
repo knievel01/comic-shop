@@ -15,9 +15,9 @@
 
 ### 2. n8n
 
-`WEBHOOK_URL=https://comics-01/` in `/etc/comics/comics.env`. Aus dem Internet ist nichts erreichbar (ADR-0025).
+`WEBHOOK_URL=http://comics-01/` in `/etc/comics/comics.env`. Aus dem Internet ist nichts erreichbar (ADR-0025).
 
-1. `https://comics-01/` im LAN öffnen, Owner-Konto anlegen (Zugang in den Passwort-Manager).
+1. `http://comics-01/` im LAN öffnen, Owner-Konto anlegen (Zugang in den Passwort-Manager).
 2. Credentials anlegen, **Namen genau so**:
    - „Comic Helper Token“: Typ *Header Auth*, Name `X-Helper-Token`, Wert = `HELPER_TOKEN`.
    - „SMTP Comics“: Typ *SMTP*, Werte aus dem Passwort-Manager.
@@ -40,7 +40,7 @@
 ### 3. Erste Prüfung
 
 Eine Test-PDF mit zwei Seiten nach `/srv/scans/neu/` legen. Innerhalb von 3 Minuten:
-`eingang/<id>.pdf` in S3 hat den Tag `status=offen`, das Exemplar steht unter `https://comics-01/review/`.
+`eingang/<id>.pdf` in S3 hat den Tag `status=offen`, das Exemplar steht unter `http://comics-01/review/`.
 
 ## Tagesgeschäft
 
