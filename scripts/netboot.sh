@@ -47,11 +47,13 @@ menuentry "Comic-Rechner per Netzwerk installieren (LOESCHT DIE GANZE SSD)" {
 GRUB
 cat > "$ROOT/dnsmasq.conf" <<CONF
 port=0
+user=root
+group=root
 interface=$IFACE
 bind-interfaces
 dhcp-range=${NET%/*},proxy
 pxe-service=X86-64_EFI,"Comic-Rechner installieren",bootx64.efi
-pxe-service=X86PC_EFI_BC,"Comic-Rechner installieren",bootx64.efi
+pxe-service=BC_EFI,"Comic-Rechner installieren",bootx64.efi
 enable-tftp
 tftp-root=$ROOT/tftp
 log-dhcp
