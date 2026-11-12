@@ -1,0 +1,61 @@
+---
+# Tethered camera capture (ADR-0030): gphoto2 -> two JPEGs -> two-page PDF in {{ comics_scan_dir }}/neu.
+- name: Camera tools
+  ansible.builtin.apt:
+    name: [gphoto2, libgphoto2-6, img2pdf, imagemagick, poppler-utils]
+    state: present
+
+- name: Scanner group (shared with the scanner role)
+  ansible.builtin.group:
+    name: scanner
+    system: true
+
+- name: Scan user exists
+  ansible.builtin.user:
+    name: "{{ comics_scan_user }}"
+    shell: /bin/bash
+    groups: [scanner, plugdev]
+    append: true
+    password: "!"
+
+- name: Scan directories
+  ansible.builtin.file:
+    path: "{{ comics_scan_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ comics_scan_user }}"
+    group: "{{ comics_scan_user }}"
+    mode: "0775"
+  loop: [neu, hochgeladen, fehler]
+
+- name: Udev rule - Canon cameras accessible for group scanner
+  ansible.builtin.copy:
+    src: 61-comics-camera.rules
+    dest: /etc/udev/rules.d/61-comics-camera.rules
+    mode: "0644"
+  notify: Reload udev
+
+- name: Desktop must not grab the camera (gvfs mounts it and blocks gphoto2)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+    scope: global
+  loop: [gvfs-gphoto2-volume-monitor.service]
+  failed_when: false
+
+- name: Capture script
+  ansible.builtin.template:
+    src: comics-capture.sh.j2
+    dest: /usr/local/bin/comics-capture
+    mode: "0755"
+
+- name: Hint for the operator
+  ansible.builtin.copy:
+    dest: "/home/{{ comics_scan_user }}/Kamera-Hinweis.txt"
+    owner: "{{ comics_scan_user }}"
+    mode: "0644"
+    content: |
+      Terminal oeffnen, "comics-capture" starten.
+      Enter = Foto: erst Cover, dann Rueckseite. Daraus entsteht eine PDF mit 2 Seiten in {{ comics_scan_dir }}/neu.
+      "u" + Enter = letztes Foto verwerfen und neu aufnehmen. "q" = Ende.
+      Kamera: USB, eingeschaltet, Modus M (manuell), JPEG, Autofokus an. Kein Mount durch den Desktop.
+      Test ohne PDF: comics-capture --probe

@@ -9,7 +9,8 @@
     - { role: laptop, tags: [laptop], when: comics_laptop | bool }
     - { role: desktop, tags: [desktop], when: comics_desktop_enabled | bool }
     - { role: scanner, tags: [scanner], when: comics_scanner_enabled | bool }
-    - { role: sync, tags: [sync], when: comics_scanner_enabled | bool }
+    - { role: camera, tags: [camera], when: comics_camera_enabled | bool }
+    - { role: sync, tags: [sync], when: (comics_scanner_enabled | bool) or (comics_camera_enabled | bool) }
     - { role: k3s, tags: [k3s] }
     - { role: apps, tags: [apps] }
     - { role: backup, tags: [backup] }

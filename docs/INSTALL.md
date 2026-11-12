@@ -41,7 +41,8 @@ SSH_KEYS_FILE=~/.ssh/id_ed25519.pub REPO_URL=https://github.com/<user>/comic-sho
   `WIFI_PASSWORD` in `/etc/comics/comics.env`, dann `sudo comics-update --tags laptop`.
 - Deckel zuklappen ist erlaubt, der Rechner schläft nicht. BIOS: „Power on after AC loss“ falls vorhanden,
   Ladelimit 80 %.
-- Scanner ist per Standard aus (`comics_scanner_enabled: false`); Eingang per Foto-Upload.
+- Scanner ist per Standard aus (`comics_scanner_enabled: false`). Eingang ist die Canon-Kamera per USB:
+  `comics-capture` als Benutzer `scan` (ADR-0030), Test mit `comics-capture --probe`.
 
 ## 1. ISO herunterladen und prüfen
 

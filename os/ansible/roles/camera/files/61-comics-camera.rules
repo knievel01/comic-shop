@@ -1,0 +1,2 @@
+# Canon (04a9) cameras: usable by group "scanner" for gphoto2.
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="04a9", MODE="0664", GROUP="scanner"

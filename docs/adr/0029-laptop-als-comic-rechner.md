@@ -6,7 +6,7 @@
 ## Kontext
 ADR-0001 und `hardware/README.md` gehen von einem Mini-PC aus. Der Go-Live (`docs/GO-LIVE.md`, E1) läuft auf einem
 vorhandenen Laptop. Ein Laptop schläft bei geschlossenem Deckel, hat WLAN und meist kein „Power on after AC loss“.
-Der Scanner ist noch nicht da, als Eingang dient zunächst der Foto-Upload (ADR-0018).
+Der Scanner ist noch nicht da, als Eingang dient eine Canon-Kamera per USB (ADR-0030).
 
 ## Entscheidung
 - Neue Ansible-Rolle `laptop` (Schalter `comics_laptop`, Standard `true`): Deckel, Power-Taste und Leerlauf
@@ -20,8 +20,7 @@ Der Scanner ist noch nicht da, als Eingang dient zunächst der Foto-Upload (ADR-
 ## Konsequenzen
 - Der Akku wirkt als einfache USV; Ladelimit (z. B. 80 %) im BIOS setzen, falls vorhanden.
 - Ob das Laptop nach Stromausfall allein startet, ist modellabhängig und Teil der Abnahme (INSTALL.md).
-- Eine Kamera (z. B. Canon) als Scan-Quelle ist hier nicht entschieden; sie bräuchte ein eigenes ADR
-  (ergänzt ADR-0007), bis dahin Foto-Upload.
+- Die Kamera als Erfassung ist in ADR-0030 entschieden.
 
 ## Verworfene Alternativen
 - WLAN-Zugang in der ISO – Geheimnis im öffentlichen Artefakt (ADR-0003).

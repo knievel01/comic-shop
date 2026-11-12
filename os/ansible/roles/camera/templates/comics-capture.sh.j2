@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Tethered capture: per comic one photo of the cover and one of the back, built into a two-page PDF
+# in {{ comics_scan_dir }}/neu. comics-scan-sync (ADR-0007) uploads it. Needs gphoto2 and a Canon camera.
+#   comics-capture           interactive loop (Enter = shoot, u = redo last photo, q = quit)
+#   comics-capture --probe   one test shot, prints camera model and file size, exit 0 = camera works
+set -euo pipefail
+
+OUT_DIR="{{ comics_scan_dir }}/neu"
+MAX_EDGE="{{ comics_camera_max_edge }}"
+QUALITY="{{ comics_camera_jpeg_quality }}"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+shoot() { # $1 = target jpg
+  gphoto2 --quiet --capture-image-and-download --filename "$TMP/raw.%C" --force-overwrite >/dev/null
+  local raw; raw="$(ls "$TMP"/raw.* | head -1)"
+  # Apply EXIF rotation and cap the long edge so the PDF stays around 4 MB.
+  convert "$raw" -auto-orient -resize "${MAX_EDGE}x${MAX_EDGE}>" -quality "$QUALITY" "$1"
+  rm -f "$TMP"/raw.*
+}
+
+if ! gphoto2 --auto-detect | tail -n +3 | grep -q .; then
+  echo "FEHLER: keine Kamera gefunden (USB, eingeschaltet? Desktop-Mount aktiv? gphoto2 --auto-detect)" >&2
+  exit 2
+fi
+gphoto2 --auto-detect | tail -n +3
+
+if [[ "${1:-}" == "--probe" ]]; then
+  shoot "$TMP/probe.jpg"
+  identify -format 'OK: %wx%h, %b\n' "$TMP/probe.jpg"
+  exit 0
+fi
+
+n=0
+while true; do
+  for side in Cover Rueckseite; do
+    f="$TMP/$side.jpg"
+    while true; do
+      read -r -p "[$n fertig] Enter = $side fotografieren (q = Ende): " ans
+      [[ "$ans" == "q" ]] && { echo "Ende, $n Comics erfasst."; exit 0; }
+      if shoot "$f"; then
+        echo "  $side aufgenommen"
+        read -r -p "  ok? Enter = weiter, u = neu: " ok
+        [[ "$ok" == "u" ]] || break
+      else
+        echo "  Aufnahme fehlgeschlagen, bitte erneut" >&2
+      fi
+    done
+  done
+  name="foto-$(date +%Y%m%d-%H%M%S)"
+  img2pdf "$TMP/Cover.jpg" "$TMP/Rueckseite.jpg" -o "$TMP/$name.pdf"
+  [[ "$(pdfinfo "$TMP/$name.pdf" | awk '/^Pages:/ {print $2}')" == "2" ]] || { echo "FEHLER: PDF hat nicht 2 Seiten" >&2; exit 3; }
+  # Move last: the sync only takes files untouched for 30 s and complete.
+  mv "$TMP/$name.pdf" "$OUT/$name.pdf"
+  n=$((n + 1))
+  echo "  -> $OUT/$name.pdf"
+done
