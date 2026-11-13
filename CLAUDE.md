@@ -21,11 +21,16 @@ Comic-Shop-Automatisierung: Scan → S3 → Erkennung (Claude) → Review → Sh
 Weitere Doku: `docs/ARCHITEKTUR.md` (Datenfluss, Zustände), `docs/PLAN.md` (Plan und Status).
 `future-improvements/` enthält nur Ideen und Ausbaupläne; daraus wird erst nach einem akzeptierten ADR umgesetzt.
 
-## Sandbox zuerst (ADR-0027)
+## Sandbox zuerst (ADR-0027, ADR-0039)
 
-Jede Änderung wird zuerst in der Sandbox auf `pro-mini` ausgerollt und dort geprüft (`docs/POC.md`:
-`scripts/poc-host-k3s.sh build` und `deploy`, geänderte Workflows per `n8n-import.sh`), erst danach auf dem
-Comic-Rechner (`sudo comics-update`). Die Sandbox nutzt nie Produktivdaten.
+Jede Änderung an comic-helper, Workflows und `config/pricing.yaml` wird zuerst in der Sandbox auf dem MacBook
+(OrbStack, Docker Compose) ausgerollt und dort geprüft (`docs/SANDBOX-MAC.md`: `scripts/sandbox-orbstack.sh up`,
+geänderte Workflows per `import`), erst danach auf dem Comic-Rechner (`sudo comics-update`). Änderungen an
+`infra/k3s/` und `os/` lassen sich dort nicht prüfen (kein K3s): rendern und zuerst auf dem Comic-Rechner beobachten.
+Die Sandbox nutzt nie Produktivdaten.
+
+Rollout auf den Comic-Rechner vom Mac aus (ADR-0040): erst Merge nach `main` (der Rechner zieht `main`), dann
+`ssh -i ~/.ssh/id_ed25519_comics comicadmin@192.168.40.120 'sudo comics-update --tags apps'`.
 
 ## Regeln
 
@@ -45,6 +50,7 @@ Comic-Rechner (`sudo comics-update`). Die Sandbox nutzt nie Produktivdaten.
 ```
 os/                 Autoinstall-ISO, Ansible-Rollen (ansible-pull)
 infra/k3s/          Kubernetes-Manifeste (Kustomize), Namespace comics
+infra/sandbox-orbstack/  Docker-Compose-Sandbox für das MacBook (ADR-0039)
 infra/aws/          Terraform für S3-Bucket und IAM
 services/comic-helper/  Python-Dienst (FastAPI): S3, PDF→Bild, Claude, Preise, Shopify, Review-UI
 workflows/          exportierte n8n-Workflows (JSON)

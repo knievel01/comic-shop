@@ -7,7 +7,7 @@
   /* cover and back as two comic panels with caption boxes */
   .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
   .pics figure { margin:0; position:relative; border:var(--strich); background:var(--paper); }
-  .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); border:solid var(--ink); border-width:0 2px 2px 0;
+  .pics figcaption { position:absolute; top:0; left:0; z-index:1; background:var(--yellow); color:var(--schrift-hell); border:solid var(--ink); border-width:0 2px 2px 0;
                      padding:.15rem .6rem .05rem; font:1.15rem var(--display); letter-spacing:.05em; }
   .pics img { width:100%; display:block; cursor:zoom-in; }
   /* a sticky section is its own stacking context: lift the whole section while an image is enlarged */
@@ -17,10 +17,10 @@
   .kopf code { font:inherit; color:var(--ink); }
   /* what the AI says is set as speech bubbles */
   .sprechblase { position:relative; margin:1.4rem 0 1.1rem; padding:.75rem 1rem; border:var(--strich); border-radius:1.4rem;
-                 background:#fff; font-size:1.05rem; line-height:1.35; }
+                 background:var(--feld); font-size:1.05rem; line-height:1.35; }
   .sprechblase::before, .sprechblase::after { content:""; position:absolute; left:2.2rem; border-style:solid; }
   .sprechblase::before { bottom:-1.25rem; border-width:1.25rem 1.25rem 0 0; border-color:var(--ink) transparent transparent; }
-  .sprechblase::after { bottom:-.8rem; left:calc(2.2rem + 2px); border-width:.95rem .95rem 0 0; border-color:#fff transparent transparent; }
+  .sprechblase::after { bottom:-.8rem; left:calc(2.2rem + 2px); border-width:.95rem .95rem 0 0; border-color:var(--feld) transparent transparent; }
   .sprechblase strong { font:1.2rem/1 var(--display); letter-spacing:.05em; margin-right:.35rem; }
   .sprechblase small { display:block; margin-top:.3rem; }
 
@@ -36,23 +36,23 @@
   label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
   label small { font-weight:500; color:var(--muted); }
   input, select, textarea { width:100%; font:500 1.05rem var(--text); color:var(--ink); padding:.45rem .6rem; margin-top:.15rem;
-                            border:var(--strich); border-radius:0; background:#fff; }
-  input:focus, select:focus, textarea:focus { background:#fff8cc; outline:3px solid var(--blue); outline-offset:0; }
+                            border:var(--strich); border-radius:0; background:var(--feld); }
+  input:focus, select:focus, textarea:focus { background:var(--gelb-fokus); outline:3px solid var(--blue); outline-offset:0; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
   .row3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:.8rem; }
   .abschnitt > h2 + div > div > label { margin-top:0; }
 
   /* condition: compact rows, the help text of the chosen level shows below */
-  .stufen { display:grid; border:var(--strich); background:#fff; }
+  .stufen { display:grid; border:var(--strich); background:var(--feld); }
   .stufe { display:flex; align-items:center; gap:.75rem; margin:0; padding:.45rem .7rem; font-weight:700; font-size:1.08rem; cursor:pointer; }
   .stufe + .stufe { border-top:1px solid rgba(0,0,0,.18); }
   .stufe:hover { background:var(--soft); }
-  .stufe:has(input:checked) { background:var(--yellow); }
+  .stufe:has(input:checked) { background:var(--yellow); color:var(--schrift-hell); }
   .stufe input { position:absolute; opacity:0; width:1px; height:1px; }
   .stufe:has(input:focus-visible) { outline:3px solid var(--blue); outline-offset:-3px; }
   .stufe .ziffer { flex:none; display:grid; place-items:center; width:2.2rem; height:2.2rem; border:var(--strich); background:var(--paper);
                    font:1.5rem/1 var(--display); padding-top:.1rem; }
-  .stufe:has(input:checked) .ziffer { background:var(--ink); color:var(--yellow); }
+  .stufe:has(input:checked) .ziffer { background:var(--umriss); color:var(--yellow); }
   .stufe .badge { margin-left:auto; }
   .stufe-hilfe { margin:.7rem 0 0; min-height:2.6em; color:var(--muted); line-height:1.3; }
   .anzahl { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:0 0 .8rem; }
@@ -61,37 +61,37 @@
   .anzahl small { color:var(--muted); flex-basis:100%; }
 
   .link-knopf { font:inherit; background:none; border:0; padding:0; color:var(--blue); text-decoration:underline; cursor:pointer; box-shadow:none; }
-  .vorschlag { margin:.9rem 0 0; padding:.55rem .75rem; background:#fff6c7; border:var(--strich); border-left:6px solid var(--red); font-size:.98rem; line-height:1.35; }
+  .vorschlag { margin:.9rem 0 0; padding:.55rem .75rem; background:var(--gelb-sanft); border:var(--strich); border-left:6px solid var(--red); font-size:.98rem; line-height:1.35; }
   .beleg-kopf { display:flex; align-items:flex-end; justify-content:space-between; gap:.6rem; margin-top:.8rem; }
   .beleg-kopf label { margin-top:0; }
-  .beleg-oeffnen { padding:.05rem .6rem; border:var(--strich); background:var(--yellow); color:var(--ink); font-weight:800;
+  .beleg-oeffnen { padding:.05rem .6rem; border:var(--strich); background:var(--yellow); color:var(--schrift-hell); font-weight:800;
                    font-size:.92rem; text-decoration:none; white-space:nowrap; }
   .beleg-oeffnen[hidden] { display:none; }
   .gesperrt a { color:var(--ink); font-weight:800; word-break:break-all; }
   .links { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; margin:.9rem 0 0; }
   .links a { padding:.2rem .65rem; border:var(--strich); text-decoration:none; color:var(--ink); font-weight:800; background:var(--paper); }
-  .links a:hover { background:var(--yellow); }
+  .links a:hover { background:var(--yellow); color:var(--schrift-hell); }
   /* the price is the sound effect of the page */
   .ergebnis { display:flex; align-items:center; gap:1.1rem; margin:1rem 0 .2rem; }
   .price { flex:none; width:9.5rem; height:7.4rem; --fill:var(--red); font:2.1rem/1 var(--display); letter-spacing:.03em;
-           color:var(--paper); text-shadow:2px 2px 0 var(--ink); transform:rotate(-4deg); }
+           color:var(--licht); text-shadow:2px 2px 0 var(--umriss); transform:rotate(-4deg); }
   .calc { color:var(--muted); font-size:.95rem; }
   .ergebnis .calc { color:var(--ink); }
   .je-heft { flex:none; margin-left:-.5rem; font:1.3rem/1 var(--display); letter-spacing:.03em; white-space:nowrap; }
   .hint { font-size:.95rem; color:var(--bad); font-weight:700; }
   button { margin-top:1rem; width:100%; padding:.7rem .8rem .55rem; font:1.5rem/1 var(--display); letter-spacing:.05em; cursor:pointer;
-           color:var(--paper); background:var(--red); border:var(--strich); text-shadow:1px 1px 0 var(--ink); box-shadow:var(--druck); }
+           color:var(--licht); background:var(--red); border:var(--strich); text-shadow:1px 1px 0 var(--umriss); box-shadow:var(--druck); }
   button:active { transform:translate(3px, 3px); box-shadow:var(--gedrueckt); }
   button.zweit { width:auto; background:var(--paper); color:var(--ink); text-shadow:none; font-size:1.2rem; }
-  .entwurf { margin:0; padding:.55rem .8rem; background:var(--yellow); border:var(--strich); font-weight:700;
+  .entwurf { margin:0; padding:.55rem .8rem; background:var(--yellow); color:var(--schrift-hell); border:var(--strich); font-weight:700;
              display:flex; flex-wrap:wrap; align-items:center; gap:.3rem .8rem; }
   .entwurf[hidden] { display:none; }
-  .gesperrt { margin:0; padding:.6rem .8rem; background:#c9f2d5; border:var(--strich); font-weight:700; }
+  .gesperrt { margin:0; padding:.6rem .8rem; background:var(--mint); border:var(--strich); font-weight:700; }
   .abschnitt[inert] { opacity:.65; }
   .entwurf button { width:auto; margin:0; padding:.15rem .6rem; font:800 1rem var(--text); letter-spacing:0;
                     background:var(--paper); color:var(--ink); text-shadow:none; box-shadow:none; }
-  .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--ink); padding:.7rem 1rem; }
-  .absenden button { margin:0; flex:1; border-color:var(--paper); box-shadow:3px 3px 0 var(--yellow); }
+  .absenden { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; gap:1rem; background:var(--umriss); padding:.7rem 1rem; }
+  .absenden button { margin:0; flex:1; border-color:var(--licht); box-shadow:3px 3px 0 var(--yellow); }
   .absenden button.loeschen { flex:none; width:auto; background:var(--paper); color:var(--red); border-color:var(--ink);
                               text-shadow:none; font-size:1.2rem; box-shadow:3px 3px 0 var(--paper); }
   .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--yellow); white-space:nowrap; }

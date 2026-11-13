@@ -6,10 +6,10 @@
   .reiter { display:flex; gap:.5rem; margin:0 0 1.2rem; }
   .reiter a { border:var(--strich); padding:.3rem 1rem; color:var(--ink); text-decoration:none; font-weight:800;
               background:var(--paper); }
-  .reiter a[aria-current=page] { background:var(--yellow); box-shadow:var(--druck); }
+  .reiter a[aria-current=page] { background:var(--yellow); color:var(--schrift-hell); box-shadow:var(--druck); }
   .zahlen { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); }
   .zahl { border:var(--strich); box-shadow:var(--druck); background:var(--paper); padding:.7rem .9rem; }
-  .zahl.gross { background:var(--yellow); }
+  .zahl.gross { background:var(--yellow); color:var(--schrift-hell); }
   .zahl b { display:block; font:2rem/1.1 var(--display); letter-spacing:.02em; }
   .zahl b small { font:700 1rem var(--text); color:var(--muted); }
   .zahl span { font-weight:700; }
@@ -19,14 +19,14 @@
   th:first-child, td:first-child { text-align:left; }
   th { background:var(--soft); border-bottom:var(--strich); font-weight:800; }
   tfoot td { border-top:var(--strich); border-bottom:0; font-weight:800; }
-  tr.aktuell td { background:#fff6c9; font-weight:800; }
+  tr.aktuell td { background:var(--gelb-sanft); font-weight:800; }
   .klammer { color:var(--muted); font-weight:700; }
   /* price tag sits bottom right under the table, like the total on an invoice */
   .ersparnis { display:flex; justify-content:flex-end; margin:1.2rem 0 .4rem; }
-  .ersparnis .burst { width:11.5rem; aspect-ratio:1; --fill:var(--red); color:var(--paper);
+  .ersparnis .burst { width:11.5rem; aspect-ratio:1; --fill:var(--red); color:var(--licht);
                       text-align:center; filter:drop-shadow(var(--druck)); transform:rotate(-6deg); }
   .ersparnis .burst > span { display:flex; flex-direction:column; align-items:center; gap:.1rem;
-                             text-shadow:1px 1px 0 var(--ink); }
+                             text-shadow:1px 1px 0 var(--umriss); }
   .ersparnis b { font:1.7rem/1 var(--display); letter-spacing:.02em; }
   .ersparnis small { font:800 .72rem/1.15 var(--text); max-width:7rem; }
   .ersparnis + .hinweis { margin-left:auto; text-align:right; }
