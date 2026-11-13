@@ -71,7 +71,7 @@ def test_condition_label(cfg):
 
 
 def test_booklooker_offer_has_no_markup(cfg):
-    # PoC (ADR-0017): Booklooker offer is already a retail price
+    # PoC (ADR-0011): Booklooker offer is already a retail price
     assert cfg["standard_preisquelle"] == "booklooker"
     r = pricing.calculate(4.50, 1, "booklooker", cfg)
     assert (r.aufschlag, r.final) == (1.0, 4.50)

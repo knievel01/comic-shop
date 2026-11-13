@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sandbox on the MacBook: postgres, n8n and comic-helper as Docker Compose in OrbStack.
-# See docs/SANDBOX-MAC.md and ADR-0039. Not for the comic machine (that is K3s, docs/INSTALL.md).
+# See docs/SANDBOX-MAC.md and ADR-0027. Not for the comic machine (that is K3s, docs/INSTALL.md).
 #
 # Usage: scripts/sandbox-orbstack.sh env|up|build|import|status|logs|down|reset
 #   env     create the secrets file (internal secrets generated, AWS/Anthropic left empty)

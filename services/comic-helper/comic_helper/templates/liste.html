@@ -28,7 +28,7 @@
   .fall.im-shop { filter:grayscale(1); opacity:.6; }
   .fall.im-shop:hover { opacity:.85; }
   .fall .meta .shop-info { color:var(--ink); font-weight:800; }
-  /* live progress of workflow 01 on tiles that are still being recognized (ADR-0024) */
+  /* live progress of workflow 01 on tiles that are still being recognized (ADR-0004) */
   .fall .bild .leer.fortschritt { display:flex; flex-direction:column; justify-content:center; gap:.8rem; padding:0 .9rem; }
   .fortschritt .stufen { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.45rem; }
   .fortschritt .stufen li { border:var(--strich); background:var(--paper); padding:.2rem .6rem .1rem;
@@ -152,7 +152,7 @@
   if (rest) kopf.querySelector(".zahl").textContent = rest; else { kopf.remove(); liste.remove(); }
 })();
 
-// Tiles still in workflow 01 show its current step and reload the page once the run is done (ADR-0024).
+// Tiles still in workflow 01 show its current step and reload the page once the run is done (ADR-0004).
 const fortschritt = (() => {
   const kacheln = [...document.querySelectorAll("li[data-status]")];
   if (!kacheln.length) return {};

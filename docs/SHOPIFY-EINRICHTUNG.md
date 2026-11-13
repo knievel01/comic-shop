@@ -1,6 +1,6 @@
 # Shopify einrichten (Dev-Dashboard-App)
 
-Grundlage: ADR-0021. Stand der Oberfläche: November 2026; Shopify baut sie öfter um, die Namen der
+Grundlage: ADR-0012. Stand der Oberfläche: November 2026; Shopify baut sie öfter um, die Namen der
 Menüpunkte können abweichen. Zugangsdaten gehören nie ins Repo und nie in den Chat.
 
 ## 1. App anlegen (einmalig, im Shopify-Admin und Dev Dashboard)

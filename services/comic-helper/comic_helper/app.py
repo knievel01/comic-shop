@@ -104,7 +104,7 @@ templates.env.filters.update(sekunden=_fmt_seconds, minuten=_fmt_minutes, usd=_f
 
 
 def conditions_of(d: dict) -> list[int]:
-    """Conditions of a review decision: one, or the range of a lot (ADR-0026). Older decisions only have zustand."""
+    """Conditions of a review decision: one, or the range of a lot (ADR-0012). Older decisions only have zustand."""
     return d.get("zustaende") or [d["zustand"]]
 
 
@@ -267,7 +267,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     return _summary(copy_id, sidecar, s)
 
 
-# Progress of a running recognition, shown live on the review list (ADR-0024)
+# Progress of a running recognition, shown live on the review list (ADR-0004)
 STEPS = ("bilder", "erkennung", "preissuche")
 
 
@@ -458,7 +458,7 @@ STATUS_LABELS = {
     "aktiv": "Zuletzt in den Shop",
 }
 REVIEWABLE = ("offen", "fehler")
-# Group order on the list page: scans still in workflow 01 on top (live progress, ADR-0024), then work to do,
+# Group order on the list page: scans still in workflow 01 on top (live progress, ADR-0004), then work to do,
 # then what is still in the pipeline
 GROUP_ORDER = ("in-arbeit", "neu", "offen", "fehler", "bestaetigt", "aktiv")
 SHOP_LIST_LIMIT = 30  # last copies added to the shop, shown greyed out, newest first (read-only, ADR-0025)
@@ -519,7 +519,7 @@ def review_statistics(seite: str, request: Request, store: Store = Depends(get_s
 
 @app.get("/review/fortschritt", dependencies=[Depends(require_reviewer)])
 def review_progress(ids: str = "", store: Store = Depends(get_store)):
-    """Status and current workflow step of scans in eingang/, polled by the list page (ADR-0024)."""
+    """Status and current workflow step of scans in eingang/, polled by the list page (ADR-0004)."""
     wanted = [i for i in ids.split(",") if i][:50]
     out = {}
     for copy_id in wanted:
@@ -552,8 +552,8 @@ def max_lot_size(cfg: dict) -> int:
 @app.post("/review/hochladen", dependencies=[Depends(require_reviewer)])
 def upload_photos(cover: UploadFile = File(...), rueckseite: UploadFile = File(...), anzahl: int = Form(1),
                   store: Store = Depends(get_store), s: Settings = Depends(get_settings), cfg: dict = Depends(get_cfg)):
-    """Second intake besides the scanner (ADR-0018): two photos -> eingang/{uuid}.pdf, status=neu.
-    anzahl > 1: the photos show one sample of a lot of identical copies (ADR-0026), kept as tag until review."""
+    """Second intake besides the scanner (ADR-0007): two photos -> eingang/{uuid}.pdf, status=neu.
+    anzahl > 1: the photos show one sample of a lot of identical copies (ADR-0012), kept as tag until review."""
     def back(msg: str):
         return RedirectResponse(f"/review/hochladen?fehler={quote_plus(msg)}", status_code=303)
 
@@ -629,7 +629,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
 @app.post("/review/{copy_id}/preis-suchen", dependencies=[Depends(require_reviewer)])
 def review_search_price(copy_id: str, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
                         s: Settings = Depends(get_settings), claude: anthropic.Anthropic = Depends(get_claude)):
-    """Runs the automatic price search again for an open copy (ADR-0022)."""
+    """Runs the automatic price search again for an open copy (ADR-0011)."""
     _check_id(copy_id)
     key = store.pdf_key(EINGANG, copy_id)
     side_key = store.sidecar_key(EINGANG, copy_id)
@@ -666,7 +666,7 @@ def review_retry(copy_id: str, store: Store = Depends(get_store)):
 
 @app.post("/review/{copy_id}/loeschen", dependencies=[Depends(require_reviewer)])
 def review_delete(copy_id: str, store: Store = Depends(get_store)):
-    """Moves a reviewable copy to papierkorb/ (ADR-0019); nothing is deleted for good."""
+    """Moves a reviewable copy to papierkorb/ (ADR-0004); nothing is deleted for good."""
     _check_id(copy_id)
     key = store.pdf_key(EINGANG, copy_id)
     if not store.exists(key):
@@ -680,7 +680,7 @@ def review_delete(copy_id: str, store: Store = Depends(get_store)):
 
 @app.post("/review/{copy_id}/zurueckholen", dependencies=[Depends(require_reviewer)])
 def review_reopen(copy_id: str, store: Store = Depends(get_store)):
-    """Takes a confirmation back while the copy is not yet in Shopify (ADR-0020); the decision stays as prefill."""
+    """Takes a confirmation back while the copy is not yet in Shopify (ADR-0006); the decision stays as prefill."""
     _check_id(copy_id)
     key = store.pdf_key(EINGANG, copy_id)
     if not store.exists(key):

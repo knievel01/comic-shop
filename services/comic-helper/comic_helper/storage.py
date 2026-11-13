@@ -6,7 +6,7 @@ Layout per copy ("Exemplar", id = UUID from the scan upload):
     eingang/<id>.json    sidecar: AI proposal, review decision, Shopify ids (mutable working state)
     aktiv/<id>.pdf       confirmed + in Shopify; final metadata on the object. Stays here when
                          sold: sales live in Shopify only (ADR-0025)
-    papierkorb/<id>.pdf  deleted in the review UI, restorable (ADR-0019)
+    papierkorb/<id>.pdf  deleted in the review UI, restorable (ADR-0004)
     bilder/<id>-1.jpg    cover / bilder/<id>-2.jpg back (for review UI and Shopify media)
 
 Object tags are mutable and cheap, user metadata is not (only via CopyObject with
@@ -119,7 +119,7 @@ class Store:
 
     def put_new_scan(self, copy_id: str, pdf: bytes, anzahl: int = 1) -> str:
         """Same contract as comics-scan-sync: never overwrite, tagged status=neu in one call.
-        anzahl > 1 (lot, ADR-0026) is kept as tag until the review takes it over."""
+        anzahl > 1 (lot, ADR-0012) is kept as tag until the review takes it over."""
         key = self.pdf_key(EINGANG, copy_id)
         tagging = "status=neu" + (f"&anzahl={anzahl}" if anzahl > 1 else "")
         self.s3.put_object(Bucket=self.bucket, Key=key, Body=pdf, ContentType="application/pdf",

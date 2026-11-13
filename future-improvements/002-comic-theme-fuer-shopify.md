@@ -3,7 +3,7 @@
 - **Stand:** Entwurf, 05.11.2026
 - **Auslöser:** Nach dem Go-Live (`docs/GO-LIVE.md`), wenn der Shop mit dem Standard-Theme läuft und die ersten
   Produkte freigeschaltet sind.
-- **Betroffene ADRs:** 0012 (Variante je Exemplar), 0026 (Sammelposten), 0025 (kein Zugang aus dem Internet),
+- **Betroffene ADRs:** 0012 (Variante je Exemplar, Sammelposten), 0025 (kein Zugang aus dem Internet),
   0011 (Comicguide-Texte nicht übernehmen). Umsetzung erst nach einem eigenen ADR.
 
 ## Kernaussage
@@ -56,7 +56,7 @@ Headless lohnt sich erst bei Funktionen, die ein Theme nicht kann (z. B. eigene 
   ausblenden (Bestand 0, ADR-0012).
 - **Bilder je Variante:** Beim Wechsel des Exemplars die zugehörigen Scans (Cover und Rückseite) zeigen. Jede
   Variante hat ihr eigenes Bild (`mediaSrc` beim Anlegen); die Galerie muss nach der gewählten Variante filtern.
-- **Sammelposten (ADR-0026):** Varianten „Sammelposten · Zustand 1–3“ deutlich kennzeichnen (Stern
+- **Sammelposten (ADR-0012):** Varianten „Sammelposten · Zustand 1–3“ deutlich kennzeichnen (Stern
   „Sammelposten“), den Erklärtext aus der Beschreibung direkt an der Auswahl zeigen, Bilder als
   „Beispielexemplar“ beschriften, Stückzahl „noch x Stück“ anzeigen.
 - **Zustandsskala:** Die Beschreibungen der Stufen 0–4 stehen schon in der Produktbeschreibung
@@ -81,7 +81,7 @@ Headless lohnt sich erst bei Funktionen, die ein Theme nicht kann (z. B. eigene 
 
 - Neues ADR „Webshop als eigenes Shopify-Theme im Repo“ (Theme-Quelltext unter `shop-theme/`, Shopify CLI,
   erst Entwicklungsshop, dann echter Shop).
-- 0012/0026: keine Änderung am Datenmodell; das Theme stellt es nur dar.
+- 0012: keine Änderung am Datenmodell; das Theme stellt es nur dar.
 - 0025: unberührt, der Comic-Rechner bleibt ohne Zugang aus dem Internet.
 - 0011: keine Comicguide-Texte oder -Bilder im Shop (Zustandstexte sind eigene Worte).
 

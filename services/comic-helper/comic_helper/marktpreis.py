@@ -1,7 +1,7 @@
-"""Automatic price suggestion from used-book offers on Booklooker and ZVAB (ADR-0022).
+"""Automatic price suggestion from used-book offers on Booklooker and ZVAB (ADR-0011).
 
 The search is done by Anthropic's web search tool, not by this service: we never request
-booklooker.de or zvab.com ourselves (their robots.txt blocks programs, ADR-0017). Claude only
+booklooker.de or zvab.com ourselves (their robots.txt blocks programs, ADR-0011). Claude only
 reports offers it literally found (price, link); the median and the explanation are computed here.
 A failed or empty search never blocks recognition - the reviewer then enters the price by hand.
 """

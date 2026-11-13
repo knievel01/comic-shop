@@ -1,5 +1,5 @@
 ---
-- name: Cinnamon desktop (ADR-0032)
+- name: Cinnamon desktop (ADR-0001)
   ansible.builtin.apt:
     name: [cinnamon-desktop-environment, gnome-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg]
     state: present

@@ -2,9 +2,9 @@
 
 Options: "Zustand" (e.g. "1 – sehr gut") and "Exemplar" (a, b, c, ...). Every variant has
 quantity 1 and a unique SKU ending in the copy's short id, so a copy in the shop can be traced
-back to its scan in S3 (ADR-0013). Sales are handled in Shopify only (ADR-0025).
+back to its scan in S3 (ADR-0012). Sales are handled in Shopify only (ADR-0025).
 
-Lots (ADR-0026): several identical copies, one scan as sample, one variant with quantity n and
+Lots (ADR-0012): several identical copies, one scan as sample, one variant with quantity n and
 Zustand "Sammelposten · Zustand 1–3". The product description then explains what a lot means.
 """
 
@@ -28,7 +28,7 @@ class ShopifyError(Exception):
     pass
 
 
-# Dev Dashboard apps have no permanent token: client id + secret are exchanged for a 24 h token (ADR-0021).
+# Dev Dashboard apps have no permanent token: client id + secret are exchanged for a 24 h token (ADR-0012).
 # The helper builds a client per request, so the token is cached per process.
 _TOKENS: dict[tuple[str, str], tuple[str, float]] = {}
 _TOKEN_LOCK = threading.Lock()
@@ -107,7 +107,7 @@ LOT_MARKER = "Sammelposten:</strong>"
 
 
 def lot_paragraph(zustaende: Sequence[int], cfg: dict) -> str:
-    """Explains lots in the product description (ADR-0026), with this lot as example."""
+    """Explains lots in the product description (ADR-0012), with this lot as example."""
     label = html.escape(pricing.lot_label(zustaende))
     return (
         f"<p><strong>{LOT_MARKER} Von diesem Heft haben wir mehrere Exemplare. "
@@ -233,7 +233,7 @@ class Shopify:
     def add_copy(self, *, copy_short_id: str, proposal: dict, zustand: int | Sequence[int], price: float,
                  image_urls: list[str], cfg: dict, anzahl: int = 1) -> VariantResult:
         """Idempotent: if a variant with this copy's SKU suffix exists, return it.
-        anzahl > 1 creates a lot: quantity anzahl, condition range as option value (ADR-0026)."""
+        anzahl > 1 creates a lot: quantity anzahl, condition range as option value (ADR-0012)."""
         titel, ausgabe, verlag = proposal["titel"], proposal.get("ausgabe", ""), proposal.get("verlag", "")
         zustaende = pricing.condition_range([zustand] if isinstance(zustand, int) else zustand, cfg)
         lot = anzahl > 1

@@ -10,18 +10,19 @@ Comic-Shop-Automatisierung: Scan → S3 → Erkennung (Claude) → Review → Sh
 1. Vor jeder Änderung an Architektur, Datenhaltung, Sicherheit, Infrastruktur oder Fachlogik die
    betroffenen ADRs lesen. Code, Konfiguration, Workflows und Doku müssen den akzeptierten ADRs entsprechen.
 2. Widerspricht eine Aufgabe einem akzeptierten ADR, nicht stillschweigend abweichen: den Konflikt
-   benennen und zuerst ein neues ADR vorschlagen (Vorlage `docs/adr/_vorlage.md`, nächste freie Nummer).
-   Das alte ADR bekommt den Status `Ersetzt durch ADR-NNNN`; bestehende ADRs werden nicht umgeschrieben.
-3. Neue tragende Entscheidungen (neue Komponente, Datenablage, externer Dienst, Format, Ablauf)
-   bekommen ein eigenes ADR im selben Commit wie die Umsetzung, Eintrag in `docs/adr/README.md`.
-4. ADRs mit Status `Vorgeschlagen` (z. B. 0010 Erkennung, 0012 Shopify-Modell) gelten vorläufig;
-   bei Klärung auf `Akzeptiert` setzen oder per Folge-ADR ersetzen.
+   benennen und das ADR ändern lassen. Ein ADR beschreibt den **aktuellen Stand** und wird angepasst
+   (Verlauf steht in Git); nur ein ganz anderes Thema bekommt ein neues ADR (`docs/adr/_vorlage.md`).
+3. Nur tragende Entscheidungen bekommen ein ADR (schwer rückgängig, nicht aus dem Code ablesbar, echte
+   Alternativen). Vorher prüfen, ob ein bestehendes ADR sie aufnehmen kann. Funktionen der Oberfläche,
+   Konfigurationswerte und Betriebsschritte gehören in die Doku, nicht in ein ADR (siehe ADR-0000).
+   Das ADR kommt im selben Commit wie die Umsetzung; Übersicht in `docs/adr/README.md`.
+4. ADRs mit Status `Vorgeschlagen` (0010 Erkennung) gelten vorläufig; bei Klärung auf `Akzeptiert` setzen.
 5. In Commit-Messages und PRs die betroffenen ADRs nennen (z. B. „gemäß ADR-0004“).
 
 Weitere Doku: `docs/ARCHITEKTUR.md` (Datenfluss, Zustände), `docs/PLAN.md` (Plan und Status).
 `future-improvements/` enthält nur Ideen und Ausbaupläne; daraus wird erst nach einem akzeptierten ADR umgesetzt.
 
-## Sandbox zuerst (ADR-0027, ADR-0039)
+## Sandbox zuerst (ADR-0027)
 
 Jede Änderung an comic-helper, Workflows und `config/pricing.yaml` wird zuerst in der Sandbox auf dem MacBook
 (OrbStack, Docker Compose) ausgerollt und dort geprüft (`docs/SANDBOX-MAC.md`: `scripts/sandbox-orbstack.sh up`,
@@ -29,7 +30,7 @@ geänderte Workflows per `import`), erst danach auf dem Comic-Rechner (`sudo com
 `infra/k3s/` und `os/` lassen sich dort nicht prüfen (kein K3s): rendern und zuerst auf dem Comic-Rechner beobachten.
 Die Sandbox nutzt nie Produktivdaten.
 
-Rollout auf den Comic-Rechner vom Mac aus (ADR-0040): erst Merge nach `main` (der Rechner zieht `main`), dann
+Rollout auf den Comic-Rechner vom Mac aus (ADR-0027): erst Merge nach `main` (der Rechner zieht `main`), dann
 `ssh -i ~/.ssh/id_ed25519_comics comicadmin@192.168.40.120 'sudo comics-update --tags apps'`.
 
 ## Regeln
@@ -50,7 +51,7 @@ Rollout auf den Comic-Rechner vom Mac aus (ADR-0040): erst Merge nach `main` (de
 ```
 os/                 Autoinstall-ISO, Ansible-Rollen (ansible-pull)
 infra/k3s/          Kubernetes-Manifeste (Kustomize), Namespace comics
-infra/sandbox-orbstack/  Docker-Compose-Sandbox für das MacBook (ADR-0039)
+infra/sandbox-orbstack/  Docker-Compose-Sandbox für das MacBook (ADR-0027)
 infra/aws/          Terraform für S3-Bucket und IAM
 services/comic-helper/  Python-Dienst (FastAPI): S3, PDF→Bild, Claude, Preise, Shopify, Review-UI
 workflows/          exportierte n8n-Workflows (JSON)

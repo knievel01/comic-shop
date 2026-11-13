@@ -4,7 +4,7 @@
 
 ### 1. Shopify
 
-1. App im Dev Dashboard anlegen und installieren: siehe `docs/SHOPIFY-EINRICHTUNG.md` (ADR-0021).
+1. App im Dev Dashboard anlegen und installieren: siehe `docs/SHOPIFY-EINRICHTUNG.md` (ADR-0012).
    Client-ID → `SHOPIFY_CLIENT_ID`, Client-Schlüssel → `SHOPIFY_CLIENT_SECRET`,
    Shop-Domain (`xyz.myshopify.com`) → `SHOPIFY_SHOP_DOMAIN`. (Ältere benutzerdefinierte App: Token → `SHOPIFY_ADMIN_TOKEN`.)
 2. Standort-ID (Einstellungen → Standorte, Zahl in der URL) → `SHOPIFY_LOCATION_ID`.

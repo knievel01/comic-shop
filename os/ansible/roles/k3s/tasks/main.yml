@@ -57,7 +57,7 @@
   failed_when: false
   register: scan_user_entry
 
-- name: Kubeconfig for the scan user (full cluster admin, ADR-0037)
+- name: Kubeconfig for the scan user (full cluster admin, ADR-0025)
   when: (scan_user_entry.ansible_facts | default({})).getent_passwd is defined
   block:
     - name: kube directory for the scan user

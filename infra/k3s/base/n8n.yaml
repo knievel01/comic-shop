@@ -63,7 +63,7 @@ spec:
             - { name: TZ, value: Europe/Berlin }
             - { name: N8N_DEFAULT_LOCALE, value: de }
             - { name: N8N_PROXY_HOPS, value: "1" }
-            # LAN only over plain http (ADR-0034): the editor login must not require a secure cookie.
+            # LAN only over plain http (ADR-0025): the editor login must not require a secure cookie.
             - { name: N8N_SECURE_COOKIE, value: "false" }
             - { name: N8N_DIAGNOSTICS_ENABLED, value: "false" }
             - { name: N8N_VERSION_NOTIFICATIONS_ENABLED, value: "false" }

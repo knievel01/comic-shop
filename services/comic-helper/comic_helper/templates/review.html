@@ -252,7 +252,7 @@ function update() {
 }
 const zustaende = () => [...document.querySelectorAll("input[name=zustand]:checked")].map(i => i.value);
 const anzahl = () => Math.max(1, parseInt(document.getElementById("anzahl").value, 10) || 1);
-// Factor of a lot = rule over the factors of all conditions in the range (pricing.combined_factor, ADR-0026)
+// Factor of a lot = rule over the factors of all conditions in the range (pricing.combined_factor, ADR-0012)
 function faktor(zs) {
   const f = zs.map(z => Number(CFG.faktoren[z]));
   if (f.length === 1) return f[0];

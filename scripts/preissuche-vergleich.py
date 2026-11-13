@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compares the automatic price search (ADR-0022) between models on already recognized comics.
+"""Compares the automatic price search (ADR-0011) between models on already recognized comics.
 
 Runs inside the comic-helper pod (needs S3 and the Anthropic key), nothing is written back:
   kubectl -n comics exec -i deploy/comic-helper -- python - [max_comics] [model,model,...] [max_tokens] < scripts/preissuche-vergleich.py

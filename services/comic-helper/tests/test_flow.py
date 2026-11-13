@@ -179,7 +179,7 @@ def test_full_lifecycle(env):
     page = c.get("/review/?fertig=1")
     assert "Offene Comics (0)" in page.text and 'id="status-bestaetigt"' in page.text
     assert 'id="status-offen"' not in page.text   # empty groups are not shown
-    assert f'href="/review/{cid}"' in page.text   # still opens, read-only, to take it back (ADR-0020)
+    assert f'href="/review/{cid}"' in page.text   # still opens, read-only, to take it back (ADR-0006)
     # second submit is rejected
     assert c.post(f"/review/{cid}", data=review_form(), follow_redirects=False).status_code == 409
 
@@ -522,7 +522,7 @@ def _upload_lot(env, monkeypatch, anzahl: str) -> str:
 
 
 def test_lot_from_upload_to_shopify(env, monkeypatch):
-    """ADR-0026: one sample photo, 20 copies, condition range 1-3 -> one variant with quantity 20."""
+    """ADR-0012: one sample photo, 20 copies, condition range 1-3 -> one variant with quantity 20."""
     c = env.client
     cid = _upload_lot(env, monkeypatch, "20")
     assert env.store.get_tags(f"eingang/{cid}.pdf") == {"status": "neu", "anzahl": "20"}

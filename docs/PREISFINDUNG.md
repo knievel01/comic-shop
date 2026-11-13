@@ -23,7 +23,7 @@ Beispiel: Comicguide Z1 = 10,00 €, Zustand 2 → 10 × 0,4 × 1,5 = 6,00 € �
 
 Nur ganze Stufen. Unvollständige Hefte („Zustand 5“) gehen nicht über den Shop.
 
-**Sammelposten** (ADR-0026, mehrere gleiche Hefte mit Zustandsbereich): Der Faktor ist der Mittelwert der
+**Sammelposten** (ADR-0012, mehrere gleiche Hefte mit Zustandsbereich): Der Faktor ist der Mittelwert der
 Faktoren aller Zustände im Bereich (`sammelposten.preisregel`, alternativ `schlechtester` oder `bester`).
 Beispiel: Z1 = 10,00 €, Zustand 1–3 → 10 × (1,0 + 0,4 + 0,2) / 3 × 1,5 = 8,00 € → **7,99 €** je Heft.
 
@@ -34,13 +34,13 @@ die Trefferquote später auswerten lässt.
 
 ## Ablauf im Formular
 
-> **Preisquelle (ADR-0028):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den
+> **Preisquelle (ADR-0011):** Vorausgewählt ist die Quelle `booklooker`. Die Fachkraft öffnet den
 > Booklooker-Link, wählt ein vergleichbares Angebot (gleiche Ausgabe, Zustand 1) und trägt dessen
 > Preis als Z1 ein, dazu als **Beleg** den Link auf das Angebot (Pflicht). Aufschlag für diese Quelle
 > 1,0 (`aufschlag_je_quelle`), weil Angebote schon Endkundenpreise sind. Kein automatischer Abruf:
 > Booklooker sperrt Programme per `robots.txt`. Mit einer Comicguide-Lizenz wird per Folge-ADR auf `comicguide` umgestellt.
 >
-> **Automatischer Vorschlag (ADR-0022):** Bei der Erkennung sucht die Anthropic-Websuche gebrauchte
+> **Automatischer Vorschlag (ADR-0011):** Bei der Erkennung sucht die Anthropic-Websuche gebrauchte
 > Angebote bei Booklooker und ZVAB (der Dienst ruft die Seiten nicht selbst ab). Der **Median** der
 > gefundenen Preise (ohne Versand, mindestens 2 Angebote) füllt Preis, Beleg-Link und die Notiz vor.
 > Die Notiz nennt Datum, alle Preise, Vorgehen und Links. Ändern geht jederzeit, der Knopf „Preis

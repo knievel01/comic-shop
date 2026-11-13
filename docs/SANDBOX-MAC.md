@@ -1,6 +1,6 @@
 # Sandbox auf dem MacBook mit OrbStack
 
-Gemäß ADR-0039 (ersetzt ADR-0038): Die Sandbox läuft als **Docker Compose in OrbStack**, ohne K3s.
+Gemäß ADR-0027 (ersetzt ADR-0027): Die Sandbox läuft als **Docker Compose in OrbStack**, ohne K3s.
 Alles dafür liegt im Repo: `infra/sandbox-orbstack/compose.yaml` und `scripts/sandbox-orbstack.sh`.
 Jede Änderung an comic-helper, Workflows und `config/pricing.yaml` kommt zuerst hierher (ADR-0027),
 danach auf den Comic-Rechner. Die Sandbox nutzt nie Produktivdaten.
@@ -37,7 +37,7 @@ Legt `~/.config/comics/comics.env` (Rechte 600) aus `.env.example` an und erzeug
 `POSTGRES_PASSWORD` und `HELPER_TOKEN` zufällig. `WEBHOOK_URL` und `REVIEW_BASE_URL` zeigen auf `localhost`.
 Danach im Editor mindestens `S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` und `ANTHROPIC_API_KEY` eintragen.
 Shopify nur mit Entwicklungsshop. Format `NAME=wert`, keine Anführungszeichen. Werte nicht in Chats oder Tickets kopieren.
-Der Test-Bucket ist ein eigener, nicht der Produktiv-Bucket (ADR-0035).
+Der Test-Bucket ist ein eigener, nicht der Produktiv-Bucket (ADR-0027).
 
 ### 3. Starten
 ```bash
@@ -72,7 +72,7 @@ als Alias, es ist nichts an den Workflows zu ändern.
 
 ### 5. Erster Test
 In der Review-Oberfläche **Hochladen**, ein Foto vom Cover und eins von der Rückseite wählen. Der comic-helper legt die
-zweiseitige PDF unter `eingang/{UUID}.pdf` mit `status=neu` ab (ADR-0018). Workflow 01 holt sie innerhalb weniger
+zweiseitige PDF unter `eingang/{UUID}.pdf` mit `status=neu` ab (ADR-0007). Workflow 01 holt sie innerhalb weniger
 Minuten ab; danach steht das Exemplar unter „Zu prüfen“.
 
 ### 6. Täglicher Betrieb
@@ -86,7 +86,7 @@ Minuten ab; danach steht das Exemplar unter „Zu prüfen“.
 dessen Einstellungen beim Login starten. Schläft der Mac, stehen die Container still; laufende Tests also wach halten
 (`caffeinate -i`).
 
-### 7. Vom Handy erreichen (optional, nicht Teil von ADR-0039)
+### 7. Vom Handy erreichen (optional, nicht Teil von ADR-0027)
 Die Ports sind absichtlich nur lokal. Wer die Sandbox unterwegs braucht, installiert Tailscale auf dem Mac und
 veröffentlicht den Port im Tailnet mit `tailscale serve`; die genaue Syntax ist **nicht geprüft**, bitte vor Gebrauch
 `tailscale serve --help` lesen. Ports auf `0.0.0.0` zu öffnen ist keine Lösung: Ohne `REVIEW_PASSWORD` könnte dann jedes
@@ -96,7 +96,7 @@ Gerät im Netz Comics bestätigen und hochladen.
 
 Kubernetes-Besonderheiten aus `infra/k3s`: Ingress-Pfade, `securityContext`, Probes, Secret-Einbindung, Volumes. Änderungen an
 `infra/k3s/` und `os/` werden gerendert (`kubectl kustomize infra/k3s`) und beim ersten Rollout bewusst auf dem
-Comic-Rechner beobachtet (ADR-0039). Außerdem: `arm64` hier gegen `amd64` auf dem Comic-Rechner.
+Comic-Rechner beobachtet (ADR-0027). Außerdem: `arm64` hier gegen `amd64` auf dem Comic-Rechner.
 
 Die Image-Versionen von Postgres und n8n stehen in `infra/k3s/base/` **und** in `infra/sandbox-orbstack/compose.yaml`.
 Wer eine ändert, ändert beide.

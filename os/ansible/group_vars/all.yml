@@ -6,11 +6,11 @@ comics_admin_user: comicadmin
 
 # Single machine for everything (decision 1). Set to false on a headless server.
 comics_desktop_enabled: true
-# Laptop as host (ADR-0029): lid closed keeps running, optional Wi-Fi fallback from comics.env.
+# Laptop as host (ADR-0001): lid closed keeps running, optional Wi-Fi fallback from comics.env.
 comics_laptop: true
-# Off until a SANE scanner is connected (ADR-0029).
+# Off until a SANE scanner is connected (ADR-0001).
 comics_scanner_enabled: false
-# Tethered Canon camera via gphoto2 (ADR-0030); the upload via review UI (ADR-0018) stays available.
+# Tethered Canon camera via gphoto2 (ADR-0007); the upload via review UI (ADR-0007) stays available.
 comics_camera_enabled: true
 comics_camera_max_edge: 3000
 comics_camera_jpeg_quality: 88

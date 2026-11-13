@@ -29,11 +29,11 @@ zustaende:
 
 # Sepps Aufschlag auf den Comicguide-Preis
 aufschlag: 1.5
-# Abweichender Aufschlag je Preisquelle. Booklooker-Angebote sind bereits Endkundenpreise (ADR-0028).
+# Abweichender Aufschlag je Preisquelle. Booklooker-Angebote sind bereits Endkundenpreise (ADR-0011).
 aufschlag_je_quelle:
   booklooker: 1.0
 
-# Sammelposten (ADR-0026): mehrere gleiche Hefte als ein Artikel mit Menge > 1 und Zustandsbereich (z. B. 1–3).
+# Sammelposten (ADR-0012): mehrere gleiche Hefte als ein Artikel mit Menge > 1 und Zustandsbereich (z. B. 1–3).
 # Preisfaktor aus den Faktoren aller Zustände im Bereich: mittelwert | schlechtester | bester
 sammelposten:
   preisregel: mittelwert
@@ -57,7 +57,7 @@ konfidenz_schwelle: 0.80
 
 # Erlaubte Preisquellen (werden als S3-Metadatum gespeichert)
 preisquellen: [booklooker, comicguide, coverpreis, katalog, manuell]
-# Im Formular vorausgewählt: booklooker, bis eine Comicguide-Lizenz vorliegt (ADR-0028)
+# Im Formular vorausgewählt: booklooker, bis eine Comicguide-Lizenz vorliegt (ADR-0011)
 standard_preisquelle: booklooker
 # Quellen, bei denen ein Beleg (Link auf das Angebot) Pflicht ist
 beleg_pflicht: [booklooker]
@@ -70,8 +70,8 @@ suchlinks:
   Booklooker: https://www.booklooker.de/B%C3%BCcher/Angebote/titel={q}
   GCD: https://www.comics.org/searchNew/?q={q}
 
-# Automatischer Preisvorschlag (ADR-0022): Median gebrauchter Angebote bei Booklooker/ZVAB, gefunden per
-# Anthropic-Websuche (kein eigener Abruf dieser Seiten, ADR-0028). Aus = nur Coverpreis-Vorschlag.
+# Automatischer Preisvorschlag (ADR-0011): Median gebrauchter Angebote bei Booklooker/ZVAB, gefunden per
+# Anthropic-Websuche (kein eigener Abruf dieser Seiten, ADR-0011). Aus = nur Coverpreis-Vorschlag.
 marktpreis:
   aktiv: true
   min_angebote: 2     # weniger belegte Angebote -> kein Vorschlag
@@ -82,7 +82,7 @@ marktpreis:
 
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
-  # Go-Live: erst DRAFT, ab 12.11.2026 auf Wunsch des Betreibers ACTIVE (ADR-0028). Änderung zuerst in der Sandbox (ADR-0027).
+  # Go-Live: erst DRAFT, ab 12.11.2026 auf Wunsch des Betreibers ACTIVE (ADR-0011). Änderung zuerst in der Sandbox (ADR-0027).
   # Sichtbar im Online-Shop nur mit SHOPIFY_PUBLICATION_IDS in comics.env (sonst aktiv, aber ohne Vertriebskanal).
   produkt_status: ACTIVE
   produkt_typ: Comic

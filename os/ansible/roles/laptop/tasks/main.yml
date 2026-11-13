@@ -1,5 +1,5 @@
 ---
-# Laptop as the comic machine (ADR-0029): keep running with the lid closed, optional Wi-Fi fallback.
+# Laptop as the comic machine (ADR-0001): keep running with the lid closed, optional Wi-Fi fallback.
 - name: logind drop-in directory
   ansible.builtin.file:
     path: /etc/systemd/logind.conf.d

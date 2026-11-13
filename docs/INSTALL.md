@@ -35,14 +35,14 @@ SSH_KEYS_FILE=~/.ssh/id_ed25519.pub REPO_URL=https://github.com/<user>/comic-sho
 > Bei privatem Repo nach dem ersten Boot einen Deploy-Key unter `/root/.ssh/` hinterlegen,
 > `REPO_URL` in `/etc/comics/repo.conf` auf die SSH-URL ändern und `sudo comics-update` ausführen.
 
-## Laptop als Rechner (ADR-0029)
+## Laptop als Rechner (ADR-0001)
 
 - Erster Lauf von ansible-pull braucht **Kabel-LAN** (Adapter reicht). WLAN als Fallback: `WIFI_SSID` und
   `WIFI_PASSWORD` in `/etc/comics/comics.env`, dann `sudo comics-update --tags laptop`.
 - Deckel zuklappen ist erlaubt, der Rechner schläft nicht. BIOS: „Power on after AC loss“ falls vorhanden,
   Ladelimit 80 %.
 - Scanner ist per Standard aus (`comics_scanner_enabled: false`). Eingang ist die Canon-Kamera per USB:
-  `comics-capture` als Benutzer `scan` (ADR-0030), Test mit `comics-capture --probe`.
+  `comics-capture` als Benutzer `scan` (ADR-0007), Test mit `comics-capture --probe`.
 
 ## 1. ISO herunterladen und prüfen
 
@@ -60,7 +60,7 @@ lsblk                                   # Stick identifizieren!
 sudo dd if=comics-comics-01.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-## 2b. Alternative: Netzwerkboot ohne USB-Stick (ADR-0031)
+## 2b. Alternative: Netzwerkboot ohne USB-Stick (ADR-0002)
 
 Auf einem Rechner im selben LAN: `scripts/netboot.sh` (braucht `dnsmasq`, `xorriso`, signiertes Shim/GRUB, ufw).
 Das Laptop per **Kabel** anschließen, per UEFI-Netzwerkboot starten (F12), Menüeintrag bestätigen.
@@ -119,7 +119,7 @@ sudo /opt/comic-shop/scripts/verify.sh            # mit Probe-Scan (Scanner ange
 sudo /opt/comic-shop/scripts/verify.sh --skip-scan
 ```
 
-Danach n8n im Browser öffnen: `http://comics-01/` (nur LAN, kein Zertifikat, ADR-0034),
+Danach n8n im Browser öffnen: `http://comics-01/` (nur LAN, kein Zertifikat, ADR-0025),
 Owner-Konto anlegen, Workflows importieren (`docs/BETRIEB.md` → „Workflows einspielen“).
 
 ## Abnahme (Phase 2)

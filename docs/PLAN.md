@@ -13,8 +13,8 @@ Hardware/Konten · ⬜ offen (Entscheidung oder Handarbeit nötig)
 | 4 AWS | 🟡 | `infra/aws/` (terraform validate ok) | `terraform apply` mit Admin-Konto |
 | 5 Ingest | ✅ | Rolle `sync`, Workflow 01, `comic-helper` | in n8n 2.46 getestet (Docker) |
 | 6 Erkennung/Preis | 🟡 | `recognition.py`, `pricing.py`, `config/pricing.yaml`, `scripts/vergleichstest.py` | ⬜ Vergleichstest mit 50 Comics, Modellwahl, Schwelle; ⬜ Datenlizenz Star Media, Anfrage AbeBooks |
-| 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (ADR-0006); Live-Fortschritt von Workflow 01 auf der Kachel (ADR-0024); Statistik Kosten/Einsparung (ADR-0023) |
-| 9 Shopify | 🟡 | `shopify.py`, Workflow 02 | gegen Fake-API getestet; App im Dev Dashboard (ADR-0021, docs/SHOPIFY-EINRICHTUNG.md), im PoC-Shop als Entwurf getestet: Comic bestätigt, Produkt angelegt, Workflow 02 (aktiv) verschiebt nach `aktiv/`; ⬜ Kanal veröffentlichen, ⬜ Entscheidung Produktoption vs. Produkt je Zustand |
+| 7 Review | ✅ | `comic-helper` `/review/` | Status als S3-Tag, überlebt Neustarts (ADR-0006); Live-Fortschritt von Workflow 01 auf der Kachel (ADR-0004); Statistik Kosten/Einsparung (ADR-0006) |
+| 9 Shopify | 🟡 | `shopify.py`, Workflow 02 | gegen Fake-API getestet; App im Dev Dashboard (ADR-0012, docs/SHOPIFY-EINRICHTUNG.md), im PoC-Shop als Entwurf getestet: Comic bestätigt, Produkt angelegt, Workflow 02 (aktiv) verschiebt nach `aktiv/`; ⬜ Kanal veröffentlichen, ⬜ Entscheidung Produktoption vs. Produkt je Zustand |
 | 8 Metadaten | ✅ | `finalize`, `storage.py` | – |
 | 10 Verkauf | – | entfällt | Verkäufe nur in Shopify, kein Rückkanal, kein Workflow 03 (ADR-0025) |
 | 11 Tagesmail | ✅ | `report.py`, Workflow 04 | SMTP-Credential anlegen |
@@ -25,14 +25,14 @@ Entwickler-Rechners (`infra/k3s-poc/`, `scripts/poc-host-k3s.sh`, Anleitung `doc
 Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den Rollout aus Phase 2/3.
 
 Sandbox (05.11.2026): Der PoC bleibt als Sandbox, jede Änderung läuft zuerst dort (ADR-0027).
-Sandbox-Umzug (13.11.2026): Der PoC auf pro-mini ist abgebaut, die Sandbox läuft auf dem MacBook in OrbStack (ADR-0039,
+Sandbox-Umzug (13.11.2026): Der PoC auf pro-mini ist abgebaut, die Sandbox läuft auf dem MacBook in OrbStack (ADR-0027,
 `docs/SANDBOX-MAC.md`). `infra/k3s-poc/`, `scripts/poc-host-k3s.sh` und `docs/POC.md` sind aus dem Repo entfernt.
-Sammelposten (05.11.2026): mehrere gleiche Hefte als eine Variante mit Zustandsbereich (ADR-0026).
+Sammelposten (05.11.2026): mehrere gleiche Hefte als eine Variante mit Zustandsbereich (ADR-0012).
 
 Go-Live (05.11.2026): PoC abgenommen, Rollout auf den Comic-Rechner in der Woche ab 09.11.2026,
 Entscheidungen, Aufgaben und Zeitplan in `docs/GO-LIVE.md`.
 
-Abweichungen vom Plan und Begründungen: ADRs in `docs/adr/` (v. a. 0005, 0006, 0013). Die wichtigsten:
+Abweichungen vom Plan und Begründungen: ADRs in `docs/adr/` (v. a. 0005, 0006, 0012). Die wichtigsten:
 Fachlogik im Python-Dienst `comic-helper` statt in n8n-Nodes; Review-Oberfläche dort statt n8n-Form/Wait;
 SKU endet auf 12 Stellen der Exemplar-UUID statt auf a/b/c (der Buchstabe bleibt Shopify-Option).
 

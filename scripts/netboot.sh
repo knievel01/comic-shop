@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Serves the comics installer ISO for UEFI network boot (ADR-0031): proxyDHCP + TFTP + HTTP on this machine.
+# Serves the comics installer ISO for UEFI network boot (ADR-0002): proxyDHCP + TFTP + HTTP on this machine.
 # The router's DHCP stays untouched; dnsmasq only adds the boot file for PXE clients.
 #
 #   sudo not needed up front (uses sudo for dnsmasq/ufw). Stop with Ctrl+C, everything is cleaned up.

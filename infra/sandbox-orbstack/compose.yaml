@@ -1,4 +1,4 @@
-# Sandbox on the MacBook in OrbStack (ADR-0039, docs/SANDBOX-MAC.md), not the comic machine.
+# Sandbox on the MacBook in OrbStack (ADR-0027, docs/SANDBOX-MAC.md), not the comic machine.
 # Same images, ports and service names as infra/k3s, but plain Docker Compose: no K3s, no Traefik,
 # no ingress. Start it with scripts/sandbox-orbstack.sh; the secrets come from
 # ~/.config/comics/comics.env (COMICS_ENV_FILE), never from this file.

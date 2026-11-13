@@ -1,5 +1,5 @@
 ---
-# Tethered camera capture (ADR-0030): gphoto2 -> two JPEGs -> two-page PDF in {{ comics_scan_dir }}/neu.
+# Tethered camera capture (ADR-0007): gphoto2 -> two JPEGs -> two-page PDF in {{ comics_scan_dir }}/neu.
 - name: Camera tools
   ansible.builtin.apt:
     name: [gphoto2, libgphoto2-6, img2pdf, imagemagick, poppler-utils]

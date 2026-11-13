@@ -1,10 +1,10 @@
 """Price calculation following Sepp's practice (docs/PREISFINDUNG.md).
 
-    base (condition 1) = Comicguide price Z1, Booklooker offer (PoC, ADR-0017),
+    base (condition 1) = Comicguide price Z1, Booklooker offer (PoC, ADR-0011),
                          or cover price x 2/3 for titles still in print
     price              = base x condition factor x markup (per source), rounded to shop price endings
 
-Lots (ADR-0026): several identical copies sold as one variant with a condition range, e.g. 1-3. The
+Lots (ADR-0012): several identical copies sold as one variant with a condition range, e.g. 1-3. The
 factor is combined from the factors of all conditions in the range (config sammelposten.preisregel).
 
 The review UI repeats this formula in JavaScript for the live preview; this module is
@@ -24,7 +24,7 @@ from decimal import ROUND_HALF_UP, Decimal
 class PriceResult:
     basis_z1: float
     quelle: str
-    zustand: int | list[int]   # list for a lot with a condition range (ADR-0026)
+    zustand: int | list[int]   # list for a lot with a condition range (ADR-0012)
     faktor: float
     aufschlag: float
     roh: float
@@ -73,7 +73,7 @@ def markup_for(quelle: str, cfg: dict) -> float:
 
 
 def condition_range(zustaende: Sequence[int], cfg: dict) -> list[int]:
-    """Sorted, gap-free range: a lot with conditions 1 and 3 also contains 2 (ADR-0026)."""
+    """Sorted, gap-free range: a lot with conditions 1 and 3 also contains 2 (ADR-0012)."""
     if not zustaende:
         raise ValueError("no condition selected")
     for z in zustaende:
@@ -131,7 +131,7 @@ def condition_key(zustaende: Sequence[int]) -> str:
 
 
 def lot_label(zustaende: Sequence[int]) -> str:
-    """Shop option value of a lot (ADR-0026), e.g. 'Sammelposten · Zustand 1–3'."""
+    """Shop option value of a lot (ADR-0012), e.g. 'Sammelposten · Zustand 1–3'."""
     return f"Sammelposten · Zustand {condition_text(zustaende)}"
 
 
