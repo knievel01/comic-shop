@@ -29,6 +29,9 @@ geänderte Workflows per `import`), erst danach auf dem Comic-Rechner (`sudo com
 `infra/k3s/` und `os/` lassen sich dort nicht prüfen (kein K3s): rendern und zuerst auf dem Comic-Rechner beobachten.
 Die Sandbox nutzt nie Produktivdaten.
 
+Rollout auf den Comic-Rechner vom Mac aus (ADR-0040): erst Merge nach `main` (der Rechner zieht `main`), dann
+`ssh -i ~/.ssh/id_ed25519_comics comicadmin@192.168.40.120 'sudo comics-update --tags apps'`.
+
 ## Regeln
 
 - **Keine Secrets im Repo** (ADR-0003). Weder AWS-Keys, Shopify-/Ximilar-/Anthropic-Token, `N8N_ENCRYPTION_KEY`

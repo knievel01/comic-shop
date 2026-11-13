@@ -45,3 +45,4 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0037](0037-scan-benutzer-bekommt-cluster-admin-kubeconfig.md) | Scan-Benutzer bekommt die Cluster-Admin-Kubeconfig | Akzeptiert, ersetzt 0036 |
 | [0038](0038-sandbox-auf-dem-macbook-in-lima-mit-k3s.md) | Sandbox auf dem MacBook, K3s in einer Lima-VM | Ersetzt durch 0039 |
 | [0039](0039-sandbox-auf-dem-macbook-mit-orbstack-und-compose.md) | Sandbox auf dem MacBook mit OrbStack und Docker Compose, ohne K3s | Akzeptiert, ersetzt 0038, ergänzt 0027 |
+| [0040](0040-rollout-auf-den-comic-rechner-per-ssh-vom-entwicklungsrechner.md) | Rollout auf den Comic-Rechner per SSH vom Entwicklungsrechner | Akzeptiert, ergänzt 0002/0027/0039 |
