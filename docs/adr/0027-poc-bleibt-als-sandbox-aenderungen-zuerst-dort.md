@@ -1,6 +1,6 @@
 # ADR-0027: Der PoC bleibt als Sandbox, Änderungen laufen zuerst dort
 
-- **Status:** Akzeptiert
+- **Status:** Akzeptiert, Standort in Teilen ersetzt durch ADR-0039
 - **Datum:** 2026-11-05
 - **Ergänzt:** ADR-0002 (Installation per ISO und ansible-pull), `docs/POC.md`
 

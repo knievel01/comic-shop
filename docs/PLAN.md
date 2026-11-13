@@ -25,6 +25,8 @@ Entwickler-Rechners (`infra/k3s-poc/`, `scripts/poc-host-k3s.sh`, Anleitung `doc
 Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den Rollout aus Phase 2/3.
 
 Sandbox (05.11.2026): Der PoC bleibt als Sandbox, jede Änderung läuft zuerst dort (ADR-0027).
+Sandbox-Umzug (13.11.2026): Der PoC auf pro-mini ist abgebaut, die Sandbox läuft auf dem MacBook in OrbStack (ADR-0039,
+`docs/SANDBOX-MAC.md`). `infra/k3s-poc/`, `scripts/poc-host-k3s.sh` und `docs/POC.md` sind aus dem Repo entfernt.
 Sammelposten (05.11.2026): mehrere gleiche Hefte als eine Variante mit Zustandsbereich (ADR-0026).
 
 Go-Live (05.11.2026): PoC abgenommen, Rollout auf den Comic-Rechner in der Woche ab 09.11.2026,

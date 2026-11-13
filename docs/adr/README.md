@@ -32,7 +32,7 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0024](0024-fortschritt-der-erkennung-als-s3-tag.md) | Fortschritt von Workflow 01 als S3-Tag, die Review fragt ihn ab | Akzeptiert (durch 0028 auch Zielbetrieb), ergänzt 0004/0018 |
 | [0025](0025-kein-rueckkanal-von-shopify-verkauf-nur-in-shopify.md) | Kein Rückkanal von Shopify, Verkäufe werden nur in Shopify geführt | Akzeptiert, ersetzt 0009/0016 |
 | [0026](0026-sammelposten-mehrere-gleiche-hefte-als-eine-variante.md) | Sammelposten: mehrere gleiche Hefte als eine Variante mit Zustandsbereich | Akzeptiert, ergänzt 0011/0012/0013/0018 |
-| [0027](0027-poc-bleibt-als-sandbox-aenderungen-zuerst-dort.md) | Der PoC bleibt als Sandbox, Änderungen laufen zuerst dort | Akzeptiert, ergänzt 0002 |
+| [0027](0027-poc-bleibt-als-sandbox-aenderungen-zuerst-dort.md) | Der PoC bleibt als Sandbox, Änderungen laufen zuerst dort | Akzeptiert, Standort in Teilen ersetzt durch 0039, ergänzt 0002 |
 | [0028](0028-poc-ergebnisse-im-zielbetrieb.md) | PoC-Ergebnisse gelten im Zielbetrieb: Booklooker-Preis mit Beleg, Websuche-Vorschlag, Statistik, Fortschritt | Akzeptiert, ersetzt 0017 |
 | [0029](0029-laptop-als-comic-rechner.md) | Laptop als Comic-Rechner, WLAN nur als Fallback | Akzeptiert, ergänzt 0001/0002 |
 | [0030](0030-kamera-station-per-gphoto2-am-laptop.md) | Erfassung per Canon-Kamera am Laptop (gphoto2) statt Flachbett | Akzeptiert, ergänzt 0007/0018/0029 |
@@ -43,3 +43,5 @@ Neue oder geänderte Entscheidungen: neues ADR aus [`_vorlage.md`](_vorlage.md),
 | [0035](0035-eigener-produktiv-bucket-per-terraform.md) | Eigener Produktiv-Bucket per Terraform, IAM-Namen mit Präfix | Akzeptiert, ersetzt 0033 |
 | [0036](0036-kubectl-fuer-den-scan-benutzer-nur-im-namespace-comics.md) | kubectl für den Scan-Benutzer nur im Namespace comics | Ersetzt durch 0037 |
 | [0037](0037-scan-benutzer-bekommt-cluster-admin-kubeconfig.md) | Scan-Benutzer bekommt die Cluster-Admin-Kubeconfig | Akzeptiert, ersetzt 0036 |
+| [0038](0038-sandbox-auf-dem-macbook-in-lima-mit-k3s.md) | Sandbox auf dem MacBook, K3s in einer Lima-VM | Ersetzt durch 0039 |
+| [0039](0039-sandbox-auf-dem-macbook-mit-orbstack-und-compose.md) | Sandbox auf dem MacBook mit OrbStack und Docker Compose, ohne K3s | Akzeptiert, ersetzt 0038, ergänzt 0027 |

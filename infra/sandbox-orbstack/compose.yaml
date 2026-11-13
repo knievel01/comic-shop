@@ -1,0 +1,97 @@
+# Sandbox on the MacBook in OrbStack (ADR-0039, docs/SANDBOX-MAC.md), not the comic machine.
+# Same images, ports and service names as infra/k3s, but plain Docker Compose: no K3s, no Traefik,
+# no ingress. Start it with scripts/sandbox-orbstack.sh; the secrets come from
+# ~/.config/comics/comics.env (COMICS_ENV_FILE), never from this file.
+name: comics-sandbox
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: n8n
+      POSTGRES_DB: n8n
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/sandbox-orbstack.sh env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    mem_limit: 1g
+
+  n8n:
+    image: n8nio/n8n:2.46.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?run scripts/sandbox-orbstack.sh env}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      GENERIC_TIMEZONE: Europe/Berlin
+      TZ: Europe/Berlin
+      N8N_DEFAULT_LOCALE: de
+      # plain http on localhost: the editor login must not require a secure cookie
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "720"
+      N8N_METRICS: "true"
+    volumes:
+      - n8n-home:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz/readiness >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    mem_limit: 2g
+
+  comic-helper:
+    build:
+      context: ../..
+      dockerfile: services/comic-helper/Containerfile
+    image: localhost/comic-helper:local
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - ${COMICS_ENV_FILE:?run scripts/sandbox-orbstack.sh}
+    environment:
+      TZ: Europe/Berlin
+      N8N_INTERNAL_URL: http://n8n:5678
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      default:
+        # the exported workflows call this name (K3s service DNS), so they stay unchanged
+        aliases:
+          - comic-helper.comics.svc.cluster.local
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 1g
+
+volumes:
+  postgres-data:
+  n8n-home:

@@ -76,7 +76,8 @@ Datenbank.
 
 ## PoC wird Sandbox (nach dem Go-Live)
 
-Der PoC bleibt als Sandbox auf pro-mini (ADR-0027). Jede Änderung läuft zuerst dort, dann auf dem Comic-Rechner.
+Die Sandbox läuft auf dem MacBook in OrbStack (ADR-0039, ersetzt den Standort pro-mini aus ADR-0027, Anleitung `docs/SANDBOX-MAC.md`).
+Jede Änderung läuft zuerst dort, dann auf dem Comic-Rechner. Der PoC auf pro-mini ist abgebaut.
 
 1. Sandbox auf Testdaten umstellen: eigener Bucket bzw. Präfix (nicht der Produktiv-Bucket aus E5),
    Shopify-Entwicklungsshop, eigene IAM-Schlüssel in `~/.config/comics/comics.env`.

@@ -14,7 +14,7 @@ Shopify, ohne Rückmeldung an den Rechner. Jeden Morgen um 7 Uhr kommt eine Samm
 | [future-improvements/](future-improvements/README.md) | Ausbaupläne, u. a. Skalierung auf 1 Mio. Comics |
 | [docs/INSTALL.md](docs/INSTALL.md) | Rechner von leerer SSD bis grünem `verify.sh` |
 | [docs/BETRIEB.md](docs/BETRIEB.md) | Backup, Restore, Monitoring, Kosten |
-| [docs/POC.md](docs/POC.md) | Vorübergehender Machbarkeits-PoC im vorhandenen K3s (keine Architekturentscheidung) |
+| [docs/SANDBOX-MAC.md](docs/SANDBOX-MAC.md) | Sandbox auf dem MacBook (OrbStack, Docker Compose), ADR-0039 |
 | [docs/PREISFINDUNG.md](docs/PREISFINDUNG.md) | Zustandsskala, Preisformel, Quellen |
 | [docs/SCANNEN-UND-BESTAETIGEN.md](docs/SCANNEN-UND-BESTAETIGEN.md) | Eine Seite für Sepp und die Schülerkräfte |
 
