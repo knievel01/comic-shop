@@ -12,7 +12,7 @@
   .fall .bild .leer { display:grid; place-items:center; height:100%; font:1.5rem var(--display); letter-spacing:.05em; }
   .fall .bild .leer span { background:var(--paper); border:var(--strich); padding:.2rem .7rem .1rem; }
   .fall .nr { position:absolute; top:-.9rem; right:-.9rem; width:3.6rem; height:3.6rem; --fill:var(--red);
-              font:1.35rem/1 var(--display); color:var(--paper); text-shadow:1px 1px 0 var(--ink); }
+              font:1.35rem/1 var(--display); color:var(--licht); text-shadow:1px 1px 0 var(--umriss); }
   /* AI tag sits flush in the top left corner, like the figcaptions on the review page */
   .fall .ki { position:absolute; top:0; left:0; }
   .fall .ki .badge { display:block; border-width:0 2px 2px 0; }
@@ -36,7 +36,7 @@
   .fortschritt .stufen li::before { content:"○ "; }
   .fortschritt .stufen li.fertig { color:var(--ink); }
   .fortschritt .stufen li.fertig::before { content:"✓ "; }
-  .fortschritt .stufen li.aktiv { background:var(--yellow); color:var(--ink); box-shadow:var(--druck);
+  .fortschritt .stufen li.aktiv { background:var(--yellow); color:var(--schrift-hell); box-shadow:var(--druck);
                                   transform:rotate(-2deg); }
   .fortschritt .stufen li.aktiv::before { content:"▶ "; }
   .fall .bild .fortschritt .lauf-info { background:var(--paper); border:var(--strich); padding:.25rem .6rem; align-self:center;
@@ -52,14 +52,14 @@
           width:5.4rem; height:5.4rem; padding:0; border:0; background:none; cursor:pointer;
           filter:drop-shadow(var(--druck)); transition:transform .12s; }
   .plus .burst { width:100%; height:100%; --fill:var(--yellow); font:3.2rem/1 var(--display); color:var(--red);
-                 text-shadow:2px 2px 0 var(--ink); }
+                 text-shadow:2px 2px 0 var(--umriss); }
   .plus:hover { transform:rotate(-12deg) scale(1.06); }
   .plus:focus-visible { outline:none; } .plus:focus-visible .burst { --fill:#fff27a; }
 
-  dialog.hochladen { border:var(--strich); box-shadow:var(--schweben); border-radius:0;
+  dialog.hochladen { background:var(--paper); color:var(--ink); border:var(--strich); box-shadow:var(--schweben); border-radius:0;
                      padding:0; width:min(36rem, calc(100vw - 2rem)); }
-  dialog.hochladen::backdrop { background:var(--dots), rgba(239,226,194,.6); }
-  dialog.hochladen h2 { margin:0; padding:.6rem 1.2rem .45rem; background:var(--yellow); border-bottom:var(--strich);
+  dialog.hochladen::backdrop { background:var(--dots), var(--schleier); }
+  dialog.hochladen h2 { margin:0; padding:.6rem 1.2rem .45rem; background:var(--yellow); color:var(--schrift-hell); border-bottom:var(--strich);
                         font-size:1.8rem; }
   dialog.hochladen form { padding:.2rem 1.2rem 1.2rem; }
   dialog[open] { animation:aufpoppen .16s ease-out; }
