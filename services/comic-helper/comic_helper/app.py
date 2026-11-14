@@ -419,11 +419,12 @@ def to_shopify(copy_id: str, store: Store = Depends(get_store), cfg: dict = Depe
     urls = [store.presigned_url(store.image_key(copy_id, p), 6 * 3600) for p in (1, 2)]
     try:
         res = shop.add_copy(copy_short_id=storage.short_id(copy_id), proposal=d, zustand=conditions_of(d),
-                            price=d["preis"]["final"], image_urls=urls, cfg=cfg, anzahl=d.get("anzahl", 1))
+                            price=d["preis"]["final"], image_urls=urls, cfg=cfg, anzahl=d.get("anzahl", 1),
+                            inhalt=(d.get("inhalt") or {}).get("text"))
     except (ShopifyError, httpx2.HTTPError) as e:
         raise HTTPException(502, f"Shopify: {e}")
     side["shopify"] = {"product_id": res.product_id, "variant_id": res.variant_id, "sku": res.sku,
-                       "exemplar": res.exemplar, "am": _utc()}
+                       "exemplar": res.exemplar, "inhalt": res.inhalt, "am": _utc()}
     store.write_json(store.sidecar_key(EINGANG, copy_id), side)
     return {"id": copy_id, **side["shopify"], "created": res.created}
 

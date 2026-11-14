@@ -11,6 +11,7 @@ Zustand "Sammelposten · Zustand 1–3". The product description then explains w
 from __future__ import annotations
 
 import html
+import logging
 import re
 import threading
 import time
@@ -22,6 +23,8 @@ from string import ascii_lowercase
 import httpx2
 
 from . import pricing
+
+log = logging.getLogger("comic_helper.shopify")
 
 
 class ShopifyError(Exception):
@@ -124,6 +127,7 @@ class VariantResult:
     sku: str
     exemplar: str
     created: bool
+    inhalt: str = ""  # "" (no text), "gesetzt", "vorhanden" (kept) or "fehler: ..." (ADR-0012)
 
 
 FIND_VARIANT = """
@@ -136,6 +140,7 @@ query($handle: String!) {
   productByIdentifier(identifier: {handle: $handle}) {
     id
     descriptionHtml
+    metafield(namespace: "comic", key: "inhalt") { value }
     variants(first: 250) { nodes { id sku selectedOptions { name value } } }
   }
 }"""
@@ -160,6 +165,14 @@ PRODUCT_UPDATE = """
 mutation($product: ProductUpdateInput!) {
   productUpdate(product: $product) {
     product { id }
+    userErrors { field message }
+  }
+}"""
+
+METAFIELDS_SET = """
+mutation($metafields: [MetafieldsSetInput!]!) {
+  metafieldsSet(metafields: $metafields) {
+    metafields { id }
     userErrors { field message }
   }
 }"""
@@ -231,9 +244,11 @@ class Shopify:
         return next((n for n in nodes if n["sku"] == sku), None)
 
     def add_copy(self, *, copy_short_id: str, proposal: dict, zustand: int | Sequence[int], price: float,
-                 image_urls: list[str], cfg: dict, anzahl: int = 1) -> VariantResult:
+                 image_urls: list[str], cfg: dict, anzahl: int = 1, inhalt: str | None = None) -> VariantResult:
         """Idempotent: if a variant with this copy's SKU suffix exists, return it.
-        anzahl > 1 creates a lot: quantity anzahl, condition range as option value (ADR-0012)."""
+        anzahl > 1 creates a lot: quantity anzahl, condition range as option value (ADR-0012).
+        inhalt is written to the product metafield comic.inhalt, only if the product has none yet; a failure
+        there never aborts the variant (VariantResult.inhalt tells)."""
         titel, ausgabe, verlag = proposal["titel"], proposal.get("ausgabe", ""), proposal.get("verlag", "")
         zustaende = pricing.condition_range([zustand] if isinstance(zustand, int) else zustand, cfg)
         lot = anzahl > 1
@@ -247,6 +262,7 @@ class Shopify:
         product = self.gql(PRODUCT_BY_HANDLE, {"handle": handle})["productByIdentifier"]
         zustand_label = pricing.lot_label(zustaende) if lot else pricing.condition_label(zustaende[0], cfg)
         strategy = "DEFAULT"
+        has_inhalt = False
         if product is None:
             exemplar = "a"
             shop_cfg = cfg.get("shopify", {})
@@ -273,6 +289,7 @@ class Shopify:
                     {"publicationId": p} for p in self.publication_ids]})["publishablePublish"], "publish")
         else:
             product_id = product["id"]
+            has_inhalt = bool(((product.get("metafield") or {}).get("value") or "").strip())
             used = {
                 o["value"]
                 for v in product["variants"]["nodes"]
@@ -309,4 +326,21 @@ class Shopify:
             }],
         })["productVariantsBulkCreate"], "productVariantsBulkCreate")
         variant = result["productVariants"][0]
-        return VariantResult(product_id, variant["id"], sku, exemplar, created=True)
+        return VariantResult(product_id, variant["id"], sku, exemplar, created=True,
+                             inhalt=self._set_inhalt(product_id, inhalt, has_inhalt))
+
+    def _set_inhalt(self, product_id: str, text: str | None, has_inhalt: bool) -> str:
+        """Writes the content text unless the product has one (hand-written texts stay). Never raises."""
+        text = (text or "").strip()
+        if not text:
+            return ""
+        if has_inhalt:
+            return "vorhanden"
+        try:
+            self._check(self.gql(METAFIELDS_SET, {"metafields": [{
+                "ownerId": product_id, "namespace": "comic", "key": "inhalt",
+                "type": "multi_line_text_field", "value": text}]})["metafieldsSet"], "metafieldsSet")
+        except (ShopifyError, httpx2.HTTPError) as e:
+            log.warning("content text for %s not saved: %s", product_id, e)
+            return f"fehler: {e}"[:300]
+        return "gesetzt"

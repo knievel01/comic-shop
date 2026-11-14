@@ -82,12 +82,14 @@ class FakeShopifyAPI:
 
     def __init__(self):
         self.products = {}   # handle -> {id, variants: [...]}
+        self.metafields = {}  # product id -> {"value", "type"} (comic.inhalt)
+        self.metafield_error = None
         self.calls = []
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content)
         q, v = body["query"], body["variables"]
-        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish)", q).group(1)
+        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish|metafieldsSet)", q).group(1)
         self.calls.append(op)
         if op == "productVariants":
             sku = v["q"].removeprefix("sku:")
@@ -96,7 +98,16 @@ class FakeShopifyAPI:
         elif op == "productByIdentifier":
             p = self.products.get(v["handle"])
             data = {"productByIdentifier": p and {"id": p["id"], "descriptionHtml": p["input"]["descriptionHtml"],
+                                                  "metafield": self.metafields.get(p["id"]),
                                                   "variants": {"nodes": p["variants"]}}}
+        elif op == "metafieldsSet":
+            (m,) = v["metafields"]
+            assert (m["namespace"], m["key"], m["type"]) == ("comic", "inhalt", "multi_line_text_field")
+            if self.metafield_error:
+                data = {"metafieldsSet": {"metafields": [], "userErrors": [{"field": ["metafields"], "message": self.metafield_error}]}}
+            else:
+                self.metafields[m["ownerId"]] = {"value": m["value"], "type": m["type"]}
+                data = {"metafieldsSet": {"metafields": [{"id": "gid://shopify/Metafield/1"}], "userErrors": []}}
         elif op == "productCreate":
             pid = f"gid://shopify/Product/{len(self.products) + 1}"
             self.products[v["product"]["handle"]] = {"id": pid, "variants": [], "input": v["product"]}
@@ -710,3 +721,59 @@ def test_review_inhalt_zu_lang_oder_mit_html_wird_abgelehnt(env):
         r = env.client.post(f"/review/{cid}", data=review_form(inhalt=bad), follow_redirects=False)
         assert "fehler=Inhalt" in r.headers["location"], bad
     assert "entscheidung" not in env.store.read_json(f"eingang/{cid}.json")
+
+
+# --- Inhaltstext im Metafeld comic.inhalt (ADR-0012) --------------------------------------------------
+def to_shop(env, inhalt=None, **form):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    data = review_form(**form)
+    if inhalt is not None:
+        data["inhalt"] = inhalt
+    assert "fehler" not in c.post(f"/review/{cid}", data=data, follow_redirects=False).headers["location"]
+    r = c.post(f"/api/scans/{cid}/shopify", headers=H)
+    assert r.status_code == 200, r.text
+    return cid, r.json()
+
+
+def test_neues_produkt_bekommt_inhalts_metafeld(env):
+    env.cfg["inhalt"]["aktiv"] = True
+    _, res = to_shop(env, inhalt="Obelix verliert seine Sichel.")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Obelix verliert seine Sichel."
+    assert res["inhalt"] == "gesetzt"
+
+
+def test_weiteres_exemplar_ueberschreibt_vorhandenen_inhalt_nicht(env):
+    to_shop(env, inhalt="Erster Text.")
+    _, res = to_shop(env, inhalt="Zweiter Text.", zustand="3")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Erster Text."
+    assert env.shop.calls.count("metafieldsSet") == 1 and res["inhalt"] == "vorhanden"
+
+
+def test_vorhandenes_produkt_ohne_inhalt_bekommt_ihn(env):
+    to_shop(env)
+    _, res = to_shop(env, inhalt="Jetzt mit Text.", zustand="3")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Jetzt mit Text." and res["inhalt"] == "gesetzt"
+
+
+def test_ohne_text_kein_metafieldsSet(env):
+    _, res = to_shop(env)
+    assert "metafieldsSet" not in env.shop.calls and res["inhalt"] == ""
+
+
+def test_inhalt_wird_nicht_in_die_beschreibung_geschrieben(env):
+    to_shop(env, inhalt="Geheimer Inhaltstext.")
+    assert "Geheimer Inhaltstext." not in env.shop.products["asterix-12-ehapa"]["input"]["descriptionHtml"]
+
+
+def test_fehler_beim_metafeld_bricht_das_anlegen_nicht_ab(env):
+    env.shop.metafield_error = "Zugriff verweigert"
+    cid, res = to_shop(env, inhalt="Ein Text.")
+    assert res["created"] and res["inhalt"].startswith("fehler: ") and "Zugriff verweigert" in res["inhalt"]
+    assert len(env.shop.products["asterix-12-ehapa"]["variants"]) == 1
+    assert env.store.read_json(f"eingang/{cid}.json")["shopify"]["inhalt"].startswith("fehler: ")
