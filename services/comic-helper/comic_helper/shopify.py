@@ -327,9 +327,9 @@ class Shopify:
         })["productVariantsBulkCreate"], "productVariantsBulkCreate")
         variant = result["productVariants"][0]
         return VariantResult(product_id, variant["id"], sku, exemplar, created=True,
-                             inhalt=self._set_inhalt(product_id, inhalt, has_inhalt))
+                             inhalt=self.set_inhalt(product_id, inhalt, has_inhalt))
 
-    def _set_inhalt(self, product_id: str, text: str | None, has_inhalt: bool) -> str:
+    def set_inhalt(self, product_id: str, text: str | None, has_inhalt: bool) -> str:
         """Writes the content text unless the product has one (hand-written texts stay). Never raises."""
         text = (text or "").strip()
         if not text:

@@ -89,7 +89,7 @@ class FakeShopifyAPI:
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content)
         q, v = body["query"], body["variables"]
-        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish|metafieldsSet)", q).group(1)
+        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish|metafieldsSet|products(?=\())", q).group(1)
         self.calls.append(op)
         if op == "productVariants":
             sku = v["q"].removeprefix("sku:")
@@ -100,6 +100,10 @@ class FakeShopifyAPI:
             data = {"productByIdentifier": p and {"id": p["id"], "descriptionHtml": p["input"]["descriptionHtml"],
                                                   "metafield": self.metafields.get(p["id"]),
                                                   "variants": {"nodes": p["variants"]}}}
+        elif op == "products":
+            data = {"products": {"nodes": [
+                {"id": p["id"], "handle": h, "title": p["input"]["title"], "metafield": self.metafields.get(p["id"])}
+                for h, p in self.products.items()], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         elif op == "metafieldsSet":
             (m,) = v["metafields"]
             assert (m["namespace"], m["key"], m["type"]) == ("comic", "inhalt", "multi_line_text_field")
