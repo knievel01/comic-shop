@@ -27,6 +27,8 @@ Testumgebung ohne Tunnel, Scanner, Sync und Ansible, kein ADR; ersetzt nicht den
 Sandbox (05.11.2026): Der PoC bleibt als Sandbox, jede Änderung läuft zuerst dort (ADR-0027).
 Sandbox-Umzug (13.11.2026): Der PoC auf pro-mini ist abgebaut, die Sandbox läuft auf dem MacBook in OrbStack (ADR-0027,
 `docs/SANDBOX-MAC.md`). `infra/k3s-poc/`, `scripts/poc-host-k3s.sh` und `docs/POC.md` sind aus dem Repo entfernt.
+Inhaltstext je Heft (14.11.2026): Schritt `inhalt` in `recognize`, Prüfung im Review, Metafeld `comic.inhalt` (ADR-0010, ADR-0012);
+Schalter `inhalt.aktiv` steht auf `false`, bis Probelauf und Metafeld-Definition im Shop freigegeben sind.
 Sammelposten (05.11.2026): mehrere gleiche Hefte als eine Variante mit Zustandsbereich (ADR-0012).
 
 Go-Live (05.11.2026): PoC abgenommen, Rollout auf den Comic-Rechner in der Woche ab 09.11.2026,

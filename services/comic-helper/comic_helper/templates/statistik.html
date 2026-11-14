@@ -44,7 +44,7 @@
 
 {% if seite == 'kosten' %}
 <div class="zahlen">
-  <div class="zahl gross"><b>{{ st.kosten | usd }}</b><span>KI-Kosten gesamt (Bilderkennung {{ st.kosten_teile.erkennung | usd }}, Preissuche {{ st.kosten_teile.preissuche | usd }})</span></div>
+  <div class="zahl gross"><b>{{ st.kosten | usd }}</b><span>KI-Kosten gesamt (Bilderkennung {{ st.kosten_teile.erkennung | usd }}, Preissuche {{ st.kosten_teile.preissuche | usd }}, Inhaltstext {{ st.kosten_teile.inhalt | usd }})</span></div>
   <div class="zahl"><b>{{ ((st.gemessene_kosten / st.gemessene_comics) if st.gemessene_comics else None) | usd }}</b>
     <span>je Comic, nur vollständig gemessene ({{ st.gemessene_comics }})</span></div>
   {% set v = st.vergleich %}
@@ -60,7 +60,7 @@
 <h2>Je n8n-Durchlauf</h2>
 {% if st.laeufe %}
 <div class="tabelle"><table>
-  <thead><tr><th>Ende</th><th>Durchlauf</th><th>Comics</th><th>Dauer</th><th>KI-Zeit</th><th>Bilderkennung</th><th>Preissuche</th><th>Kosten</th></tr></thead>
+  <thead><tr><th>Ende</th><th>Durchlauf</th><th>Comics</th><th>Dauer</th><th>KI-Zeit</th><th>Bilderkennung</th><th>Preissuche</th><th>Inhaltstext</th><th>Kosten</th></tr></thead>
   <tbody>
   {% for r in st.laeufe %}
     <tr><td>{{ r.ende | lokalzeit }}</td>
@@ -70,10 +70,11 @@
         <td>{{ r.claude_s | sekunden if r.gemessen else "–" }}</td>
         <td>{{ r.kosten_erkennung | usd }}</td>
         <td>{{ (r.kosten_preissuche | usd) if not r.alt else "nicht erfasst" }}</td>
+        <td>{{ r.kosten_inhalt | usd }}</td>
         <td>{{ r.kosten | usd }}</td></tr>
   {% endfor %}
   </tbody>
-  <tfoot><tr><td>Gesamt</td><td></td><td></td><td></td><td></td><td>{{ st.kosten_teile.erkennung | usd }}</td><td>{{ st.kosten_teile.preissuche | usd }}</td><td>{{ st.kosten | usd }}</td></tr></tfoot>
+  <tfoot><tr><td>Gesamt</td><td></td><td></td><td></td><td></td><td>{{ st.kosten_teile.erkennung | usd }}</td><td>{{ st.kosten_teile.preissuche | usd }}</td><td>{{ st.kosten_teile.inhalt | usd }}</td><td>{{ st.kosten | usd }}</td></tr></tfoot>
 </table></div>
 <p class="hinweis">Dauer = vom Start des ersten bis zum Ende des letzten Comics im Durchlauf (sie laufen nacheinander).
   KI-Zeit = Summe der Wartezeit auf Claude. Die {{ z.alt }} Comics von vor der Messung stehen in einer Zeile: nur die Erkennung

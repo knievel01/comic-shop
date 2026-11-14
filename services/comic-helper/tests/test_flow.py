@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from comic_helper import app as app_module
 from comic_helper import pdf, report, storage
 from comic_helper.config import Settings, load_pricing
+from comic_helper.inhalt import InhaltErgebnis
 from comic_helper.recognition import Erkennung, Feld
 from comic_helper.shopify import Shopify
 
@@ -35,6 +36,10 @@ class FakeClaude:
         self.stop_reason = stop_reason
         self.offers = []  # (price, url) the fake web search "finds"
         self.search_calls = []
+        self.inhalt = InhaltErgebnis(text="Obelix verliert seine Sichel. Eine Reise quer durch Gallien beginnt.",
+                                     quelle="rueckseite", sicherheit=0.9)
+        self.inhalt_error = None
+        self.inhalt_calls = []
         self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
         self.messages = SimpleNamespace(create=self.search)
 
@@ -46,7 +51,16 @@ class FakeClaude:
                                usage=SimpleNamespace(input_tokens=500, output_tokens=40,
                                                      server_tool_use=SimpleNamespace(web_search_requests=2)))
 
+    def parse_inhalt(self, **kwargs):
+        self.inhalt_calls.append(kwargs)
+        if self.inhalt_error:
+            raise self.inhalt_error
+        return SimpleNamespace(stop_reason="end_turn", parsed_output=self.inhalt, model=kwargs["model"],
+                               usage=SimpleNamespace(input_tokens=1200, output_tokens=150))
+
     def parse(self, **kwargs):
+        if kwargs["output_format"] is InhaltErgebnis:
+            return self.parse_inhalt(**kwargs)
         self.calls += 1
         assert kwargs["model"] == "claude-opus-5-5"
         assert kwargs["fallbacks"] == "default"
@@ -68,12 +82,14 @@ class FakeShopifyAPI:
 
     def __init__(self):
         self.products = {}   # handle -> {id, variants: [...]}
+        self.metafields = {}  # product id -> {"value", "type"} (comic.inhalt)
+        self.metafield_error = None
         self.calls = []
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content)
         q, v = body["query"], body["variables"]
-        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish)", q).group(1)
+        op = re.search(r"(productVariantsBulkCreate|productVariants|productByIdentifier|productCreate|productUpdate|publishablePublish|metafieldsSet|products(?=\())", q).group(1)
         self.calls.append(op)
         if op == "productVariants":
             sku = v["q"].removeprefix("sku:")
@@ -82,7 +98,20 @@ class FakeShopifyAPI:
         elif op == "productByIdentifier":
             p = self.products.get(v["handle"])
             data = {"productByIdentifier": p and {"id": p["id"], "descriptionHtml": p["input"]["descriptionHtml"],
+                                                  "metafield": self.metafields.get(p["id"]),
                                                   "variants": {"nodes": p["variants"]}}}
+        elif op == "products":
+            data = {"products": {"nodes": [
+                {"id": p["id"], "handle": h, "title": p["input"]["title"], "metafield": self.metafields.get(p["id"])}
+                for h, p in self.products.items()], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
+        elif op == "metafieldsSet":
+            (m,) = v["metafields"]
+            assert (m["namespace"], m["key"], m["type"]) == ("comic", "inhalt", "multi_line_text_field")
+            if self.metafield_error:
+                data = {"metafieldsSet": {"metafields": [], "userErrors": [{"field": ["metafields"], "message": self.metafield_error}]}}
+            else:
+                self.metafields[m["ownerId"]] = {"value": m["value"], "type": m["type"]}
+                data = {"metafieldsSet": {"metafields": [{"id": "gid://shopify/Metafield/1"}], "userErrors": []}}
         elif op == "productCreate":
             pid = f"gid://shopify/Product/{len(self.products) + 1}"
             self.products[v["product"]["handle"]] = {"id": pid, "variants": [], "input": v["product"]}
@@ -112,6 +141,7 @@ def env(s3, store):
     settings = Settings(s3_bucket=BUCKET, helper_token=TOKEN,
                         review_base_url="https://comics-01", n8n_internal_url="http://127.0.0.1:9")
     claude = FakeClaude()
+    cfg = load_pricing()
     shop_api = FakeShopifyAPI()
     shop = Shopify("test.myshopify.com", "tok", "2026-07", "1", transport=httpx2.MockTransport(shop_api))
     app = app_module.app
@@ -120,9 +150,9 @@ def env(s3, store):
         app_module.get_store: lambda: store,
         app_module.get_claude: lambda: claude,
         app_module.get_shopify: lambda: shop,
-        app_module.get_cfg: load_pricing,
+        app_module.get_cfg: lambda: cfg,
     }
-    yield SimpleNamespace(client=TestClient(app), claude=claude, shop=shop_api, s3=s3, store=store)
+    yield SimpleNamespace(client=TestClient(app), claude=claude, shop=shop_api, s3=s3, store=store, cfg=cfg)
     app.dependency_overrides = {}
 
 
@@ -586,3 +616,168 @@ def test_upload_rejects_invalid_count(env, monkeypatch):
     files = {"cover": ("c.jpg", _photo("red"), "image/jpeg"), "rueckseite": ("r.jpg", _photo("red"), "image/jpeg")}
     r = env.client.post("/review/hochladen", files=files, data={"anzahl": "0"}, follow_redirects=False)
     assert "Anzahl" in unquote_plus(r.headers["location"])
+
+
+# --- Inhaltstext (ADR-0010) ------------------------------------------------------------------------
+def recognized(env, inhalt_aktiv=True):
+    env.cfg["inhalt"]["aktiv"] = inhalt_aktiv
+    cid = str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    env.client.post("/api/scans/claim", headers=H)
+    r = env.client.post(f"/api/scans/{cid}/recognize", headers=H)
+    assert r.status_code == 200, r.text
+    return cid
+
+
+def test_recognize_schreibt_inhalt_in_den_vorschlag(env):
+    cid = recognized(env)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert side["vorschlag"]["inhalt"]["quelle"] == "rueckseite"
+    assert side["vorschlag"]["inhalt"]["text"].startswith("Obelix")
+    run = side["laeufe"][-1]["inhalt"]
+    assert run["input_tokens"] == 1200 and run["output_tokens"] == 150 and run["modell"] == "claude-opus-5-5"
+    assert len(env.claude.inhalt_calls) == 1
+    assert env.store.get_tags(f"eingang/{cid}.pdf").get("schritt") in (None, "")  # cleared when done
+
+
+def test_recognize_bleibt_offen_wenn_inhalt_fehlschlaegt(env):
+    env.claude.inhalt_error = RuntimeError("boom")
+    cid = recognized(env)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert side["vorschlag"]["inhalt"] is None
+    assert side["laeufe"][-1]["inhalt"]["fehler"]
+    assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"
+
+
+def test_recognize_ohne_schalter_ruft_inhalt_nicht_auf(env):
+    cid = recognized(env, inhalt_aktiv=False)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert "inhalt" not in side["vorschlag"] and side["laeufe"][-1]["inhalt"] is None
+    assert env.claude.inhalt_calls == []
+
+
+def test_inhalt_endpunkt_schreibt_neu(env):
+    cid = recognized(env)
+    assert env.client.post(f"/api/scans/{cid}/inhalt").status_code == 401
+    r = env.client.post(f"/api/scans/{cid}/inhalt", headers=H)
+    assert r.status_code == 200 and r.json()["text"].startswith("Obelix")
+    assert len(env.claude.inhalt_calls) == 1  # idempotent: the draft exists already
+    env.claude.inhalt = InhaltErgebnis(text="Ein ganz neuer Text.", quelle="wissen", sicherheit=0.95)
+    r = env.client.post(f"/api/scans/{cid}/inhalt?neu=1", headers=H)
+    assert r.json() == {"text": "Ein ganz neuer Text.", "quelle": "wissen", "sicherheit": 0.95}
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert side["vorschlag"]["inhalt"]["text"] == "Ein ganz neuer Text."
+    assert [e["art"] for e in side["laeufe"]][-1] == "inhalt"
+    env.cfg["inhalt"]["aktiv"] = False
+    assert env.client.post(f"/api/scans/{cid}/inhalt?neu=1", headers=H).status_code == 409
+
+
+def test_review_formular_zeigt_inhalt_und_pruefhinweis(env):
+    env.claude.inhalt = InhaltErgebnis(text="Ein Text aus dem Wissen.", quelle="wissen", sicherheit=0.9)
+    cid = recognized(env)
+    page = env.client.get(f"/review/{cid}").text
+    assert "Ein Text aus dem Wissen." in page and 'name="inhalt_geprueft"' in page and "Inhalt neu schreiben" in page
+    env.cfg["inhalt"]["aktiv"] = False
+    assert 'name="inhalt"' not in env.client.get(f"/review/{cid}").text
+
+
+def test_review_speichert_inhalt_in_entscheidung(env):
+    cid = recognized(env)
+    text = "Obelix verliert seine Sichel. Eine Reise quer durch Gallien beginnt."
+    r = env.client.post(f"/review/{cid}", data=review_form(inhalt=text), follow_redirects=False)
+    assert r.status_code == 303 and "fehler" not in r.headers["location"]
+    d = env.store.read_json(f"eingang/{cid}.json")["entscheidung"]
+    assert d["inhalt"] == {"text": text, "quelle": "rueckseite", "geprueft": False}
+
+
+def test_review_wissen_ohne_haken_wird_abgelehnt(env):
+    env.claude.inhalt = InhaltErgebnis(text="Ein Text aus dem Wissen.", quelle="wissen", sicherheit=0.9)
+    cid = recognized(env)
+    form = review_form(inhalt="Ein Text aus dem Wissen.")
+    r = env.client.post(f"/review/{cid}", data=form, follow_redirects=False)
+    assert r.status_code == 303 and "Text+gepr%C3%BCft+best%C3%A4tigen" in r.headers["location"]
+    assert "entscheidung" not in env.store.read_json(f"eingang/{cid}.json")
+    r = env.client.post(f"/review/{cid}", data=dict(form, inhalt_geprueft="1"), follow_redirects=False)
+    assert "fehler" not in r.headers["location"]
+    inhalt = env.store.read_json(f"eingang/{cid}.json")["entscheidung"]["inhalt"]
+    assert inhalt["quelle"] == "wissen" and inhalt["geprueft"] is True
+
+
+def test_review_leerer_inhalt_ist_erlaubt(env):
+    env.claude.inhalt = InhaltErgebnis(text="Ein Text aus dem Wissen.", quelle="wissen", sicherheit=0.9)
+    cid = recognized(env)
+    r = env.client.post(f"/review/{cid}", data=review_form(inhalt="  "), follow_redirects=False)
+    assert "fehler" not in r.headers["location"]
+    assert env.store.read_json(f"eingang/{cid}.json")["entscheidung"]["inhalt"] is None
+
+
+def test_review_eigener_text_ohne_vorschlag_braucht_keinen_haken(env):
+    env.claude.inhalt = InhaltErgebnis(text=None, quelle="keine", sicherheit=0.0)
+    cid = recognized(env)
+    r = env.client.post(f"/review/{cid}", data=review_form(inhalt="Von Hand geschrieben."), follow_redirects=False)
+    assert "fehler" not in r.headers["location"]
+    assert env.store.read_json(f"eingang/{cid}.json")["entscheidung"]["inhalt"]["quelle"] == "manuell"
+
+
+def test_review_inhalt_zu_lang_oder_mit_html_wird_abgelehnt(env):
+    cid = recognized(env)
+    for bad in ("x" * 601, "Ein <b>Text</b>", "Mehr auf https://example.com"):
+        r = env.client.post(f"/review/{cid}", data=review_form(inhalt=bad), follow_redirects=False)
+        assert "fehler=Inhalt" in r.headers["location"], bad
+    assert "entscheidung" not in env.store.read_json(f"eingang/{cid}.json")
+
+
+# --- Inhaltstext im Metafeld comic.inhalt (ADR-0012) --------------------------------------------------
+def to_shop(env, inhalt=None, **form):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    data = review_form(**form)
+    if inhalt is not None:
+        data["inhalt"] = inhalt
+    assert "fehler" not in c.post(f"/review/{cid}", data=data, follow_redirects=False).headers["location"]
+    r = c.post(f"/api/scans/{cid}/shopify", headers=H)
+    assert r.status_code == 200, r.text
+    return cid, r.json()
+
+
+def test_neues_produkt_bekommt_inhalts_metafeld(env):
+    env.cfg["inhalt"]["aktiv"] = True
+    _, res = to_shop(env, inhalt="Obelix verliert seine Sichel.")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Obelix verliert seine Sichel."
+    assert res["inhalt"] == "gesetzt"
+
+
+def test_weiteres_exemplar_ueberschreibt_vorhandenen_inhalt_nicht(env):
+    to_shop(env, inhalt="Erster Text.")
+    _, res = to_shop(env, inhalt="Zweiter Text.", zustand="3")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Erster Text."
+    assert env.shop.calls.count("metafieldsSet") == 1 and res["inhalt"] == "vorhanden"
+
+
+def test_vorhandenes_produkt_ohne_inhalt_bekommt_ihn(env):
+    to_shop(env)
+    _, res = to_shop(env, inhalt="Jetzt mit Text.", zustand="3")
+    product = env.shop.products["asterix-12-ehapa"]
+    assert env.shop.metafields[product["id"]]["value"] == "Jetzt mit Text." and res["inhalt"] == "gesetzt"
+
+
+def test_ohne_text_kein_metafieldsSet(env):
+    _, res = to_shop(env)
+    assert "metafieldsSet" not in env.shop.calls and res["inhalt"] == ""
+
+
+def test_inhalt_wird_nicht_in_die_beschreibung_geschrieben(env):
+    to_shop(env, inhalt="Geheimer Inhaltstext.")
+    assert "Geheimer Inhaltstext." not in env.shop.products["asterix-12-ehapa"]["input"]["descriptionHtml"]
+
+
+def test_fehler_beim_metafeld_bricht_das_anlegen_nicht_ab(env):
+    env.shop.metafield_error = "Zugriff verweigert"
+    cid, res = to_shop(env, inhalt="Ein Text.")
+    assert res["created"] and res["inhalt"].startswith("fehler: ") and "Zugriff verweigert" in res["inhalt"]
+    assert len(env.shop.products["asterix-12-ehapa"]["variants"]) == 1
+    assert env.store.read_json(f"eingang/{cid}.json")["shopify"]["inhalt"].startswith("fehler: ")

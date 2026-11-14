@@ -172,6 +172,19 @@
       </div>
     </section>
 
+    {% if inhalt_cfg.aktiv %}
+    {% set ih = v.inhalt if v.inhalt is defined else none %}
+    {% set entwurf = side.vorschlag.inhalt if side.vorschlag.inhalt is defined else none %}
+    {% set quelle = (entwurf.quelle if entwurf and entwurf.text else 'manuell') %}
+    <section{{ sperre }} class="abschnitt raster inhalt">
+      <h2>Inhalt <small>(für den Shop, „Worum geht’s?“)</small></h2>
+      <textarea name="inhalt" id="inhalt" rows="5" maxlength="{{ inhalt_cfg.max_zeichen }}" placeholder="Kurzer Text ohne Spoiler, oder leer lassen">{% if ih %}{{ ih.text }}{% elif ih is none and v.inhalt is not defined and entwurf %}{{ entwurf.text or '' }}{% endif %}</textarea>
+      <p class="vorschlag"><span id="inhalt-zaehler">0</span> / {{ inhalt_cfg.max_zeichen }} Zeichen{% if entwurf and entwurf.text %} · {% if entwurf.quelle == 'rueckseite' %}aus dem Rückseitentext, in eigenen Worten{% else %}<strong>aus Modellwissen, bitte prüfen</strong>{% endif %}{% else %} · kein Vorschlag, Text von Hand schreiben oder leer lassen{% endif %}</p>
+      {% if quelle in inhalt_cfg.pruefpflicht %}<label class="stufe"><input type="checkbox" name="inhalt_geprueft" value="1" {% if ih and ih.geprueft %}checked{% endif %}> <span>Text geprüft: er passt zu diesem Heft</span></label>{% endif %}
+      {% if not gesperrt %}<p class="links"><button type="submit" form="inhaltneu" class="link-knopf">Inhalt neu schreiben</button> <small>dauert einige Sekunden, ersetzt den Text oben</small></p>{% endif %}
+    </section>
+    {% endif %}
+
     <section{{ sperre }} class="abschnitt raster zustand">
       <h2>Zustand</h2>
       <div class="anzahl"><label for="anzahl">Anzahl</label>
@@ -220,6 +233,7 @@
   </form>
   <form method="post" action="/review/{{ id }}/loeschen" id="loeschen" hidden></form>
   <form method="post" action="/review/{{ id }}/preis-suchen" id="preissuche" hidden></form>
+  <form method="post" action="/review/{{ id }}/inhalt-neu" id="inhaltneu" hidden></form>
   <form method="post" action="/review/{{ id }}/zurueckholen" id="zurueckholen" hidden></form>
 </div>
 
@@ -279,6 +293,12 @@ function show() {
   calc.textContent = `${eur(basis)} × ${f} (${herkunft}) × ${a} Aufschlag (${q}) = ${eur(raw)} → gerundet`;
 }
 const form = document.getElementById("f");
+const inhaltFeld = document.getElementById("inhalt");
+if (inhaltFeld) {
+  const zaehler = document.getElementById("inhalt-zaehler");
+  const zaehlen = () => { zaehler.textContent = inhaltFeld.value.length; };
+  inhaltFeld.addEventListener("input", zaehlen); zaehlen();
+}
 const HILFE_LEER = document.getElementById("stufe-hilfe").textContent;
 
 // One condition for a single copy (clicking it again clears it). A lot (Anzahl > 1) takes a range:

@@ -13,7 +13,7 @@
         -360
       ],
       "parameters": {
-        "content": "## So kommen neue Comics in die Review\nBei jedem Foto-Upload startet dieser Ablauf sofort, sonst schaut er alle 2 Minuten in den Eingang. Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover. Danach wartet das Comic auf deine Prüfung.",
+        "content": "## So kommen neue Comics in die Review\nBei jedem Foto-Upload startet dieser Ablauf sofort, sonst schaut er alle 2 Minuten in den Eingang. Für jedes neue Scan liest die KI Titel, Heft, Verlag und Zustand aus dem Cover und schreibt einen Kurztext zum Heft (wenn eingeschaltet). Danach wartet das Comic auf deine Prüfung.",
         "height": 150,
         "width": 1120,
         "color": 7
@@ -45,7 +45,7 @@
         -190
       ],
       "parameters": {
-        "content": "### 2. KI liest das Cover\nBis zu 3 Versuche, falls es klemmt.",
+        "content": "### 2. KI liest das Cover\nBis zu 3 Versuche, falls es klemmt. Schreibt auch den Kurztext zum Heft (Schritt „Inhalt“); ein Fehler dort stoppt nichts.",
         "height": 330,
         "width": 400,
         "color": 1

@@ -21,7 +21,7 @@ Der Inhaber nutzt Comicguide als Hauptquelle und schlägt ca. 50 % auf. Comicgui
   rechnet nichts und schätzt nichts. Schlägt die Suche fehl, bleibt die Erkennung gültig. Die Fachkraft bestätigt
   oder überschreibt immer.
 - **Kein Scraping:** Weder Comicguide noch Booklooker/ZVAB werden vom comic-helper oder n8n selbst abgerufen. Keine
-  Comicguide-Texte oder -Bilder im Shop; Zustandstexte in eigenen Worten.
+  Comicguide-Texte oder -Bilder im Shop; Zustandstexte in eigenen Worten. Ebenso werden Klappentexte und Verlagstexte nicht übernommen (Inhaltstext, ADR-0010).
 - Modell der Preissuche: Opus (`CLAUDE_MODEL`), siehe ADR-0010.
 
 ## Konsequenzen
