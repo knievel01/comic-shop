@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import secrets
 import threading
 import time
@@ -37,7 +38,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import marktpreis, pdf, pricing, recognition, report, statistik, storage
+from . import inhalt, marktpreis, pdf, pricing, recognition, report, statistik, storage
 from .config import Settings, pricing_config, settings
 from .shopify import Shopify, ShopifyError, make_sku
 from .storage import AKTIV, EINGANG, Store
@@ -242,6 +243,13 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             proposal["waehrung"], proposal["jahr"], cfg):
         price_hint = {"basis_z1": pricing.base_from_cover_price(proposal["coverpreis"], cfg), "quelle": "coverpreis"}
 
+    inhalt_usage: dict = {}
+    if (cfg.get("inhalt") or {}).get("aktiv"):
+        _step(store, key, "inhalt")
+        proposal["inhalt"] = inhalt.schreibe(
+            claude, proposal, model_images[1], s.inhalt_model or s.anthropic_model,
+            s.inhalt_effort or s.anthropic_effort, cfg, usage_out=inhalt_usage)
+
     sidecar = {
         "id": copy_id,
         "gescannt_am": _utc(head["LastModified"]),
@@ -259,6 +267,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             "erkennung": {"modell": info["model"], "input_tokens": info["input_tokens"],
                           "output_tokens": info["output_tokens"], "sekunden": recognition_s},
             "preissuche": _price_run(price_usage, price_hint),
+            "inhalt": _inhalt_run(inhalt_usage),
         }],
     }
     store.write_json(side_key, sidecar)
@@ -267,8 +276,47 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     return _summary(copy_id, sidecar, s)
 
 
+def _write_inhalt(copy_id: str, store: Store, cfg: dict, s: Settings, claude: anthropic.Anthropic,
+                  neu: bool) -> dict | None:
+    """(Re)writes the content text of an open copy from its back scan and stores it in the sidecar (ADR-0010)."""
+    if not (cfg.get("inhalt") or {}).get("aktiv"):
+        raise HTTPException(409, "Inhaltstext ist nicht eingeschaltet (inhalt.aktiv)")
+    key = store.pdf_key(EINGANG, copy_id)
+    side_key = store.sidecar_key(EINGANG, copy_id)
+    if not store.exists(key) or not store.exists(side_key):
+        raise HTTPException(404, "scan not recognized yet")
+    if store.get_tags(key).get("status") not in REVIEWABLE:
+        raise HTTPException(409, "Nur offene oder fehlerhafte Exemplare")
+    side = store.read_json(side_key)
+    if side["vorschlag"].get("inhalt") and not neu:
+        return side["vorschlag"]["inhalt"]
+    try:
+        back = store.get_bytes(store.image_key(copy_id, 2))
+    except storage.NotFound:
+        back = None
+    started, usage = _utc(), {}
+    result = inhalt.schreibe(claude, side["vorschlag"], back, s.inhalt_model or s.anthropic_model,
+                             s.inhalt_effort or s.anthropic_effort, cfg, usage_out=usage)
+    side["laeufe"] = statistik.entries_of(side) + [{
+        "start": started, "zeit": _utc(), "art": "inhalt", "n8n": "", "gesamt_s": usage.get("seconds"),
+        "erkennung": None, "preissuche": None, "inhalt": _inhalt_run(usage)}]
+    if result is not None:  # a failed rewrite keeps the earlier draft
+        side["vorschlag"]["inhalt"] = result
+    elif "inhalt" not in side["vorschlag"]:
+        side["vorschlag"]["inhalt"] = None
+    store.write_json(side_key, side)
+    return result
+
+
+@app.post("/api/scans/{copy_id}/inhalt", dependencies=[Depends(require_token)])
+def write_inhalt(copy_id: str, neu: int = 0, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
+                 s: Settings = Depends(get_settings), claude: anthropic.Anthropic = Depends(get_claude)):
+    _check_id(copy_id)
+    return _write_inhalt(copy_id, store, cfg, s, claude, bool(neu))
+
+
 # Progress of a running recognition, shown live on the review list (ADR-0004)
-STEPS = ("bilder", "erkennung", "preissuche")
+STEPS = ("bilder", "erkennung", "preissuche", "inhalt")
 
 
 def _step(store: Store, key: str, step: str, **extra: str | None) -> None:
@@ -292,6 +340,17 @@ def _price_run(usage: dict, hint: dict | None) -> dict | None:
     return {"modell": usage["model"], "input_tokens": usage["input_tokens"], "output_tokens": usage["output_tokens"],
             "suchen": usage["searches"], "versuche": usage["attempts"], "sekunden": usage["seconds"],
             "treffer": len(hint["angebote"]) if hint and hint.get("angebote") else 0}
+
+
+def _inhalt_run(usage: dict) -> dict | None:
+    """Statistics entry for one content text; None if the step was off (nothing was called)."""
+    if not usage:
+        return None
+    run = {"modell": usage["model"], "input_tokens": usage["input_tokens"], "output_tokens": usage["output_tokens"],
+           "sekunden": usage["seconds"]}
+    if usage.get("fehler"):
+        run["fehler"] = usage["fehler"]
+    return run
 
 
 def _summary(copy_id: str, sidecar: dict, s: Settings, already: bool = False) -> dict:
@@ -483,7 +542,7 @@ def review_root():
 
 
 @app.get("/review/", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
-def review_list(request: Request, store: Store = Depends(get_store)):
+def review_list(request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
     cases = _inbox_cases(store) + _shop_cases(store)
     details = {}
     for c in cases:
@@ -498,7 +557,7 @@ def review_list(request: Request, store: Store = Depends(get_store)):
     groups = [(st, [c for c in cases if c["status"] == st]) for st in order]
     return templates.TemplateResponse(request, "liste.html", {
         "groups": [(st, cs) for st, cs in groups if cs], "details": details, "open_count": open_count,
-        "labels": STATUS_LABELS, "reviewable": REVIEWABLE,
+        "labels": STATUS_LABELS, "reviewable": REVIEWABLE, "inhalt_aktiv": bool((cfg.get("inhalt") or {}).get("aktiv")),
     })
 
 
@@ -623,6 +682,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "id": copy_id, "side": side, "v": v, "anzahl": anzahl, "max_anzahl": max_lot_size(cfg),
         "zustaende": conditions_of(v) if v.get("zustaende") or v.get("zustand") is not None else [], "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
+        "inhalt_cfg": cfg.get("inhalt") or {},
     })
 
 
@@ -650,6 +710,17 @@ def review_search_price(copy_id: str, store: Store = Depends(get_store), cfg: di
     side["preis_vorschlag"] = hint
     side["preis_suche"] = _utc()
     store.write_json(side_key, side)
+    return RedirectResponse(f"/review/{copy_id}", status_code=303)
+
+
+@app.post("/review/{copy_id}/inhalt-neu", dependencies=[Depends(require_reviewer)])
+def review_rewrite_inhalt(copy_id: str, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
+                          s: Settings = Depends(get_settings), claude: anthropic.Anthropic = Depends(get_claude)):
+    """'Inhalt neu schreiben' in the review form (ADR-0010)."""
+    _check_id(copy_id)
+    if _write_inhalt(copy_id, store, cfg, s, claude, neu=True) is None:
+        return RedirectResponse(f"/review/{copy_id}?fehler=" + quote_plus(
+            "Kein sicherer Inhaltstext gefunden. Bitte von Hand schreiben oder leer lassen."), status_code=303)
     return RedirectResponse(f"/review/{copy_id}", status_code=303)
 
 
@@ -705,6 +776,29 @@ def _notify_n8n(s: Settings, copy_id: str, hook: str = "comic-bestaetigt") -> No
         log.warning("n8n notify (%s) failed for %s: %s", hook, copy_id, e)
 
 
+_INHALT_MARKUP = re.compile(r"<[^>]*>|https?://|www\.", re.IGNORECASE)
+
+
+def _checked_inhalt(text: str, draft: dict | None, geprueft: bool, cfg: dict) -> dict | None:
+    """Content text of the confirmed form: {"text", "quelle", "geprueft"} or None. Raises ValueError (shown to the reviewer).
+
+    The source stays that of the draft (also for an edited text), so a text from model knowledge always
+    needs the reviewer's check; a text without draft is hand-written ("manuell").
+    """
+    c = cfg.get("inhalt") or {}
+    text = "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").strip().split("\n"))
+    if not text:
+        return None
+    if len(text) > int(c.get("max_zeichen", 600)):
+        raise ValueError(f"Inhalt ist zu lang (höchstens {c.get('max_zeichen', 600)} Zeichen)")
+    if _INHALT_MARKUP.search(text):
+        raise ValueError("Inhalt bitte als reinen Text ohne HTML und Links schreiben")
+    quelle = (draft or {}).get("quelle") if draft and draft.get("text") else "manuell"
+    if quelle in (c.get("pruefpflicht") or []) and not geprueft:
+        raise ValueError("Inhalt: bitte „Text geprüft bestätigen“ ankreuzen (Text stammt aus dem Modellwissen)")
+    return {"text": text, "quelle": quelle, "geprueft": geprueft}
+
+
 @app.post("/review/{copy_id}", dependencies=[Depends(require_reviewer)])
 def review_submit(
     copy_id: str,
@@ -726,6 +820,8 @@ def review_submit(
     preis_override: str = Form(""),
     preis_beleg: str = Form(""),
     notiz: str = Form(""),
+    inhalt_text: str = Form("", alias="inhalt"),
+    inhalt_geprueft: str = Form(""),
 ):
     _check_id(copy_id)
     key = store.pdf_key(EINGANG, copy_id)
@@ -779,12 +875,16 @@ def review_submit(
     side_key = store.sidecar_key(EINGANG, copy_id)
     side = store.read_json(side_key) if store.exists(side_key) else {"id": copy_id}
     side.setdefault("vorschlag", EMPTY_PROPOSAL)
+    try:
+        content = _checked_inhalt(inhalt_text, side["vorschlag"].get("inhalt"), bool(inhalt_geprueft), cfg)
+    except ValueError as e:
+        return back(str(e))
     side["entscheidung"] = {
         "titel": titel.strip(), "untertitel": untertitel.strip(), "ausgabe": ausgabe.strip() or "-",
         "verlag": verlag.strip(), "jahr": int(jahr) if jahr.strip().isdigit() else None,
         "sprache": sprache.strip().lower(), "ean_isbn": ean_isbn.strip(), "format": format.strip(),
         "zustand": zustand_wert, "zustaende": zustaende, "anzahl": anzahl,
-        "preis": price, "notiz": notiz.strip()[:2000], "am": _utc(),
+        "preis": price, "notiz": notiz.strip()[:2000], "am": _utc(), "inhalt": content,
         "korrigiert": any(
             (str(side["vorschlag"].get(f) or "") != str(val).strip())
             for f, val in (("titel", titel), ("ausgabe", ausgabe), ("verlag", verlag))
