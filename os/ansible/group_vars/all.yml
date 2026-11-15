@@ -18,6 +18,9 @@ comics_camera_jpeg_quality: 88
 # Scan station
 comics_scan_user: scan
 comics_scan_autologin: true
+# false = the screen never locks for the scan user (no password after idle, screensaver or suspend). The machine
+# is a physical scan station in the LAN (ADR-0001, ADR-0025); set true to get the lock screen back.
+comics_scan_screenlock: false
 comics_scan_dir: /srv/scans
 naps2_version: "8.6.0"
 comics_sync_interval: 1min
