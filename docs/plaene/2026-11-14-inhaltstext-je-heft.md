@@ -51,9 +51,11 @@ Shopify-Entwicklungsshop arbeiten (ADR-0027); der Produktiv-Shop nur nach Freiga
 2. **Quellen, in dieser Reihenfolge:** (a) Text auf Cover oder Rückseite, **in eigenen Worten** zusammengefasst,
    nie abgeschrieben; (b) sicheres eigenes Wissen über genau diesen Band. Sonst leer. **Keine Websuche** und kein
    Abruf von Verlags- oder Katalogtexten (Urheberrecht, ADR-0011).
-3. **Stil:** Deutsch, sachlich, Präsens, ohne direkte Anrede, 2 bis 4 Sätze, höchstens `inhalt.max_zeichen`;
-   spoilerfrei; keine Wertung, keine Preis-, Zustands- oder Sammlerwert-Aussagen; keine Jahreszahlen, Autoren oder
-   Figuren, die nicht belegt sind; kein HTML, keine Links.
+3. **Stil (von Roman entschieden, 15.11.2026):** locker, kurz und leicht erzählend, wie seine fünf Texte im
+   Anhang. Deutsch, Präsens, ohne direkte Anrede („du“/„Sie“), 2 bis 3 Sätze, höchstens `inhalt.max_zeichen`;
+   spoilerfrei; keine Wertung („großartig“), keine Preis-, Zustands- oder Sammlerwert-Aussagen; keine Jahreszahlen,
+   Autoren oder Figuren, die nicht belegt sind; kein HTML, keine Links. Die Texte im Anhang kommen als Stilbeispiele
+   in den Prompt (nur zur Orientierung beim Ton, nicht als Vorlage für Inhalte anderer Hefte).
 4. **Ausgabe von Claude (strukturiert):** `text` (oder null), `quelle` (`rueckseite` | `wissen` | `keine`),
    `sicherheit` (0 bis 1). Der Dienst verwirft den Text, wenn `quelle = keine`, `sicherheit < inhalt.schwelle`,
    der Text zu lang ist oder Links/HTML enthält.
@@ -72,11 +74,18 @@ Shopify-Entwicklungsshop arbeiten (ADR-0027); der Produktiv-Shop nur nach Freiga
 9. **Schalter:** `inhalt.aktiv` in `config/pricing.yaml`, zunächst `false`. Erst nach dem Probelauf (Aufgabe 6)
    und Romans Durchsicht der Texte auf `true`.
 
-## Offen, vor dem Start mit Roman klären
+## Entschieden und erledigt (Stand 15.11.2026)
 
-- Ton des Textes (sachlich wie oben, oder lockerer im Stil von Comic-Sepp)?
-- Metafeld `comic.inhalt` mit Storefront-Zugriff freigeben (Erklärung siehe Aufgabe 5) oder Rückfall Beschreibung?
-- Die 8 bereits angelegten Hefte: von Hand im Shopify-Admin eintragen oder nachtragen lassen (Aufgabe 7)?
+- **Ton:** wie Romans Texte (locker, kurz), siehe Entscheidung 3 und Anhang.
+- **Metafeld:** Roman hat `comic.inhalt` im Produktiv-Shop bereits angelegt (Typ mehrzeiliger Text, von der Storefront
+  lesbar; per Abfrage geprüft). **Aufgabe 5, Teil „Definition“, entfällt**; der Rückfall über die Beschreibung ist
+  nicht nötig. Beim Schreiben denselben Namespace und Schlüssel verwenden (`comic`, `inhalt`).
+- **Vorhandene Hefte:** Roman hat 5 von 8 Texten von Hand eingetragen (Asterix 1, 5, 18, 25, 41). **Aufgabe 7
+  entfällt** bis auf die drei Hefte ohne Text (Donald Duck 121, Lucky Luke 43, Yakari 1): Das erledigt der Endpunkt
+  `POST /api/scans/{id}/inhalt` bzw. Roman von Hand.
+- **Anzeige im Shop (Aufgabe 8): erledigt** in `comic-shop-headless` (Commit `46c801b`). Der Shop liest das Feld bereits.
+  Schreibt der comic-helper andere Zeilenumbrüche, zählen Leerzeilen als Absatz, einfache Zeilenumbrüche werden ignoriert.
+- Der Shop auf dem ComicServer ist seit dem 15.11.2026 auf dem neuen Stand (Rollout durch Roman und Claude).
 
 ---
 
@@ -170,14 +179,11 @@ oder `None`), `entscheidung["inhalt"]` (`{text, quelle, geprueft}`), Lauf-Eintra
   `test_ohne_text_kein_metafieldsSet`; `test_inhalt_wird_nicht_in_die_beschreibung_geschrieben`.
 - [ ] Umsetzen (idempotent, ein Fehler beim Metafeld darf das Anlegen der Variante nicht abbrechen, aber im Log
   und im Sidecar stehen).
-- [ ] **Metafeld-Definition** (Namespace `comic`, Schlüssel `inhalt`, Besitzer Produkt, Typ mehrzeiliger Text,
-  **Storefront-Zugriff: lesen**). Zuerst im Entwicklungsshop der Sandbox. **Im Produktiv-Shop nur nach Freigabe,**
-  mit der Erklärung nach der Regel oben. Beispieltext für Roman: „Ich lege in Shopify ein zusätzliches Feld für
-  Produkte an (Einstellungen → Benutzerdefinierte Daten → Produkte → Definition hinzufügen), Name ‚Inhalt‘. Es ist
-  ein zusätzliches Textfeld am Produkt, es ändert keine Beschreibung, keine Preise, keinen Checkout und nichts am
-  eBay-Kanal. Der ‚Storefront-Zugriff‘ erlaubt nur, dass unser eigener Shop das Feld lesen darf. Rückgängig:
-  Definition wieder löschen, die Texte verschwinden dann vom Produkt.“ Ob die App-Berechtigungen reichen
-  (`write_products`), vorher prüfen.
+- [ ] **Metafeld-Definition:** im Produktiv-Shop **bereits von Roman angelegt** (`comic.inhalt`, siehe oben), nichts
+  zu tun. Nur im Entwicklungsshop der Sandbox muss die gleiche Definition (Typ mehrzeiliger Text, Storefront-Zugriff
+  lesen) einmal angelegt werden, damit die Sandbox das Feld schreiben und lesen kann. Prüfen, ob die App-Berechtigung
+  (`write_products`) das Schreiben von Metafeldern erlaubt, **bevor** Code gegen den Produktiv-Shop läuft.
+  Schreibzugriffe auf den Produktiv-Shop (auch das Setzen des Textes an einem echten Produkt) nur nach Freigabe.
 - [ ] `docs/SHOPIFY-EINRICHTUNG.md`: Schritte für Definition und Storefront-Zugriff. Tests grün, Commit „gemäß ADR-0012“.
 
 ## Aufgabe 6: Workflow 01, Sandbox, Probelauf, Freischaltung
@@ -230,3 +236,29 @@ bash -n os/build-iso.sh scripts/*.sh
 - **Mehrere Exemplare desselben Titels:** Text wird nur einmal je Produkt gesetzt; Wiederholungs-Entwürfe sind
   verschenkte Kosten. Optional später: vor dem Schreiben prüfen, ob das Produkt schon einen Text hat, und diesen
   vorbelegen statt neu zu erzeugen.
+
+## Anhang: Romans Texte als Stilvorlage (Stand 15.11.2026)
+
+Aus `comic.inhalt` der fünf Produkte, von Roman geschrieben bzw. freigegeben. Für den Prompt als Beispiele für Ton
+und Länge (jeweils 2 bis 3 Sätze), nicht als Inhalt für andere Hefte.
+
+**Asterix 25 – Der große Graben:** Ein gallisches Dorf ist in zwei Hälften zerfallen: zwei verfeindete Häuptlinge,
+zwei Lager, und man spricht kein Wort mehr miteinander. Besonders hart trifft das die Kinder der beiden Rivalen, die
+sich eigentlich sehr gern haben. Asterix muss einen Weg finden, das geteilte Dorf wieder zusammenzubringen.
+
+**Asterix 18 – Die Lorbeeren des Cäsar:** Majestix hat die Nase voll von seinem nervigen Schwager und reißt die
+Klappe auf: Er könne ein Gericht sogar mit Cäsars Lorbeerkranz würzen. Ein Häuptling muss zu seinem Wort stehen, also
+ziehen Asterix und Obelix los, um den Kranz aus Rom zu holen. Das kann ja nur ein Abenteuer mit reichlich Ärger werden.
+
+**Asterix 41 – Asterix in Lusitanien:** Diesmal reisen Asterix, Obelix und Idefix in die römische Provinz Lusitanien,
+das heutige Portugal. Aus der Reise wird eine kleine Detektivgeschichte, in der es auch um das berüchtigte Würzmittel
+Garum geht. Dazu gibt es jede Menge Portugal-Flair, von Kabeljau bis Fado.
+
+**Asterix 5 – Die goldene Sichel:** Dumm gelaufen: Kurz vor dem großen Treffen der Druiden im Karnutenwald zerbricht
+Miraculix seine goldene Sichel. Eine neue gibt es nur in Lutetia, also machen sich Asterix und Obelix auf den langen
+und nicht ganz ungefährlichen Weg. Unterwegs gibt es jede Menge Ärger.
+
+**Asterix 1 – Asterix der Gallier:** Wo alles anfing: Im Jahr 50 vor Christus ist ganz Gallien von den Römern besetzt,
+nur ein kleines Dorf hält tapfer dagegen. Dort schleicht sich ein römischer Spion ein, und bald haben es die Besatzer
+auf den Zaubertrank von Miraculix abgesehen. Asterix muss seinen ganzen Grips zusammennehmen, um das Geheimnis des
+Dorfes zu schützen.
