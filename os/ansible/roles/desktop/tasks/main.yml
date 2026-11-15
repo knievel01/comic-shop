@@ -1,7 +1,7 @@
 ---
 - name: Cinnamon desktop (ADR-0001)
   ansible.builtin.apt:
-    name: [cinnamon-desktop-environment, gnome-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg]
+    name: [cinnamon-desktop-environment, gnome-terminal, lightdm, lightdm-gtk-greeter, firefox, evince, language-pack-de, xserver-xorg, dconf-cli]
     state: present
     install_recommends: false
 
@@ -45,3 +45,39 @@
     path: /etc/lightdm/lightdm.conf.d/50-comics-autologin.conf
     state: absent
   when: not (comics_scan_autologin | bool)
+
+# Screen lock for the scan user: system-wide dconf default (the user db still wins, nobody changed it there).
+- name: dconf profile reads the system database
+  ansible.builtin.lineinfile:
+    path: /etc/dconf/profile/user
+    line: "{{ item }}"
+    create: true
+    mode: "0644"
+  loop: [user-db:user, system-db:local]
+  notify: Update dconf
+
+- name: dconf database directory
+  ansible.builtin.file:
+    path: /etc/dconf/db/local.d
+    state: directory
+    mode: "0755"
+
+- name: No screen lock (scan station)
+  ansible.builtin.copy:
+    dest: /etc/dconf/db/local.d/50-comics-screenlock
+    mode: "0644"
+    content: |
+      [org/cinnamon/desktop/screensaver]
+      lock-enabled=false
+
+      [org/cinnamon/settings-daemon/plugins/power]
+      lock-on-suspend=false
+  when: not (comics_scan_screenlock | bool)
+  notify: Update dconf
+
+- name: Screen lock as default again
+  ansible.builtin.file:
+    path: /etc/dconf/db/local.d/50-comics-screenlock
+    state: absent
+  when: comics_scan_screenlock | bool
+  notify: Update dconf
