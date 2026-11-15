@@ -815,3 +815,11 @@ def test_hochladen_seite_zeigt_das_fussschalter_panel_nur_dort(env):
     assert 'id="fussschalter"' in page and "127.0.0.1:8099/status.json" in page
     assert "Fußschalter" in page and "von Hand" in page and 'name="rueckseite"' in page   # manual upload stays
     assert 'id="fussschalter"' not in env.client.get("/review/").text                     # not in the list dialog
+
+
+def test_inhalt_abschnitt_hat_eigene_reiterfarbe_und_kurze_ueberschrift(env):
+    env.cfg["inhalt"]["aktiv"] = True
+    cid = recognized(env)
+    page = env.client.get(f"/review/{cid}").text
+    assert ".inhalt  { --reiter:" in page or ".inhalt { --reiter:" in page   # without it the heading is white on white
+    assert "<h2>Inhalt</h2>" in page and 'for="inhalt"' in page
