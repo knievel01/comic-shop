@@ -781,3 +781,37 @@ def test_fehler_beim_metafeld_bricht_das_anlegen_nicht_ab(env):
     assert res["created"] and res["inhalt"].startswith("fehler: ") and "Zugriff verweigert" in res["inhalt"]
     assert len(env.shop.products["asterix-12-ehapa"]["variants"]) == 1
     assert env.store.read_json(f"eingang/{cid}.json")["shopify"]["inhalt"].startswith("fehler: ")
+
+
+# --- Handle für das Umbenennen des Erfassungsordners (Fußschalter-Erfassung, ADR-0007) --------------------
+def test_handle_endpoint_folgt_dem_lebenslauf_des_scans(env):
+    from comic_helper.shopify import product_handle
+    c, cid = env.client, str(uuid.uuid4())
+    assert c.get(f"/api/scans/{cid}/handle").status_code == 401
+    assert c.get(f"/api/scans/{cid}/handle", headers=H).status_code == 404
+    assert c.get("/api/scans/nicht-gueltig/handle", headers=H).status_code == 400
+    upload_scan(env.s3, cid)
+    assert c.get(f"/api/scans/{cid}/handle", headers=H).json() == {"id": cid, "status": "neu", "handle": None}
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    r = c.get(f"/api/scans/{cid}/handle", headers=H).json()
+    assert r == {"id": cid, "status": "offen", "handle": "asterix-12-ehapa"}
+    # a corrected title wins as soon as the reviewer confirmed
+    c.post(f"/review/{cid}", data=review_form(titel="Asterix und Obelix"))
+    r = c.get(f"/api/scans/{cid}/handle", headers=H).json()
+    assert r["status"] == "bestaetigt" and r["handle"] == product_handle("Asterix und Obelix", "12", "Ehapa")
+
+
+def test_handle_endpoint_meldet_fehler_ohne_handle(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/fail", headers=H, json={"grund": "kaputt"})
+    assert c.get(f"/api/scans/{cid}/handle", headers=H).json() == {"id": cid, "status": "fehler", "handle": None}
+
+
+def test_hochladen_seite_zeigt_das_fussschalter_panel_nur_dort(env):
+    page = env.client.get("/review/hochladen").text
+    assert 'id="fussschalter"' in page and "127.0.0.1:8099/status.json" in page
+    assert "Fußschalter" in page and "von Hand" in page and 'name="rueckseite"' in page   # manual upload stays
+    assert 'id="fussschalter"' not in env.client.get("/review/").text                     # not in the list dialog

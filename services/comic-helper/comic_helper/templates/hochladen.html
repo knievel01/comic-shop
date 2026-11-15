@@ -4,12 +4,54 @@
 <style>
   form.upload { background:var(--paper); border:var(--strich); padding:.4rem 1.4rem 1.4rem; max-width:40rem; }
   main > p { max-width:40rem; font-size:1.1rem; }
+  #fussschalter { background:var(--paper); border:var(--strich); padding:.4rem 1.4rem 1.2rem; max-width:40rem; margin-bottom:1.6rem; }
+  #fussschalter h2, h2.reserve { font:1.5rem/1.2 var(--display); letter-spacing:.04em; margin:1rem 0 .4rem; }
+  #fussschalter .naechstes { font-size:1.35rem; font-weight:800; margin:.4rem 0; }
+  #fussschalter .heft { margin:.2rem 0; }
+  #fussschalter ul { margin:.4rem 0 0; padding-left:1.2rem; color:var(--muted); }
+  #fussschalter.aus .naechstes { font-size:1.05rem; font-weight:400; color:var(--muted); }
 </style>
 {% endblock %}
 {% block body %}
 <h1>Comic hochladen</h1>
 {% if fehler %}<div class="msg err">{{ fehler }}</div>{% endif %}
+<section id="fussschalter" class="aus" aria-live="polite">
+  <h2>Erfassung per Fußschalter</h2>
+  <p class="naechstes" id="fuss-naechstes">Status wird geladen …</p>
+  <p class="heft" id="fuss-heft" hidden></p>
+  <ul id="fuss-letzte" hidden></ul>
+</section>
+<h2 class="reserve">Oder Fotos von Hand hochladen</h2>
 <p>Ein Foto vom Cover und eins von der Rückseite. Daraus entsteht ein Scan wie vom Scanner; die Erkennung
 startet innerhalb von 2 Minuten.</p>
 {% include "_hochladen_form.html" %}
+<script>
+// Footswitch station (comics-pedal on the scan machine, ADR-0007): it answers on 127.0.0.1 only, so this panel
+// works on the scan machine itself. Elsewhere it says so and the upload form below stays usable.
+(() => {
+  const box = document.getElementById("fussschalter");
+  const naechstes = document.getElementById("fuss-naechstes"), heft = document.getElementById("fuss-heft");
+  const letzte = document.getElementById("fuss-letzte");
+  async function holen() {
+    try {
+      const r = await fetch("http://127.0.0.1:8099/status.json", { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      const s = await r.json();
+      box.classList.remove("aus");
+      naechstes.textContent = "Als Nächstes: " + s.naechstes;
+      heft.hidden = !s.heft;
+      heft.textContent = s.heft ? `Aktuelles Heft ${s.heft.slice(0, 8)}: ${s.fotos} Foto${s.fotos === 1 ? "" : "s"}` : "";
+      letzte.replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
+        { textContent: `${h.name.slice(0, 8)}: ${h.fotos} Fotos` })));
+      letzte.hidden = !s.letzte.length;
+    } catch {
+      box.classList.add("aus");
+      naechstes.textContent = "Nur am Scan-Rechner sichtbar (dort laufen die Fußschalter).";
+      heft.hidden = letzte.hidden = true;
+    }
+  }
+  holen();
+  setInterval(() => { if (!document.hidden) holen(); }, 1500);
+})();
+</script>
 {% endblock %}

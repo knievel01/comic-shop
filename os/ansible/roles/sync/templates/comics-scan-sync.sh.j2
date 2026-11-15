@@ -22,7 +22,9 @@ for f in "$BASE"/neu/*.pdf; do
     continue
   fi
 
-  id="$(uuidgen | tr 'A-Z' 'a-z')"
+  # footswitch capture (comics-pedal) names the pdf after its folder; keep that uuid as the exemplar id
+  id="$(basename "$f" .pdf)"
+  [[ "$id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || id="$(uuidgen | tr 'A-Z' 'a-z')"
   if aws s3api put-object \
       --bucket "$S3_BUCKET" \
       --key "eingang/$id.pdf" \
@@ -40,3 +42,4 @@ done
 
 # Local copies are only a safety net; S3 (versioned) is the source.
 find "$BASE/hochgeladen" -type f -mtime +{{ comics_scan_keep_days }} -delete
+find "$BASE/hochgeladen" -mindepth 1 -type d -empty -delete

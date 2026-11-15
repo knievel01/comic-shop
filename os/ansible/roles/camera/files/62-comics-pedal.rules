@@ -1,0 +1,2 @@
+# PCsensor FootSwitch (3553:b001): input devices readable for group "scanner" (no "input" group needed).
+SUBSYSTEM=="input", ATTRS{idVendor}=="3553", ATTRS{idProduct}=="b001", GROUP="scanner", MODE="0660"
