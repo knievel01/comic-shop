@@ -192,3 +192,24 @@ def test_status_server_antwortet_mit_json_und_cors(tmp_path):
         assert urllib.request.urlopen(pre, timeout=5).headers["Access-Control-Allow-Private-Network"] == "true"
     finally:
         server.shutdown()
+
+
+def ev(t, value=1, type_=1):
+    return SimpleNamespace(type=type_, value=value, timestamp=lambda: t)
+
+
+def test_jeder_tritt_zaehlt_auch_mehrere_in_einem_lesedurchgang():
+    batch = [("s2", [ev(10.0), ev(10.1, value=0), ev(10.5), ev(10.6, value=0)])]
+    assert cp.extract_presses(batch) == [("s2", 10.0), ("s2", 10.5)]
+
+
+def test_presses_werden_zeitlich_sortiert_und_nur_tastendruecke_zaehlen():
+    batch = [("s2", [ev(11.0), ev(11.0, type_=2)]), ("s1", [ev(10.0), ev(10.0, value=2)])]
+    assert cp.extract_presses(batch) == [("s1", 10.0), ("s2", 11.0)]
+
+
+def test_entprellen_nach_ereigniszeit_doppelte_meldung_derselben_betaetigung_faellt_weg():
+    d = cp.Debounce()
+    assert cp.DEBOUNCE_S <= 0.25
+    assert d.ok("s2", 10.000) and not d.ok("s2", 10.005)   # same press reported by keyboard and mouse node
+    assert d.ok("s2", 10.300)                              # a quick second tap is a second photo
