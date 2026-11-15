@@ -14,6 +14,9 @@ comics_scanner_enabled: false
 comics_camera_enabled: true
 comics_camera_max_edge: 3000
 comics_camera_jpeg_quality: 88
+# Two USB footswitches (PCsensor 3553:b001): switch 1 = new comic (folder), switch 2 = photo (ADR-0007).
+comics_pedal_enabled: true
+comics_pedal_idle_close_s: 300
 
 # Scan station
 comics_scan_user: scan

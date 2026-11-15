@@ -14,7 +14,7 @@
   ansible.builtin.user:
     name: "{{ comics_scan_user }}"
     shell: /bin/bash
-    groups: [scanner, plugdev]
+    groups: [scanner, plugdev, video]
     append: true
     password: "!"
 
@@ -25,7 +25,7 @@
     owner: "{{ comics_scan_user }}"
     group: "{{ comics_scan_user }}"
     mode: "0775"
-  loop: [neu, hochgeladen, fehler]
+  loop: [neu, hochgeladen, fehler, erfassung]
 
 - name: Udev rule - Canon cameras accessible for group scanner
   ansible.builtin.copy:
@@ -59,3 +59,43 @@
       "u" + Enter = letztes Foto verwerfen und neu aufnehmen. "q" = Ende.
       Kamera: USB, eingeschaltet, Modus M (manuell), JPEG, Autofokus an. Kein Mount durch den Desktop.
       Test ohne PDF: comics-capture --probe
+      Mit den Fussschaltern (Dienst comics-pedal): Schalter 1 = neues Heft, Schalter 2 = Foto (erst Cover, dann Rueckseite).
+
+# Footswitches (ADR-0007): comics-pedal creates one folder per comic and takes the photos.
+- name: Footswitch capture
+  when: comics_pedal_enabled | bool
+  block:
+    - name: Footswitch tools (evdev, webcam, sound)
+      ansible.builtin.apt:
+        name: [python3-evdev, fswebcam, pulseaudio-utils]
+        state: present
+        install_recommends: false
+
+    - name: Udev rule - footswitches readable for group scanner (only this USB id)
+      ansible.builtin.copy:
+        src: 62-comics-pedal.rules
+        dest: /etc/udev/rules.d/62-comics-pedal.rules
+        mode: "0644"
+      notify: Reload udev
+
+    - name: State directory of the footswitch service
+      ansible.builtin.file:
+        path: /var/lib/comics-pedal
+        state: directory
+        owner: "{{ comics_scan_user }}"
+        group: "{{ comics_scan_user }}"
+        mode: "0755"
+
+    - name: Footswitch service
+      ansible.builtin.template:
+        src: comics-pedal.service.j2
+        dest: /etc/systemd/system/comics-pedal.service
+        mode: "0644"
+      notify: Restart comics-pedal
+
+    - name: Footswitch service active
+      ansible.builtin.systemd_service:
+        name: comics-pedal.service
+        enabled: true
+        state: started
+        daemon_reload: true

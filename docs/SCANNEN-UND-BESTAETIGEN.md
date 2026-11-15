@@ -1,6 +1,17 @@
 # Scannen und Bestätigen – auf einer Seite
 
-## Scannen
+## Erfassen mit den Fußschaltern
+
+1. **Schalter 1** treten: neues Heft (Ton). Das Heft aufs Pult legen.
+2. **Schalter 2**: Cover fotografieren. Heft wenden, **Schalter 2**: Rückseite. Weitere Fotos sind möglich, das letzte
+   gilt als Rückseite.
+3. Nächstes Heft: wieder **Schalter 1**. Das letzte Heft des Tages schließt sich nach 5 Minuten Ruhe von selbst.
+4. Auf der Seite „Hochladen“ steht, was als Nächstes kommt (nur am Scan-Rechner).
+
+Ein Warnton heißt: Schalter 2 ohne Heft (erst Schalter 1), Kamera nicht erreichbar oder ein Heft mit nur einem Foto
+(landet in `fehler/`). Nach der Erkennung heißt der Ordner wie das Heft (`/srv/scans/hochgeladen/<Heft>/`).
+
+## Scannen (Scanner)
 
 1. NAPS2 öffnen, Profil **„Comic A3, 2 Seiten“** wählen.
 2. **Cover** auflegen → Scannen. **Rückseite** auflegen → Scannen.

@@ -2,3 +2,14 @@
 - name: Reload udev
   ansible.builtin.command: udevadm control --reload-rules
   changed_when: true
+
+- name: Retrigger udev for input devices
+  ansible.builtin.command: udevadm trigger --subsystem-match=input --action=change
+  changed_when: true
+  listen: Reload udev
+
+- name: Restart comics-pedal
+  ansible.builtin.systemd_service:
+    name: comics-pedal.service
+    state: restarted
+    daemon_reload: true

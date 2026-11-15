@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Runs as root right after comics-scan-sync (ExecStartPost=+). Renames the capture folders of comics that were
+# uploaded: erfassung/<uuid> -> hochgeladen/<shop handle> (ADR-0007). The folder name is the exemplar id, the shop
+# handle comes from comic-helper (GET /api/scans/<id>/handle) once the comic is recognized.
+set -euo pipefail
+shopt -s nullglob
+
+BASE="{{ comics_scan_dir }}"
+[[ -d "$BASE/erfassung" ]] || exit 0
+token="$(grep -E '^HELPER_TOKEN=' "{{ comics_env_file }}" | head -1 | cut -d= -f2-)"
+[[ -n "$token" ]] || { echo "WARN: HELPER_TOKEN missing in {{ comics_env_file }}"; exit 0; }
+ip="$(k3s kubectl -n comics get svc comic-helper -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)"
+[[ -n "$ip" ]] || { echo "WARN: service comic-helper not found"; exit 0; }
+
+for dir in "$BASE"/erfassung/*/; do
+  id="$(basename "$dir")"
+  [[ "$id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || continue
+  [[ -f "$BASE/hochgeladen/$id.pdf" ]] || continue   # still open or not uploaded yet
+  resp="$(curl -fsS -m 10 -H "X-Helper-Token: $token" "http://$ip:8080/api/scans/$id/handle" 2>/dev/null)" || continue
+  status="$(jq -r '.status // empty' <<<"$resp")"
+  handle="$(jq -r '.handle // empty' <<<"$resp")"
+  case "$status" in
+    fehler)
+      target="$BASE/fehler/$id" ;;
+    offen|bestaetigt|aktiv)
+      [[ "$handle" =~ ^[a-z0-9-]+$ ]] || continue
+      target="$BASE/hochgeladen/$handle"
+      [[ -e "$target" ]] && target="$target-${id:0:8}" ;;
+    *) continue ;;
+  esac
+  mv -- "${dir%/}" "$target"
+  echo "folder $id -> $(basename "$target")"
+done

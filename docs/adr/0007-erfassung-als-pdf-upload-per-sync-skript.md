@@ -1,7 +1,7 @@
 # ADR-0007: Erfassung als 2-seitige PDF, Upload per Sync-Skript mit UUID
 
 - **Status:** Akzeptiert
-- **Datum:** 2026-10-27, konsolidiert 2026-11-13 (enthält frühere ADR-0018, ADR-0030)
+- **Datum:** 2026-10-27, konsolidiert 2026-11-13 (enthält frühere ADR-0018, ADR-0030), Fußschalter 2026-11-15
 
 ## Kontext
 Pro Comic entsteht eine zweiseitige PDF (Cover, Rückseite) mit der UUID als Dateiname in `eingang/`. Ein
@@ -15,6 +15,14 @@ Einzelne Exemplare sollen auch ohne Station erfassbar sein.
   ganzen Lebenszyklus. n8n holt neue Scans per Polling (2 min), nicht per S3-Event.
 - **Standard-Eingang ist die Kamera** (Rolle `camera`, Skript `comics-capture`): Enter löst die Canon per gphoto2/USB aus,
   erst Cover, dann Rückseite; Ergebnis ist dieselbe 2-seitige PDF. Ein SANE-Scanner bleibt möglich.
+- **Auslösung per Fußschalter** (Rolle `camera`, Dienst `comics-pedal`, `services/comic-pedal/`): Schalter 1 legt
+  `/srv/scans/erfassung/<uuid>/` an (ein Heft), Schalter 2 löst die Kamera aus (Canon per gphoto2, sonst die Webcam) und
+  legt das Foto in den Ordner. Der nächste Druck auf Schalter 1 oder 5 Minuten Ruhe schließen den Ordner: erstes Foto =
+  Cover, letztes = Rückseite, daraus `neu/<uuid>.pdf` (2 Seiten, die Erkennung bleibt unverändert). **Der Ordnername ist
+  die Exemplar-ID**; `comics-scan-sync` übernimmt die UUID aus dem PDF-Namen. Nach der Erkennung benennt der Root-Schritt
+  `comics-folder-rename` (`ExecStartPost=+` derselben Unit) den Ordner nach dem Shop-Handle um
+  (`GET /api/scans/{id}/handle`) und verschiebt ihn nach `hochgeladen/`. Die Seite „Hochladen“ zeigt den Stand
+  (Dienst antwortet nur auf `127.0.0.1:8099`). `comics-capture` im Terminal bleibt möglich.
 - **Zweiter Eingang: Foto-Upload** im Review (`/review/hochladen`, z. B. Handyfotos). Der comic-helper baut dieselbe
   2-seitige PDF und legt sie wie der Sync-Weg in `eingang/` ab. Der comic-helper darf schon dorthin schreiben:
   kein neuer Dienst, kein neuer Schlüssel.
@@ -23,7 +31,10 @@ Einzelne Exemplare sollen auch ohne Station erfassbar sein.
 - Der Upload-Schlüssel kann nur schreiben (ADR-0003). Bis zu ~3 Minuten zwischen Aufnahme und Erkennung.
 - Die Kamera muss von libgphoto2 mit Fernauslösung unterstützt werden (vorher `comics-capture --probe`).
 - Fotos sind schlechter als Scans (Perspektive, Licht); die Prüfung im Review fängt Fehler ab. HEIC wird nicht gelesen.
-- Zwei Auslösungen je Comic; Zeit je Comic ist zu messen. Ausbau: `future-improvements/001`.
+- Zwei Auslösungen je Comic; Zeit je Comic ist zu messen.
+- Die Schalter haben dieselbe USB-ID. Der Dienst ordnet sie beim ersten Start über den USB-Port zu
+  (`/var/lib/comics-pedal/pedals.json`, löschen = neu zuordnen). Der Ordnername entsteht aus dem KI-Vorschlag; eine
+  spätere Korrektur im Review ändert ihn nicht. Ausbau: `future-improvements/001`.
 
 ## Verworfene Alternativen
 - s3fs-Mount; S3-Event an Webhook (mehr bewegliche Teile).

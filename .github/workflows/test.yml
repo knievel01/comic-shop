@@ -19,6 +19,9 @@ jobs:
         run: |
           pip install -r requirements-dev.txt
           python -m pytest -q
+      - name: comic-pedal tests
+        working-directory: services/comic-pedal
+        run: python -m pytest -q
       - name: Kubernetes manifests render
         run: kubectl kustomize infra/k3s >/dev/null
       - name: Ansible syntax and lint

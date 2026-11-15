@@ -40,7 +40,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import inhalt, marktpreis, pdf, pricing, recognition, report, statistik, storage
 from .config import Settings, pricing_config, settings
-from .shopify import Shopify, ShopifyError, make_sku
+from .shopify import Shopify, ShopifyError, make_sku, product_handle
 from .storage import AKTIV, EINGANG, Store
 
 log = logging.getLogger("comic_helper")
@@ -366,6 +366,27 @@ def _summary(copy_id: str, sidecar: dict, s: Settings, already: bool = False) ->
         "verlag": v["verlag"],
         "review_url": f"{s.review_base_url}/review/{copy_id}",
     }
+
+
+@app.get("/api/scans/{copy_id}/handle", dependencies=[Depends(require_token)])
+def scan_handle(copy_id: str, store: Store = Depends(get_store)):
+    """Status and shop handle of a scan, for renaming the capture folder on the comic machine (ADR-0007).
+    The handle comes from the reviewer's decision, else from the AI proposal; None while neither exists."""
+    _check_id(copy_id)
+    for prefix in (EINGANG, AKTIV):
+        key = store.pdf_key(prefix, copy_id)
+        if not store.exists(key):
+            continue
+        status = "aktiv" if prefix == AKTIV else store.get_tags(key).get("status", "neu")
+        handle = None
+        side_key = store.sidecar_key(prefix, copy_id)
+        if store.exists(side_key):
+            side = store.read_json(side_key)
+            d = side.get("entscheidung") or side.get("vorschlag") or {}
+            if d.get("titel"):
+                handle = product_handle(d["titel"], d.get("ausgabe", ""), d.get("verlag", ""))
+        return {"id": copy_id, "status": status, "handle": handle}
+    raise HTTPException(404, "scan not found")
 
 
 @app.post("/api/scans/{copy_id}/fail", dependencies=[Depends(require_token)])

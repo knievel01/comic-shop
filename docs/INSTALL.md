@@ -122,6 +122,16 @@ sudo /opt/comic-shop/scripts/verify.sh --skip-scan
 Danach n8n im Browser öffnen: `http://comics-01/` (nur LAN, kein Zertifikat, ADR-0025),
 Owner-Konto anlegen, Workflows importieren (`docs/BETRIEB.md` → „Workflows einspielen“).
 
+## Fußschalter einrichten (ADR-0007)
+
+Zwei USB-Fußschalter (PCsensor, `3553:b001`) einstecken, `sudo comics-update --tags camera,sync`. Beim ersten Start des
+Dienstes `comics-pedal` (`journalctl -u comics-pedal -f`) kommt ein Ton: erst Fußschalter 1 treten, dann Fußschalter 2.
+Die Zuordnung steht in `/var/lib/comics-pedal/pedals.json`. Neu zuordnen (z. B. andere USB-Buchse):
+
+```bash
+sudo rm /var/lib/comics-pedal/pedals.json && sudo systemctl restart comics-pedal
+```
+
 ## Abnahme (Phase 2)
 
 | Test | Vorgehen | Erwartung |

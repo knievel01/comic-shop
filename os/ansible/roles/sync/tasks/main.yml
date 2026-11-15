@@ -5,6 +5,12 @@
     dest: /usr/local/bin/comics-scan-sync
     mode: "0755"
 
+- name: Folder rename script (capture folders -> shop handle)
+  ansible.builtin.template:
+    src: comics-folder-rename.sh.j2
+    dest: /usr/local/bin/comics-folder-rename
+    mode: "0755"
+
 - name: Sync service and timer
   ansible.builtin.template:
     src: "{{ item }}.j2"

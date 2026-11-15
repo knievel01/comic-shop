@@ -9,4 +9,6 @@ User={{ comics_scan_user }}
 # Upload-only credentials, prepared by the apps role from {{ comics_env_file }}
 EnvironmentFile=-/etc/comics/scan-upload.env
 ExecStart=/usr/local/bin/comics-scan-sync
+# as root (+): needs the helper token and kubectl; renames capture folders after recognition
+ExecStartPost=+/usr/local/bin/comics-folder-rename
 Nice=10
