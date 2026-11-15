@@ -24,6 +24,9 @@ benutzerdefinierten Apps im Shop-Admin mehr; neue Apps entstehen im Dev Dashboar
   `read_locations`, `read_publications`). Der Dienst holt sich den 24-Stunden-Token selbst per `client_credentials`
   (Client-ID und -Schlüssel, nur in `comics.env`, ADR-0003), cacht ihn und holt ihn bei 401 neu.
   `SHOPIFY_ADMIN_TOKEN` bleibt für eine ältere App möglich.
+- **Inhaltstext:** ein kurzer Text je Produkt im Metafeld `comic.inhalt` (mehrzeiliger Text, Definition mit
+  Storefront-Zugriff „lesen“). Er wird nur gesetzt, wenn das Produkt noch keinen hat (Handtexte bleiben); die
+  Beschreibung bleibt unberührt, weil eBay sie liest. Ein Fehler beim Metafeld bricht das Anlegen nicht ab.
 - **Freigabe:** Produkte werden in der ersten Woche nach dem Go-Live als Entwurf angelegt (`shopify.produkt_status:
   DRAFT`) und von Hand freigeschaltet, danach `ACTIVE` (Änderung zuerst in der Sandbox, ADR-0027).
 

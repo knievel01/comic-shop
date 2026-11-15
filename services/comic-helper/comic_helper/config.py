@@ -29,6 +29,8 @@ class Settings:
     n8n_internal_url: str = "http://n8n:5678"
     anthropic_model: str = "claude-opus-5-5"
     anthropic_effort: str = "low"
+    inhalt_model: str = ""
+    inhalt_effort: str = ""
     shopify_shop_domain: str = ""
     shopify_admin_token: str = ""
     shopify_client_id: str = ""
@@ -53,6 +55,8 @@ class Settings:
             n8n_internal_url=env("N8N_INTERNAL_URL", "http://n8n:5678").rstrip("/"),
             anthropic_model=env("CLAUDE_MODEL", "claude-opus-5-5"),
             anthropic_effort=env("CLAUDE_EFFORT", "low"),
+            inhalt_model=env("INHALT_MODEL", "") or env("CLAUDE_MODEL", "claude-opus-5-5"),
+            inhalt_effort=env("INHALT_EFFORT", "") or env("CLAUDE_EFFORT", "low"),
             shopify_shop_domain=env("SHOPIFY_SHOP_DOMAIN", ""),
             shopify_admin_token=env("SHOPIFY_ADMIN_TOKEN", ""),
             shopify_client_id=env("SHOPIFY_CLIENT_ID", ""),

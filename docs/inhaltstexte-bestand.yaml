@@ -1,0 +1,27 @@
+# Inhaltstexte für die 8 bereits angelegten Hefte (Stand 14.11.2026), in eigenen Worten, spoilerfrei.
+# Recherche per Websuche (Verlags- und Buchhandelsseiten, Rezensionen); nichts wörtlich übernommen (ADR-0011).
+# Format "handle: text" für `python -m comic_helper.nachtragen --texte -` oder zum Abtippen im Shopify-Admin.
+asterix-1-ehapa-verlag-gmbh-stuttgart: >-
+  Wo alles anfing: Im Jahr 50 vor Christus ist ganz Gallien von den Römern besetzt, nur ein kleines Dorf hält tapfer dagegen.
+  Dort schleicht sich ein römischer Spion ein, und bald haben es die Besatzer auf den Zaubertrank von Miraculix abgesehen.
+  Asterix muss seinen ganzen Grips zusammennehmen, um das Geheimnis des Dorfes zu schützen.
+asterix-5-egmont-ehapa-verlag: >-
+  Dumm gelaufen: Kurz vor dem großen Treffen der Druiden im Karnutenwald zerbricht Miraculix seine goldene Sichel.
+  Eine neue gibt es nur in Lutetia, also machen sich Asterix und Obelix auf den langen und nicht ganz ungefährlichen Weg.
+  Unterwegs gibt es jede Menge Ärger.
+asterix-18-ehapa-verlag-gmbh-stuttgart: >-
+  Majestix hat die Nase voll von seinem nervigen Schwager und reißt die Klappe auf: Er könne ein Gericht sogar mit Cäsars Lorbeerkranz würzen.
+  Ein Häuptling muss zu seinem Wort stehen, also ziehen Asterix und Obelix los, um den Kranz aus Rom zu holen.
+  Das kann ja nur ein Abenteuer mit reichlich Ärger werden.
+asterix-25-ehapa: >-
+  Ein gallisches Dorf ist in zwei Hälften zerfallen: zwei verfeindete Häuptlinge, zwei Lager, und man spricht kein Wort mehr miteinander.
+  Besonders hart trifft das die Kinder der beiden Rivalen, die sich eigentlich sehr gern haben.
+  Asterix muss einen Weg finden, das geteilte Dorf wieder zusammenzubringen.
+asterix-41-egmont-ehapa-media: >-
+  Diesmal reisen Asterix, Obelix und Idefix in die römische Provinz Lusitanien, das heutige Portugal.
+  Aus der Reise wird eine kleine Detektivgeschichte, in der es auch um das berüchtigte Würzmittel Garum geht.
+  Dazu gibt es jede Menge Portugal-Flair, von Kabeljau bis Fado.
+# Ohne Text, weil die Recherche keine belastbare Handlung geliefert hat (siehe Bericht an Roman):
+#   lucky-luke-43-delta-verlag-gmbh-stuttgart-ehapa-verlag-vertrieb
+#   yakari-1-ehapa
+#   donald-duck-121-ehapa-verlag-gmbh

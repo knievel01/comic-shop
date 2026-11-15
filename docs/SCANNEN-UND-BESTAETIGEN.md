@@ -30,7 +30,11 @@ Pro Comic:
      ZVAB/Booklooker nur zum Vergleichen.
    - Nicht bei Comicguide? Im gedruckten Katalog nachsehen, Quelle **„katalog“** wählen.
 4. Der Endpreis wird groß angezeigt. Nur überschreiben, wenn Sepp es so will.
-5. **Bestätigen und in den Shop.** Das nächste Exemplar öffnet sich automatisch.
+5. **Inhaltstext prüfen** (Abschnitt „Inhalt“, nur wenn eingeschaltet): Passt der Text zum Heft? Er soll kurz sein und nichts
+   verraten. Steht dort „aus Modellwissen, bitte prüfen“, muss **„Text geprüft“** angekreuzt werden, sonst lässt sich das
+   Formular nicht bestätigen. Im Zweifel den Text löschen: leer ist erlaubt und besser als falsch. Mit **„Inhalt neu
+   schreiben“** entsteht ein neuer Vorschlag (ersetzt den Text im Feld).
+6. **Bestätigen und in den Shop.** Das nächste Exemplar öffnet sich automatisch.
 
 Der Comic kommt danach von selbst in den Shop. Nichts weiter tun.
 

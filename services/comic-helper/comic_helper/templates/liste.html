@@ -94,7 +94,7 @@
       {% elif status in ('neu', 'in-arbeit') %}
       <div class="leer fortschritt" aria-live="polite">
         <ol class="stufen">
-          <li data-stufe="bilder">Bilder</li><li data-stufe="erkennung">KI liest</li><li data-stufe="preissuche">Preissuche</li>
+          <li data-stufe="bilder">Bilder</li><li data-stufe="erkennung">KI liest</li><li data-stufe="preissuche">Preissuche</li>{% if inhalt_aktiv %}<li data-stufe="inhalt">Inhalt</li>{% endif %}
         </ol>
         <span class="lauf-info">{{ 'Wartet auf Workflow 01' if status == 'neu' else 'Workflow 01 läuft' }}</span>
       </div>
@@ -156,7 +156,7 @@
 const fortschritt = (() => {
   const kacheln = [...document.querySelectorAll("li[data-status]")];
   if (!kacheln.length) return {};
-  const stufen = ["bilder", "erkennung", "preissuche"];
+  const stufen = ["bilder", "erkennung", "preissuche", "inhalt"];
   let neuLaden = false;
   const zeit = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} min`;
   const zeigen = li => {

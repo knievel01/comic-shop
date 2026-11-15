@@ -80,6 +80,15 @@ marktpreis:
   max_tokens: 16000   # Obergrenze je Antwort; zu knapp (4000) schneidet bei Haiku die Antwort ab, bevor sie fertig ist
   modell: ""          # leer = CLAUDE_MODEL (Erkennung); z. B. claude-sonnet-5-5 für die Preissuche
 
+# Inhaltstext je Heft (ADR-0010): kurzer, spoilerfreier Text für den Shop ("Worum geht's?"), geschrieben beim Erfassen.
+# Schwelle und Länge sind Geschäftswerte und stehen nur hier. Eingeschaltet am 15.11.2026 nach dem Sandbox-Probelauf
+# (8 Hefte): bei 0,8 rutschte ein Text mit Füllsatz knapp durch, deshalb 0,9. Jeder Text wird im Review geprüft.
+inhalt:
+  aktiv: true
+  schwelle: 0.9            # darunter wird der Text verworfen
+  max_zeichen: 600
+  pruefpflicht: [wissen]   # Quellen, bei denen die Fachkraft "Text geprüft" ankreuzen muss (rueckseite | wissen)
+
 shopify:
   # ACTIVE = sofort sichtbar (sofern Vertriebskanal veröffentlicht), DRAFT = erst prüfen.
   # Go-Live: erst DRAFT, ab 12.11.2026 auf Wunsch des Betreibers ACTIVE (ADR-0011). Änderung zuerst in der Sandbox (ADR-0027).

@@ -1,6 +1,6 @@
 """Cost, run times and saved manual work for the statistics page (/review/statistik).
 
-Every recognition and every price search appends an entry to the sidecar (`laeufe`): model, tokens,
+Every recognition, price search and content text appends an entry to the sidecar (`laeufe`): model, tokens,
 searches and seconds, plus the n8n execution id when the call came from workflow 01. Costs are computed
 here from `statistik` in pricing.yaml, so a changed price list applies to old entries as well.
 Minutes saved are an estimate from the assumed manual effort per step (pricing.yaml), not a measurement.
@@ -50,9 +50,9 @@ def collect(store: Store, cfg: dict) -> dict:
     compare = conf.get("preissuche_vergleich") or {}
     runs: dict[str, dict] = {}
     models: dict[str, dict] = {}
-    n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "shopify": 0}
+    n = {"comics": 0, "alt": 0, "erkennungen": 0, "nutzbar": 0, "preissuchen": 0, "inhalte": 0, "shopify": 0}
     measured = {"comics": set(), "kosten": 0.0}
-    by_part = {"erkennung": 0.0, "preissuche": 0.0}
+    by_part = {"erkennung": 0.0, "preissuche": 0.0, "inhalt": 0.0}
     cost_total = 0.0
     for prefix in (EINGANG, AKTIV, PAPIERKORB):
         for obj in store.list_scans(prefix):
@@ -73,7 +73,7 @@ def collect(store: Store, cfg: dict) -> dict:
                 run = runs.setdefault(key, {"id": e.get("n8n") or "", "alt": bool(e.get("alt")),
                                             "manuell": not e.get("n8n") and not e.get("alt"), "start": None,
                                             "ende": None, "comics": set(), "nutzbar": 0, "kosten": 0.0,
-                                            "kosten_erkennung": 0.0, "kosten_preissuche": 0.0,
+                                            "kosten_erkennung": 0.0, "kosten_preissuche": 0.0, "kosten_inhalt": 0.0,
                                             "claude_s": 0.0, "gemessen": True})
                 run["comics"].add(obj.copy_id)
                 start = _ts(e.get("start")) or end
@@ -81,7 +81,7 @@ def collect(store: Store, cfg: dict) -> dict:
                     run["start"] = start
                 if end and (run["ende"] is None or end > run["ende"]):
                     run["ende"] = end
-                for part_name in ("erkennung", "preissuche"):
+                for part_name in ("erkennung", "preissuche", "inhalt"):
                     part = e.get(part_name)
                     if not part:
                         continue
@@ -108,8 +108,10 @@ def collect(store: Store, cfg: dict) -> dict:
                         if useful:
                             n["nutzbar"] += 1
                             run["nutzbar"] += 1
-                    else:
+                    elif part_name == "preissuche":
                         n["preissuchen"] += 1
+                    else:
+                        n["inhalte"] += 1
     run_list = []
     for r in runs.values():
         dauer = (r["ende"] - r["start"]).total_seconds() if r["start"] and r["ende"] else None

@@ -42,7 +42,23 @@ Entwürfe und sind für Kundschaft nicht sichtbar.
 Wer Benutzername und Passwort der Shopify-Anmeldung irgendwo abgelegt hat (z. B. in einer `.env`), löscht
 sie: der Dienst braucht sie nicht, und sie gehören nicht auf die Platte.
 
-## 4. Anmerkungen
+## 4. Metafeld für den Inhaltstext (einmalig je Shop)
+
+Der Inhaltstext je Heft liegt im Produkt-Metafeld `comic.inhalt` (ADR-0012). Das ist ein zusätzliches Textfeld am
+Produkt; Beschreibung, Preise, Checkout und der eBay-Kanal bleiben unberührt. Ohne die Definition kann der eigene
+Shop (Headless, Storefront-API) das Feld nicht lesen.
+
+1. Shopify-Admin → **Einstellungen → Benutzerdefinierte Daten → Produkte → Definition hinzufügen**.
+2. Name `Inhalt`, Namespace und Schlüssel **`comic.inhalt`**, Typ **Text mit mehreren Zeilen**.
+3. Unter „Zugriff“ **Storefront-Zugriff: lesen** aktivieren (die Storefront-API darf das Feld lesen).
+4. Speichern. Rückgängig: Definition wieder löschen; die Texte verschwinden dann vom Produkt.
+
+Die App `comic-helper` braucht dafür nur `write_products`. Reihenfolge: erst im Entwicklungsshop der Sandbox, im
+Produktiv-Shop nur nach ausdrücklicher Freigabe durch den Betreiber. Danach den eBay-Bestelleingang prüfen
+(Bestellungen mit `sourceName: ebay` kommen normal an). Den Schalter `inhalt.aktiv` in `config/pricing.yaml` erst
+danach auf `true` setzen.
+
+## 5. Anmerkungen
 
 - Ob die Verbindung steht, zeigt ein Aufruf mit dem Token, nicht die Installation allein.
 - Weitere Bereiche später: neue Version im Dev Dashboard veröffentlichen, dann im Shop die neuen Zugriffe

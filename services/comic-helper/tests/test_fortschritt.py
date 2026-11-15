@@ -1,5 +1,7 @@
 import uuid
 
+from comic_helper.inhalt import InhaltErgebnis
+
 from .conftest import upload_scan
 from .test_flow import H, env  # noqa: F401  (fixture)
 from .test_marktpreis import BL, ZV
@@ -10,13 +12,16 @@ def tags(env, cid):  # noqa: F811
 
 
 def test_recognition_sets_steps_and_clears_them(env):  # noqa: F811
+    env.cfg["inhalt"]["aktiv"] = True
     env.claude.offers = [(4.0, BL), (6.0, ZV)]
     seen = {}
     parse, search = env.claude.parse, env.claude.search
     c, cid = env.client, str(uuid.uuid4())
 
     def parse_spy(**kw):
-        seen["erkennung"] = dict(tags(env, cid))
+        # two Claude calls use parse: recognition first, the content text second (only if inhalt.aktiv)
+        step = "inhalt" if kw["output_format"] is InhaltErgebnis else "erkennung"
+        seen[step] = dict(tags(env, cid))
         return parse(**kw)
 
     def search_spy(**kw):
@@ -31,6 +36,7 @@ def test_recognition_sets_steps_and_clears_them(env):  # noqa: F811
 
     assert seen["erkennung"]["schritt"] == "erkennung" and seen["erkennung"]["lauf"] == "1970"
     assert seen["preissuche"]["schritt"] == "preissuche"
+    assert seen["inhalt"]["schritt"] == "inhalt"
     final = tags(env, cid)
     assert final["status"] == "offen" and "schritt" not in final and "lauf" not in final
 

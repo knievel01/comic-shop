@@ -55,3 +55,20 @@ def test_legacy_sidecar_without_runs_still_counts_cost():
                                                               "output_tokens": 100}}
     (e,) = statistik.entries_of(side)
     assert e["erkennung"]["sekunden"] is None and e["n8n"] == ""
+
+
+def test_statistik_zaehlt_inhalt_als_eigenen_kostenposten(env):  # noqa: F811
+    env.cfg["inhalt"]["aktiv"] = True
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    assert c.post(f"/api/scans/{cid}/recognize", headers={**H, "X-N8N-Lauf": "4712"}).status_code == 200
+
+    st = statistik.collect(env.store, env.cfg)
+    # 1200 input + 150 output tokens at the price of the model that ran (opus: 4 / 20 USD per million)
+    expected = 1200 / 1e6 * 4.0 + 150 / 1e6 * 20.0
+    assert round(st["kosten_teile"]["inhalt"], 6) == round(expected, 6)
+    assert st["zaehler"]["inhalte"] == 1 and st["zaehler"]["preissuchen"] == 1
+    assert round(st["kosten"] - st["kosten_teile"]["erkennung"] - st["kosten_teile"]["preissuche"], 6) == round(expected, 6)
+    page = c.get("/review/statistik/kosten").text
+    assert "Inhaltstext" in page
