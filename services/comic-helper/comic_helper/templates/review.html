@@ -2,8 +2,11 @@
 {% block title %}{{ v.titel }} {{ v.ausgabe }} – prüfen{% endblock %}
 {% block head %}
 <style>
-  .grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(360px,1fr); gap:2rem; align-items:start; }
-  .grid > section { position:sticky; top:1rem; }  /* pictures stay in view while scrolling the form */
+  .grid { display:grid; grid-template-columns:minmax(360px,1fr) minmax(0,1.35fr); gap:2rem; align-items:start; }
+  .grid > form { order:1; } .grid > section { order:2; }  /* form left, pictures right; phones: pictures first */
+  .grid > section { position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow-y:auto; padding:0 .4rem .6rem 0; }
+  /* pictures stay in view while scrolling the form; a long left column scrolls on its own */
+  .links-unten { margin-top:1.8rem; }
   /* cover and back as two comic panels with caption boxes */
   .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
   .pics figure { margin:0; position:relative; border:var(--strich); background:var(--paper); }
@@ -33,6 +36,7 @@
   .angaben { --reiter:var(--blue); --akzent:rgba(29,79,216,.45); }
   .zustand { --reiter:var(--yellow); --reiter-text:var(--ink); --akzent:rgba(230,170,0,.6); }
   .preis   { --reiter:var(--red); --akzent:rgba(230,36,41,.45); }
+  .inhalt  { --reiter:var(--ok); --akzent:rgba(18,130,59,.45); }
   label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
   label small { font-weight:500; color:var(--muted); }
   input, select, textarea { width:100%; font:500 1.05rem var(--text); color:var(--ink); padding:.45rem .6rem; margin-top:.15rem;
@@ -54,6 +58,10 @@
                    font:1.5rem/1 var(--display); padding-top:.1rem; }
   .stufe:has(input:checked) .ziffer { background:var(--umriss); color:var(--yellow); }
   .stufe .badge { margin-left:auto; }
+  .pruef { display:flex; align-items:center; gap:.6rem; margin:.8rem 0 0; padding:.5rem .7rem; border:var(--strich);
+           background:var(--feld); font-weight:700; cursor:pointer; }
+  .pruef input { flex:none; width:1.4rem; height:1.4rem; margin:0; accent-color:var(--ok); }
+  .pruef:has(input:checked) { background:var(--gelb-sanft); }
   .stufe-hilfe { margin:.7rem 0 0; min-height:2.6em; color:var(--muted); line-height:1.3; }
   .anzahl { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; margin:0 0 .8rem; }
   .anzahl label { margin:0; font-weight:800; }
@@ -98,7 +106,8 @@
   /* tablets and phones: one column, pictures first */
   @media (max-width: 900px) {
     .grid { grid-template-columns:1fr; }
-    .grid > section { position:static; }
+    .grid > section { position:static; max-height:none; overflow:visible; padding:0; }
+    .grid > form, .grid > section { order:0; }
   }
   /* phones */
   @media (max-width: 560px) {
@@ -138,6 +147,19 @@
         <small class="calc">Nur nach den Bildern; den Zustand bitte am Exemplar prüfen.</small>
       {% else %}keine (nicht aus den Bildern beurteilbar){% endif %}</p>
     {% for f in side.get('fehler', []) %}<p class="hint">Fehler {{ f.am }}: {{ f.fehler }}</p>{% endfor %}
+    {% if inhalt_cfg.aktiv %}
+    {% set ih = v.inhalt if v.inhalt is defined else none %}
+    {% set entwurf = side.vorschlag.inhalt if side.vorschlag.inhalt is defined else none %}
+    {% set quelle = (entwurf.quelle if entwurf and entwurf.text else 'manuell') %}
+    <section{{ sperre }} class="abschnitt raster inhalt links-unten">
+      <h2>Inhalt</h2>
+      <label for="inhalt">Text für den Shop („Worum geht’s?“)</label>
+      <textarea form="f" name="inhalt" id="inhalt" rows="5" maxlength="{{ inhalt_cfg.max_zeichen }}" placeholder="Kurzer Text ohne Spoiler, oder leer lassen">{% if ih %}{{ ih.text }}{% elif ih is none and v.inhalt is not defined and entwurf %}{{ entwurf.text or '' }}{% endif %}</textarea>
+      <p class="vorschlag"><span id="inhalt-zaehler">0</span> / {{ inhalt_cfg.max_zeichen }} Zeichen{% if entwurf and entwurf.text %} · {% if entwurf.quelle == 'rueckseite' %}aus dem Rückseitentext, in eigenen Worten{% else %}<strong>aus Modellwissen, bitte prüfen</strong>{% endif %}{% else %} · kein Vorschlag, Text von Hand schreiben oder leer lassen{% endif %}</p>
+      {% if quelle in inhalt_cfg.pruefpflicht %}<label class="pruef"><input form="f" type="checkbox" name="inhalt_geprueft" value="1" {% if ih and ih.geprueft %}checked{% endif %}> <span>Text geprüft: er passt zu diesem Heft</span></label>{% endif %}
+      {% if not gesperrt %}<p class="links"><button type="submit" form="inhaltneu" class="link-knopf">Inhalt neu schreiben</button> <small>dauert einige Sekunden, ersetzt den Text oben</small></p>{% endif %}
+    </section>
+    {% endif %}
     {% if tags.status == 'fehler' %}
     <form method="post" action="/review/{{ id }}/neu-erkennen" style="background:none;border:0;padding:0">
       <p class="calc">Scan unbrauchbar (z. B. falsche Seitenzahl)? Neu scannen und dieses Exemplar löschen.
@@ -171,19 +193,6 @@
         <div><label>Notiz <small>(intern)</small></label><textarea name="notiz" rows="3">{% if v.notiz is defined %}{{ v.notiz }}{% elif preis_vorschlag and preis_vorschlag.notiz %}{{ preis_vorschlag.notiz }}{% endif %}</textarea></div>
       </div>
     </section>
-
-    {% if inhalt_cfg.aktiv %}
-    {% set ih = v.inhalt if v.inhalt is defined else none %}
-    {% set entwurf = side.vorschlag.inhalt if side.vorschlag.inhalt is defined else none %}
-    {% set quelle = (entwurf.quelle if entwurf and entwurf.text else 'manuell') %}
-    <section{{ sperre }} class="abschnitt raster inhalt">
-      <h2>Inhalt <small>(für den Shop, „Worum geht’s?“)</small></h2>
-      <textarea name="inhalt" id="inhalt" rows="5" maxlength="{{ inhalt_cfg.max_zeichen }}" placeholder="Kurzer Text ohne Spoiler, oder leer lassen">{% if ih %}{{ ih.text }}{% elif ih is none and v.inhalt is not defined and entwurf %}{{ entwurf.text or '' }}{% endif %}</textarea>
-      <p class="vorschlag"><span id="inhalt-zaehler">0</span> / {{ inhalt_cfg.max_zeichen }} Zeichen{% if entwurf and entwurf.text %} · {% if entwurf.quelle == 'rueckseite' %}aus dem Rückseitentext, in eigenen Worten{% else %}<strong>aus Modellwissen, bitte prüfen</strong>{% endif %}{% else %} · kein Vorschlag, Text von Hand schreiben oder leer lassen{% endif %}</p>
-      {% if quelle in inhalt_cfg.pruefpflicht %}<label class="stufe"><input type="checkbox" name="inhalt_geprueft" value="1" {% if ih and ih.geprueft %}checked{% endif %}> <span>Text geprüft: er passt zu diesem Heft</span></label>{% endif %}
-      {% if not gesperrt %}<p class="links"><button type="submit" form="inhaltneu" class="link-knopf">Inhalt neu schreiben</button> <small>dauert einige Sekunden, ersetzt den Text oben</small></p>{% endif %}
-    </section>
-    {% endif %}
 
     <section{{ sperre }} class="abschnitt raster zustand">
       <h2>Zustand</h2>
