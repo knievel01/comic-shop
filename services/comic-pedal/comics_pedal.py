@@ -34,7 +34,8 @@ log = logging.getLogger("comics_pedal")
 SCAN_DIR = Path(os.environ.get("COMICS_SCAN_DIR", "/srv/scans"))
 STATE_FILE = Path(os.environ.get("COMICS_PEDAL_STATE", "/var/lib/comics-pedal/pedals.json"))
 IDLE_CLOSE_S = float(os.environ.get("COMICS_PEDAL_IDLE_CLOSE_S", "300"))
-DEBOUNCE_S = 0.4
+DEBOUNCE_S = 0.25        # one press may arrive on the keyboard and the mouse node; a quick second tap still counts
+EV_KEY = 1               # evdev.ecodes.EV_KEY
 STATUS_PORT = int(os.environ.get("COMICS_PEDAL_PORT", "8099"))
 MAX_EDGE = os.environ.get("COMICS_MAX_EDGE", "3000")
 QUALITY = os.environ.get("COMICS_JPEG_QUALITY", "88")
@@ -172,15 +173,23 @@ class Session:
 
 # --- switches -----------------------------------------------------------------------------------------------
 class Debounce:
+    """Per switch; `now` is the event's own timestamp, so presses queued during a photo keep their real spacing."""
+
     def __init__(self, seconds: float = DEBOUNCE_S, clock=time.monotonic):
         self.seconds, self.clock, self.last = seconds, clock, {}
 
-    def ok(self, key: str) -> bool:
-        now = self.clock()
+    def ok(self, key: str, now: float | None = None) -> bool:
+        now = self.clock() if now is None else now
         if key in self.last and now - self.last[key] < self.seconds:
             return False
         self.last[key] = now
         return True
+
+
+def extract_presses(batch) -> list[tuple[str, float]]:
+    """[(group key, [events])] -> every key press (value 1, no release/auto-repeat) as (key, time), oldest first."""
+    presses = [(key, ev.timestamp()) for key, events in batch for ev in events if ev.type == EV_KEY and ev.value == 1]
+    return sorted(presses, key=lambda p: p[1])
 
 
 def group_key(phys: str) -> str:
@@ -269,18 +278,18 @@ def find_switches():
     return groups
 
 
-def pressed(devs: dict, timeout: float = 1.0):
-    """Waits for one key press on any of the devices, returns the group key or None."""
-    from evdev import ecodes
+def pressed(devs: dict, timeout: float = 1.0) -> list[tuple[str, float]]:
+    """Waits up to `timeout` for input, returns all key presses since the last call (see extract_presses)."""
     fds = {d.fd: (k, d) for k, ds in devs.items() for d in ds}
     ready, _, _ = select.select(list(fds), [], [], timeout)
-    hit = None
+    batch = []
     for fd in ready:
         key, dev = fds[fd]
-        for ev in dev.read():
-            if ev.type == ecodes.EV_KEY and ev.value == 1:     # press only: no release, no auto-repeat
-                hit = key
-    return hit
+        try:
+            batch.append((key, list(dev.read())))
+        except BlockingIOError:
+            pass
+    return extract_presses(batch)
 
 
 def run() -> None:
@@ -316,26 +325,27 @@ def run() -> None:
                 play("einrichtung")
                 done = False
                 while not done:
-                    k = pressed(groups)
-                    if k:
+                    for k, _ in pressed(groups):
                         before = len(cal.keys)
                         done = cal.feed(k)
                         if len(cal.keys) > before:
                             play("neu")
+                        if done:
+                            break
                 cfg = cal.result()
                 STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
                 STATE_FILE.write_text(json.dumps(cfg))
                 log.info("Einrichtung gespeichert: %s", cfg)
             log.info("running: switch 1 = %s, switch 2 = %s", cfg["schalter1"], cfg["schalter2"])
             while True:
-                k = pressed(groups)
+                for k, t in pressed(groups):                    # every tap counts, also those queued during a photo
+                    if not debounce.ok(k, t):
+                        continue
+                    if k == cfg["schalter1"]:
+                        session.press_new()
+                    elif k == cfg["schalter2"]:
+                        session.press_photo()
                 session.tick()
-                if k is None or not debounce.ok(k):
-                    continue
-                if k == cfg["schalter1"]:
-                    session.press_new()
-                elif k == cfg["schalter2"]:
-                    session.press_photo()
         except OSError as e:                                    # unplugged: look again
             log.warning("switch lost: %s", e)
             session.tick()
