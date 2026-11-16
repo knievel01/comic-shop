@@ -18,6 +18,7 @@
 <section id="fussschalter" class="aus" aria-live="polite">
   <h2>Erfassung per Fußschalter</h2>
   <p class="naechstes" id="fuss-naechstes">Status wird geladen …</p>
+  <p class="msg err" id="fuss-hinweis" hidden></p>
   <p class="heft" id="fuss-heft" hidden></p>
   <ul id="fuss-letzte" hidden></ul>
 </section>
@@ -31,7 +32,7 @@ startet innerhalb von 2 Minuten.</p>
 (() => {
   const box = document.getElementById("fussschalter");
   const naechstes = document.getElementById("fuss-naechstes"), heft = document.getElementById("fuss-heft");
-  const letzte = document.getElementById("fuss-letzte");
+  const letzte = document.getElementById("fuss-letzte"), hinweis = document.getElementById("fuss-hinweis");
   async function holen() {
     try {
       const r = await fetch("http://127.0.0.1:8099/status.json", { cache: "no-store" });
@@ -39,6 +40,8 @@ startet innerhalb von 2 Minuten.</p>
       const s = await r.json();
       box.classList.remove("aus");
       naechstes.textContent = "Als Nächstes: " + s.naechstes;
+      hinweis.hidden = !s.hinweis;
+      hinweis.textContent = s.hinweis || "";
       heft.hidden = !s.heft;
       heft.textContent = s.heft ? `Aktuelles Heft ${s.heft.slice(0, 8)}: ${s.fotos} Foto${s.fotos === 1 ? "" : "s"}` : "";
       letzte.replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
@@ -47,7 +50,7 @@ startet innerhalb von 2 Minuten.</p>
     } catch {
       box.classList.add("aus");
       naechstes.textContent = "Nur am Scan-Rechner sichtbar (dort laufen die Fußschalter).";
-      heft.hidden = letzte.hidden = true;
+      heft.hidden = letzte.hidden = hinweis.hidden = true;
     }
   }
   holen();

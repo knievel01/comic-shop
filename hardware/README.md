@@ -37,3 +37,9 @@ Preise sind Rechercheergebnisse bzw. Schätzungen vom 27.10.2026 und vor dem Kau
 1. Scanner-Modell in der SANE-Liste mit Status „good“ oder „complete“ (siehe [scanner-linux.md](scanner-linux.md)).
 2. BIOS des Rechners: Boot von USB, „Power on after AC loss“.
 3. Autoinstall-ISO auf dem echten Gerät testen (Plan, Offene Punkte 8).
+
+## Kamera der Scan-Station
+
+Canon EOS 450D per USB (gphoto2, ADR-0007), kein WLAN. Dazu gehören ein Mini-B-USB-Kabel, ein Akku-Dummy mit Netzteil
+(ACK-E5 oder Nachbau) für den Dauerbetrieb, eine SD-Karte und ein Stativ für die Aufnahme senkrecht von oben.
+Einrichtung: `docs/SCANNEN-UND-BESTAETIGEN.md`.
