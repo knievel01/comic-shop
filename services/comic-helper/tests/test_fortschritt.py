@@ -19,9 +19,9 @@ def test_recognition_sets_steps_and_clears_them(env):  # noqa: F811
     c, cid = env.client, str(uuid.uuid4())
 
     def parse_spy(**kw):
-        # two Claude calls use parse: recognition first, the content text second (only if inhalt.aktiv)
-        step = "inhalt" if kw["output_format"] is InhaltErgebnis else "erkennung"
-        seen[step] = dict(tags(env, cid))
+        # the content text comes with the recognition: there must be no second parse call
+        assert kw["output_format"] is not InhaltErgebnis
+        seen["erkennung"] = dict(tags(env, cid))
         return parse(**kw)
 
     def search_spy(**kw):
@@ -36,7 +36,6 @@ def test_recognition_sets_steps_and_clears_them(env):  # noqa: F811
 
     assert seen["erkennung"]["schritt"] == "erkennung" and seen["erkennung"]["lauf"] == "1970"
     assert seen["preissuche"]["schritt"] == "preissuche"
-    assert seen["inhalt"]["schritt"] == "inhalt"
     final = tags(env, cid)
     assert final["status"] == "offen" and "schritt" not in final and "lauf" not in final
 

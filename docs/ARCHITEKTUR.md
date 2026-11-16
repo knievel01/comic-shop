@@ -11,7 +11,7 @@
                          │
  n8n 01 Scan-Ingest (alle 2 min) ──> comic-helper
                          │  claim -> PDF->JPEG -> Claude -> Vorschlag + Preisvorschlag
-                         │  -> Inhaltstext (Schritt „inhalt“, wenn inhalt.aktiv, ADR-0010)
+                         │     (Inhaltstext im selben Claude-Aufruf, wenn inhalt.aktiv, ADR-0010)
                          ▼
  S3  eingang/<id>.json, bilder/<id>-1|2.jpg, Tag status=offen, ki=sicher|nachkontrolle
                          │
@@ -40,7 +40,7 @@ Alles läuft auf einem Rechner (Ubuntu 24.04, K3s), Namespace `comics`:
 | Ort | Tag `status` | Bedeutung |
 | --- | --- | --- |
 | `eingang/` | `neu` | hochgeladen, noch nicht verarbeitet |
-| `eingang/` | `in-arbeit` | von n8n übernommen (nach 30 min ohne Ergebnis wieder frei); Tag `schritt` (bilder, erkennung, preissuche, inhalt) und `lauf` (n8n-Nummer) zeigen den Fortschritt (ADR-0004) |
+| `eingang/` | `in-arbeit` | von n8n übernommen (nach 30 min ohne Ergebnis wieder frei); Tag `schritt` (bilder, erkennung, preissuche) und `lauf` (n8n-Nummer) zeigen den Fortschritt (ADR-0004) |
 | `eingang/` | `offen` | KI-Vorschlag liegt vor, wartet auf Fachkraft |
 | `eingang/` | `fehler` | Erkennung fehlgeschlagen, im Review sichtbar („Erneut erkennen“) |
 | `eingang/` | `bestaetigt` | Fachkraft hat bestätigt, Shopify/Metadaten stehen aus; bis Shopify zurückholbar (ADR-0006) |

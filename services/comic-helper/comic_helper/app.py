@@ -228,7 +228,8 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     t_claude = time.monotonic()
     try:
         result, info = recognition.recognize(
-            claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort, zustaende=cfg["zustaende"])
+            claude, *model_images, model=s.anthropic_model, effort=s.anthropic_effort, zustaende=cfg["zustaende"],
+            cfg=cfg)
     except recognition.RecognitionError as e:
         raise HTTPException(503 if e.retryable else 502, f"Erkennung: {e}")
     recognition_s = round(time.monotonic() - t_claude, 1)
@@ -243,12 +244,9 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             proposal["waehrung"], proposal["jahr"], cfg):
         price_hint = {"basis_z1": pricing.base_from_cover_price(proposal["coverpreis"], cfg), "quelle": "coverpreis"}
 
-    inhalt_usage: dict = {}
-    if (cfg.get("inhalt") or {}).get("aktiv"):
-        _step(store, key, "inhalt")
-        proposal["inhalt"] = inhalt.schreibe(
-            claude, proposal, model_images[1], s.inhalt_model or s.anthropic_model,
-            s.inhalt_effort or s.anthropic_effort, cfg, usage_out=inhalt_usage)
+    if (cfg.get("inhalt") or {}).get("aktiv"):  # written in the recognition call itself (ADR-0010)
+        proposal["inhalt"] = inhalt.bereinigen(inhalt.InhaltErgebnis(
+            text=result.inhalt_text, quelle=result.inhalt_quelle, sicherheit=result.inhalt_sicherheit), cfg)
 
     sidecar = {
         "id": copy_id,
@@ -267,7 +265,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             "erkennung": {"modell": info["model"], "input_tokens": info["input_tokens"],
                           "output_tokens": info["output_tokens"], "sekunden": recognition_s},
             "preissuche": _price_run(price_usage, price_hint),
-            "inhalt": _inhalt_run(inhalt_usage),
+            "inhalt": None,  # the content text came with the recognition, its tokens are in "erkennung"
         }],
     }
     store.write_json(side_key, sidecar)
@@ -316,7 +314,7 @@ def write_inhalt(copy_id: str, neu: int = 0, store: Store = Depends(get_store), 
 
 
 # Progress of a running recognition, shown live on the review list (ADR-0004)
-STEPS = ("bilder", "erkennung", "preissuche", "inhalt")
+STEPS = ("bilder", "erkennung", "preissuche")
 
 
 def _step(store: Store, key: str, step: str, **extra: str | None) -> None:
@@ -564,7 +562,7 @@ def review_root():
 
 
 @app.get("/review/", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
-def review_list(request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
+def review_list(request: Request, store: Store = Depends(get_store)):
     cases = _inbox_cases(store) + _shop_cases(store)
     details = {}
     for c in cases:
@@ -579,7 +577,7 @@ def review_list(request: Request, store: Store = Depends(get_store), cfg: dict =
     groups = [(st, [c for c in cases if c["status"] == st]) for st in order]
     return templates.TemplateResponse(request, "liste.html", {
         "groups": [(st, cs) for st, cs in groups if cs], "details": details, "open_count": open_count,
-        "labels": STATUS_LABELS, "reviewable": REVIEWABLE, "inhalt_aktiv": bool((cfg.get("inhalt") or {}).get("aktiv")),
+        "labels": STATUS_LABELS, "reviewable": REVIEWABLE,
     })
 
 

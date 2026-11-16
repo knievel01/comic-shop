@@ -1,5 +1,8 @@
 """Short, spoiler-free content text per comic for the shop (ADR-0010).
 
+The first draft comes with the recognition call (fields inhalt_* of recognition.Erkennung, no extra cost);
+schreibe() is only used for "Inhalt neu schreiben" in the review.
+
 Written from the back-cover scan (in own words) or from safe knowledge of the exact issue; empty otherwise.
 No web search, no copying of publisher or catalogue texts (ADR-0011). Best effort: a failure or an empty
 result never blocks recognition - the reviewer can write the text by hand.
@@ -19,6 +22,27 @@ from .recognition import FALLBACK_BETA, FALLBACK_MODELS, _image_block
 
 log = logging.getLogger("comic_helper.inhalt")
 
+# Rules for the content text, shared by the recognition call (fields inhalt_*) and "Inhalt neu schreiben".
+# {text}/{quelle}/{sicherheit} are the field names of the respective structured output.
+REGELN = """\
+Quellen, in dieser Reihenfolge:
+1. Steht auf der Rückseite ein Text zur Handlung, fasse ihn in eigenen Worten zusammen. Übernimm keinen Satz und
+   keine auffällige Wendung wörtlich ({quelle} = "rueckseite").
+2. Sonst: nur wenn du genau diesen Band sicher kennst, schreibe aus deinem Wissen ({quelle} = "wissen").
+3. Sonst: {text} = null und {quelle} = "keine". Im Zweifel leer lassen. Ein falscher Text ist schlimmer als keiner.
+
+Ton und Form:
+- Deutsch, locker und warm, wie ein Comic-Händler, der einem Stammkunden vom Heft erzählt. Direkte Anrede
+  ("du") ist erlaubt.
+- 2 bis 4 Sätze, höchstens {max_zeichen} Zeichen, spoilerfrei: nenne Ausgangslage und Reiz, nicht das Ende.
+- Keine Wertung wie "bestes Heft", keine Aussagen zu Preis, Zustand, Seltenheit oder Sammlerwert.
+- Bleib bei dem, was belegt ist, und nichts erfinden: keine Jahreszahlen, Autoren, Zeichner oder Figuren, die nicht
+  belegt sind. Keine Füllsätze und keine Andeutungen ("es wird größer, als es aussieht").
+- Reiner Text: kein HTML, keine Links, keine Aufzählung, keine Überschrift.
+
+{sicherheit} ist deine Einschätzung von 0.0 bis 1.0, dass der Text inhaltlich zu genau diesem Heft stimmt.
+"""
+
 PROMPT = """\
 Schreibe einen kurzen Inhaltstext für den Online-Shop eines deutschen Comic-Antiquariats.
 
@@ -28,22 +52,11 @@ Untertitel: {untertitel}
 Ausgabe/Nummer: {ausgabe}
 Verlag: {verlag}
 
-Quellen, in dieser Reihenfolge:
-1. Steht auf der Rückseite (Bild, falls beigelegt) ein Text zur Handlung, fasse ihn in eigenen Worten
-   zusammen. Übernimm keinen Satz und keine auffällige Wendung wörtlich (quelle = "rueckseite").
-2. Sonst: nur wenn du genau diesen Band sicher kennst, schreibe aus deinem Wissen (quelle = "wissen").
-3. Sonst: text = null und quelle = "keine". Im Zweifel leer lassen. Ein falscher Text ist schlimmer als keiner.
-
-Ton und Form:
-- Deutsch, locker und warm, wie ein Comic-Händler, der einem Stammkunden vom Heft erzählt. Direkte Anrede
-  ("du") ist erlaubt.
-- 2 bis 4 Sätze, höchstens {max_zeichen} Zeichen, spoilerfrei: nenne Ausgangslage und Reiz, nicht das Ende.
-- Keine Wertung wie "bestes Heft", keine Aussagen zu Preis, Zustand, Seltenheit oder Sammlerwert.
-- Bleib bei dem, was belegt ist, und nichts erfinden: keine Jahreszahlen, Autoren, Zeichner oder Figuren, die nicht belegt sind.
-- Reiner Text: kein HTML, keine Links, keine Aufzählung, keine Überschrift.
-
-sicherheit ist deine Einschätzung von 0.0 bis 1.0, dass der Text inhaltlich zu genau diesem Heft stimmt.
 """
+
+
+def regeln(cfg: dict, text: str = "text", quelle: str = "quelle", sicherheit: str = "sicherheit") -> str:
+    return REGELN.format(text=text, quelle=quelle, sicherheit=sicherheit, max_zeichen=int(cfg["inhalt"]["max_zeichen"]))
 
 
 class InhaltErgebnis(BaseModel):
@@ -56,9 +69,9 @@ _MARKUP = re.compile(r"<[^>]*>|&\w+;|&#\d+;|https?://|www\.", re.IGNORECASE)
 
 
 def prompt(proposal: dict, cfg: dict) -> str:
+    """Stand-alone prompt for "Inhalt neu schreiben" (the recognition call writes the first draft itself)."""
     return PROMPT.format(titel=proposal.get("titel") or "-", untertitel=proposal.get("untertitel") or "-",
-                         ausgabe=proposal.get("ausgabe") or "-", verlag=proposal.get("verlag") or "-",
-                         max_zeichen=int(cfg["inhalt"]["max_zeichen"]))
+                         ausgabe=proposal.get("ausgabe") or "-", verlag=proposal.get("verlag") or "-") + regeln(cfg)
 
 
 def bereinigen(e: InhaltErgebnis, cfg: dict) -> dict | None:

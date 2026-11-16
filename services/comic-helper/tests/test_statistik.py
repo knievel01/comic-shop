@@ -63,6 +63,8 @@ def test_statistik_zaehlt_inhalt_als_eigenen_kostenposten(env):  # noqa: F811
     upload_scan(env.s3, cid)
     c.post("/api/scans/claim", headers=H)
     assert c.post(f"/api/scans/{cid}/recognize", headers={**H, "X-N8N-Lauf": "4712"}).status_code == 200
+    assert statistik.collect(env.store, env.cfg)["kosten_teile"]["inhalt"] == 0   # text came with the recognition
+    assert c.post(f"/api/scans/{cid}/inhalt?neu=1", headers=H).status_code == 200  # "Inhalt neu schreiben"
 
     st = statistik.collect(env.store, env.cfg)
     # 1200 input + 150 output tokens at the price of the model that ran (opus: 4 / 20 USD per million)

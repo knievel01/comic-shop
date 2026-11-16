@@ -72,7 +72,9 @@ class FakeClaude:
             ean_isbn=feld("978-3-7704-0012-3"), coverpreis=feld("6.99"), waehrung=feld("EUR"),
             format=feld("Album"), auffaelligkeiten="leichter Knick oben rechts",
             zustand_empfehlung=1, zustand_begruendung="Kanten minimal bestoßen, sonst sauber.",
+            inhalt_text=self.inhalt.text, inhalt_quelle=self.inhalt.quelle, inhalt_sicherheit=self.inhalt.sicherheit,
         )
+        self.recognition_kwargs = kwargs
         return SimpleNamespace(stop_reason=self.stop_reason, parsed_output=out, model=kwargs["model"],
                                usage=SimpleNamespace(input_tokens=3000, output_tokens=400))
 
@@ -634,18 +636,17 @@ def test_recognize_schreibt_inhalt_in_den_vorschlag(env):
     side = env.store.read_json(f"eingang/{cid}.json")
     assert side["vorschlag"]["inhalt"]["quelle"] == "rueckseite"
     assert side["vorschlag"]["inhalt"]["text"].startswith("Obelix")
-    run = side["laeufe"][-1]["inhalt"]
-    assert run["input_tokens"] == 1200 and run["output_tokens"] == 150 and run["modell"] == "claude-opus-5-5"
-    assert len(env.claude.inhalt_calls) == 1
+    # written in the recognition call itself: no second Claude call, no separate cost entry
+    assert side["laeufe"][-1]["inhalt"] is None and env.claude.inhalt_calls == []
+    assert "inhalt_text" in env.claude.recognition_kwargs["system"]
     assert env.store.get_tags(f"eingang/{cid}.pdf").get("schritt") in (None, "")  # cleared when done
 
 
-def test_recognize_bleibt_offen_wenn_inhalt_fehlschlaegt(env):
-    env.claude.inhalt_error = RuntimeError("boom")
+def test_recognize_verwirft_unsicheren_inhalt_und_bleibt_offen(env):
+    env.claude.inhalt = InhaltErgebnis(text="Irgendwas Erfundenes.", quelle="wissen", sicherheit=0.5)
     cid = recognized(env)
     side = env.store.read_json(f"eingang/{cid}.json")
-    assert side["vorschlag"]["inhalt"] is None
-    assert side["laeufe"][-1]["inhalt"]["fehler"]
+    assert side["vorschlag"]["inhalt"] is None                      # below inhalt.schwelle
     assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"
 
 
@@ -653,7 +654,7 @@ def test_recognize_ohne_schalter_ruft_inhalt_nicht_auf(env):
     cid = recognized(env, inhalt_aktiv=False)
     side = env.store.read_json(f"eingang/{cid}.json")
     assert "inhalt" not in side["vorschlag"] and side["laeufe"][-1]["inhalt"] is None
-    assert env.claude.inhalt_calls == []
+    assert env.claude.inhalt_calls == [] and "inhalt_text" not in env.claude.recognition_kwargs["system"]
 
 
 def test_inhalt_endpunkt_schreibt_neu(env):
@@ -661,7 +662,7 @@ def test_inhalt_endpunkt_schreibt_neu(env):
     assert env.client.post(f"/api/scans/{cid}/inhalt").status_code == 401
     r = env.client.post(f"/api/scans/{cid}/inhalt", headers=H)
     assert r.status_code == 200 and r.json()["text"].startswith("Obelix")
-    assert len(env.claude.inhalt_calls) == 1  # idempotent: the draft exists already
+    assert env.claude.inhalt_calls == []  # idempotent: the draft from the recognition exists already
     env.claude.inhalt = InhaltErgebnis(text="Ein ganz neuer Text.", quelle="wissen", sicherheit=0.95)
     r = env.client.post(f"/api/scans/{cid}/inhalt?neu=1", headers=H)
     assert r.json() == {"text": "Ein ganz neuer Text.", "quelle": "wissen", "sicherheit": 0.95}
