@@ -8,6 +8,10 @@
 3. Nächstes Heft: wieder **Schalter 1**. Das letzte Heft des Tages schließt sich nach 5 Minuten Ruhe von selbst.
 4. Auf der Seite „Hochladen“ steht, was als Nächstes kommt (nur am Scan-Rechner).
 
+Das Heft liegt flach auf der **dunklen, einfarbigen Unterlage** und ist ganz im Bild, nicht in der Hand. Dann wird es
+für den Shop sauber freigestellt (gleich breiter weißer Rand). Sonst schneidet die KI nach Augenmaß; im Review steht
+bei den Bildern, wie geschnitten wurde.
+
 Ein Warnton heißt: Schalter 2 ohne Heft (erst Schalter 1), Kamera nicht erreichbar oder ein Heft mit nur einem Foto
 (landet in `fehler/`). Nach der Erkennung heißt der Ordner wie das Heft (`/srv/scans/hochgeladen/<Heft>/`).
 

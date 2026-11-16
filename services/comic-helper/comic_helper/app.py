@@ -15,6 +15,7 @@ Review UI (LAN only, optional password): /review/, photo upload: /review/hochlad
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import re
@@ -37,6 +38,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 
 from . import inhalt, marktpreis, pdf, pricing, recognition, report, statistik, storage
 from .config import Settings, pricing_config, settings
@@ -209,6 +211,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     run_id = "".join(ch for ch in x_n8n_lauf if ch.isalnum())[:20]
     _step(store, key, "bilder", lauf=run_id or None)
     data = store.get_bytes(key)
+    rand = _margin_share(cfg)
     # n8n sends a whole batch at once; rendered pages are large, so render one scan at a time
     # and keep only the small JPEGs while waiting for Claude.
     with _render_slot:
@@ -216,13 +219,14 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
             pages = pdf.page_count(data)
             if pages != 2:
                 raise pdf.PdfError(f"{pages} Seiten statt 2")
-            cover, back = (pdf.trim_margins(im) for im in pdf.render_pages(data)[:2])
+            cut = [pdf.freistellen(im, rand=rand) for im in pdf.render_pages(data)[:2]]
         except pdf.PdfError as e:
             raise HTTPException(422, f"PDF: {e}")
-        for page, im in ((1, cover), (2, back)):
+        for page, (im, _) in enumerate(cut, 1):
             store.put_bytes(store.image_key(copy_id, page), pdf.to_jpeg(im, pdf.SHOP_MAX_EDGE), "image/jpeg")
-        model_images = [pdf.to_jpeg(im, pdf.MODEL_MAX_EDGE) for im in (cover, back)]
-        del cover, back
+        model_images = [pdf.to_jpeg(im, pdf.MODEL_MAX_EDGE) for im, _ in cut]
+        verfahren = [how for _, how in cut]
+        del cut
 
     _step(store, key, "erkennung")
     t_claude = time.monotonic()
@@ -235,6 +239,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     recognition_s = round(time.monotonic() - t_claude, 1)
 
     proposal = recognition.to_proposal(result)
+    verfahren = _cut_by_frames(store, copy_id, verfahren, (result.cover_rahmen, result.rueckseite_rahmen), rand)
     confidence = recognition.overall_confidence(result)
     ki_status = recognition.classify(confidence, float(cfg["konfidenz_schwelle"]))
     _step(store, key, "preissuche")
@@ -257,6 +262,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         "ki_status": ki_status,
         "preis_vorschlag": price_hint,
         "preis_suche": _utc(),
+        "bilder_verfahren": verfahren,
         "ki_roh": result.model_dump(),
         "ki_info": info,
         "laeufe": _prior_runs(store, side_key) + [{
@@ -311,6 +317,33 @@ def write_inhalt(copy_id: str, neu: int = 0, store: Store = Depends(get_store), 
                  s: Settings = Depends(get_settings), claude: anthropic.Anthropic = Depends(get_claude)):
     _check_id(copy_id)
     return _write_inhalt(copy_id, store, cfg, s, claude, bool(neu))
+
+
+BILD_TEXT = {"unterlage": "freigestellt", "ki": "nach KI-Rahmen geschnitten", "keins": "nicht freigestellt"}
+
+
+def _margin_share(cfg: dict) -> float:
+    return float((cfg.get("bilder") or {}).get("rand_anteil", 0.03))
+
+
+def _cut_by_frames(store: Store, copy_id: str, verfahren: list[str], frames, rand: float) -> list[str]:
+    """No plain backdrop: cut the stored shop image by the frame the recognition gave (ADR-0007). The frame is
+    relative to the image the model saw, which is the same image as the stored one, only smaller."""
+    out = list(verfahren)
+    for i, (how, frame) in enumerate(zip(verfahren, frames)):
+        if how != "keins" or not frame:
+            continue
+        key = store.image_key(copy_id, i + 1)
+        try:
+            with Image.open(io.BytesIO(store.get_bytes(key))) as im:
+                cut, how = pdf.freistellen(im.convert("RGB"), box=frame, rand=rand)
+        except (storage.NotFound, OSError) as e:
+            log.warning("cutting %s page %d by frame failed: %s", copy_id, i + 1, e)
+            continue
+        if how != "keins":
+            store.put_bytes(key, pdf.to_jpeg(cut, pdf.SHOP_MAX_EDGE), "image/jpeg")
+            out[i] = how
+    return out
 
 
 # Progress of a running recognition, shown live on the review list (ADR-0004)
@@ -703,6 +736,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
         "zustaende": conditions_of(v) if v.get("zustaende") or v.get("zustand") is not None else [], "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),
         "inhalt_cfg": cfg.get("inhalt") or {},
+        "bilder_text": ", ".join(dict.fromkeys(BILD_TEXT.get(b, b) for b in side.get("bilder_verfahren") or [])),
     })
 
 

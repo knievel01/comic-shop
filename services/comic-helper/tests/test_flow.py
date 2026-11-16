@@ -40,6 +40,7 @@ class FakeClaude:
                                      quelle="rueckseite", sicherheit=0.9)
         self.inhalt_error = None
         self.inhalt_calls = []
+        self.rahmen = (None, None)  # frames of the comic on cover/back the fake "sees" (relative 0..1)
         self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
         self.messages = SimpleNamespace(create=self.search)
 
@@ -73,6 +74,7 @@ class FakeClaude:
             format=feld("Album"), auffaelligkeiten="leichter Knick oben rechts",
             zustand_empfehlung=1, zustand_begruendung="Kanten minimal bestoßen, sonst sauber.",
             inhalt_text=self.inhalt.text, inhalt_quelle=self.inhalt.quelle, inhalt_sicherheit=self.inhalt.sicherheit,
+            cover_rahmen=self.rahmen[0], rueckseite_rahmen=self.rahmen[1],
         )
         self.recognition_kwargs = kwargs
         return SimpleNamespace(stop_reason=self.stop_reason, parsed_output=out, model=kwargs["model"],
@@ -824,3 +826,54 @@ def test_inhalt_abschnitt_hat_eigene_reiterfarbe_und_kurze_ueberschrift(env):
     page = env.client.get(f"/review/{cid}").text
     assert ".inhalt  { --reiter:" in page or ".inhalt { --reiter:" in page   # without it the heading is white on white
     assert "<h2>Inhalt</h2>" in page and 'for="inhalt"' in page
+
+
+# --- Freistellen der Shop-Bilder (ADR-0007) ---------------------------------------------------------------
+def shop_image(env, cid, page):
+    from PIL import Image
+    return Image.open(io.BytesIO(env.store.get_bytes(f"bilder/{cid}-{page}.jpg"))).convert("RGB")
+
+
+def recognize_pdf(env, data=None):
+    cid = str(uuid.uuid4())
+    if data is None:
+        upload_scan(env.s3, cid)
+    else:
+        env.s3.put_object(Bucket=BUCKET, Key=f"eingang/{cid}.pdf", Body=data, ContentType="application/pdf",
+                          Tagging="status=neu")
+    env.client.post("/api/scans/claim", headers=H)
+    assert env.client.post(f"/api/scans/{cid}/recognize", headers=H).status_code == 200
+    return cid
+
+
+def test_ohne_unterlage_und_ohne_rahmen_bleiben_die_bilder_ungeschnitten(env):
+    cid = recognize_pdf(env)
+    assert env.store.read_json(f"eingang/{cid}.json")["bilder_verfahren"] == ["keins", "keins"]
+
+
+def test_ohne_unterlage_schneidet_der_rahmen_aus_der_erkennung(env):
+    plain = shop_image(env, recognize_pdf(env), 1)            # no frame: unchanged
+    env.claude.rahmen = ([0.1, 0.1, 0.9, 0.9], [0.2, 0.1, 0.8, 0.9])
+    cid = recognize_pdf(env)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert side["bilder_verfahren"] == ["ki", "ki"]
+    cut = shop_image(env, cid, 1)
+    assert cut.size != plain.size and cut.getpixel((2, 2)) == (255, 255, 255)   # white margin
+
+
+def test_dunkle_unterlage_wird_ohne_ki_freigestellt(env):
+    from PIL import Image, ImageDraw
+    pages = []
+    for colour in ((200, 40, 40), (40, 160, 60)):
+        im = Image.new("RGB", (600, 850), (25, 25, 25))
+        ImageDraw.Draw(im).rectangle((120, 150, 479, 699), fill=colour)
+        pages.append(im)
+    buf = io.BytesIO()
+    pages[0].save(buf, "PDF", save_all=True, append_images=pages[1:], resolution=100)
+    env.claude.rahmen = ([0, 0, 1, 1], [0, 0, 1, 1])   # would be wrong; must not be used
+    cid = recognize_pdf(env, buf.getvalue())
+    assert env.store.read_json(f"eingang/{cid}.json")["bilder_verfahren"] == ["unterlage", "unterlage"]
+    img = shop_image(env, cid, 1)                      # 360x550 px at 100 dpi -> 720x1100 at 200 dpi, +3 % margin
+    r = round(0.03 * 1100)
+    assert abs(img.width - (720 + 2 * r)) <= 8 and abs(img.height - (1100 + 2 * r)) <= 8
+    assert "freigestellt" in env.client.get(f"/review/{cid}").text

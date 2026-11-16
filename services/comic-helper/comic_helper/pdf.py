@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageFilter, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageStat, UnidentifiedImageError
 
 SHOP_MAX_EDGE = 2400     # stored in S3, used for Shopify media
 MODEL_MAX_EDGE = 1568    # recommended max long edge for Claude vision input
@@ -52,22 +52,104 @@ def render_pages(pdf: bytes, dpi: int = 200) -> list[Image.Image]:
         return images
 
 
-def trim_margins(image: Image.Image, tolerance: int = 24, pad: int = 6, min_share: float = 0.15) -> Image.Image:
-    """Crop the near-white page around the comic (A4 scan bed, photo fitted onto A4).
+# --- freistellen: cut the comic out and give it the same white margin all around (ADR-0007) ------------------
+BAND_SHARE = 0.02        # border strip that shows the backdrop
+CALM_STDDEV = 18         # a plain backdrop has little variation in that strip
+SAME_COLOUR = 25         # calm strips must agree on one colour
+MIN_SHARE, MAX_SHARE = 0.15, 0.98
 
-    Keeps the image unchanged if nothing or almost nothing would remain (e.g. a mostly white cover).
-    """
-    gray = ImageChops.difference(image.convert("L"), Image.new("L", image.size, 255))
-    # ignore single specks (dust, JPEG noise) before looking for the content box
-    box = gray.point(lambda v: 255 if v > tolerance else 0).filter(ImageFilter.MinFilter(5)).getbbox()
+
+def _max_channel(rgb: Image.Image) -> Image.Image:
+    r, g, b = rgb.split()
+    return ImageChops.lighter(ImageChops.lighter(r, g), b)
+
+
+def _exact_white_box(image: Image.Image) -> tuple[int, int, int, int] | None:
+    """Content box inside an exact-white page (the A4 page the photo upload puts a photo on)."""
+    diff = _max_channel(ImageChops.difference(image, Image.new("RGB", image.size, (255, 255, 255))))
+    box = diff.point(lambda v: 255 if v > 2 else 0).filter(ImageFilter.MinFilter(3)).getbbox()  # no dust specks
     if not box:
-        return image
-    left, top, right, bottom = box
-    pad += 2  # MinFilter(5) shrank the content box by 2 px on each side
-    if (right - left) * (bottom - top) < min_share * image.width * image.height:
-        return image
-    return image.crop((max(left - pad, 0), max(top - pad, 0),
-                       min(right + pad, image.width), min(bottom + pad, image.height)))
+        return None
+    return (max(0, box[0] - 1), max(0, box[1] - 1), min(image.width, box[2] + 1), min(image.height, box[3] + 1))
+
+
+def _backdrop(image: Image.Image) -> tuple[tuple[int, int, int], float] | None:
+    """Colour of a plain backdrop seen in the border strips, or None (busy background, hands, room)."""
+    w, h = image.size
+    band = max(2, round(min(w, h) * BAND_SHARE))
+    calm = []
+    for box in ((0, 0, w, band), (0, h - band, w, h), (0, 0, band, h), (w - band, 0, w, h)):
+        st = ImageStat.Stat(image.crop(box))
+        if max(st.stddev) <= CALM_STDDEV:                 # a strip the comic touches is not calm; that is fine
+            calm.append((st.median, max(st.stddev)))
+    if len(calm) < 2:
+        return None
+    colour = tuple(sorted(m[0][i] for m in calm)[len(calm) // 2] for i in range(3))
+    if any(abs(m[0][i] - colour[i]) > SAME_COLOUR for m in calm for i in range(3)):
+        return None
+    return colour, max(m[1] for m in calm)
+
+
+def _cut_on_backdrop(image: Image.Image) -> tuple[int, int, int, int] | None:
+    found = _backdrop(image)
+    if not found:
+        return None
+    colour, spread = found
+    small = image.copy()
+    small.thumbnail((800, 800))
+    diff = _max_channel(ImageChops.difference(small, Image.new("RGB", small.size, colour)))
+    tolerance = max(30, 4 * spread)
+    box = diff.point(lambda v: 255 if v > tolerance else 0).filter(ImageFilter.MinFilter(3)).getbbox()
+    if not box:
+        return None
+    share = (box[2] - box[0]) * (box[3] - box[1]) / (small.width * small.height)
+    if not MIN_SHARE <= share <= MAX_SHARE:
+        return None
+    sx, sy = image.width / small.width, image.height / small.height
+    grow = 1                                              # MinFilter(3) shrank the box by 1 px on each side
+    return (max(0, round((box[0] - grow) * sx)), max(0, round((box[1] - grow) * sy)),
+            min(image.width, round((box[2] + grow) * sx)), min(image.height, round((box[3] + grow) * sy)))
+
+
+def _cut_by_box(image: Image.Image, box) -> tuple[int, int, int, int] | None:
+    """Frame from the recognition call: [left, top, right, bottom], relative 0..1, plus 1 % safety margin."""
+    try:
+        x0, y0, x1, y1 = (float(v) for v in box)
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1) or (x1 - x0) * (y1 - y0) < 0.1:
+        return None
+    w, h = image.size
+    return (max(0, round((x0 - 0.01) * w)), max(0, round((y0 - 0.01) * h)),
+            min(w, round((x1 + 0.01) * w)), min(h, round((y1 + 0.01) * h)))
+
+
+def _with_margin(image: Image.Image, rand: float) -> Image.Image:
+    r = round(rand * max(image.size))
+    canvas = Image.new("RGB", (image.width + 2 * r, image.height + 2 * r), (255, 255, 255))
+    canvas.paste(image, (r, r))
+    return canvas
+
+
+def freistellen(image: Image.Image, box=None, rand: float = 0.03) -> tuple[Image.Image, str]:
+    """Comic cut out with the same white margin (share `rand` of the long edge) all around.
+
+    Order: plain backdrop seen at the image border ("unterlage", also the white scanner bed), else the frame the
+    recognition call gave ("ki"), else unchanged ("keins"). An exact-white A4 page around an uploaded photo is
+    removed first, so "keins" returns the photo itself and the model's frame refers to exactly that image.
+    """
+    im = image
+    white = _exact_white_box(im)
+    area = im.width * im.height
+    if white and MIN_SHARE * area <= (white[2] - white[0]) * (white[3] - white[1]) < 0.97 * area:
+        im = im.crop(white)
+    cut = _cut_on_backdrop(im)
+    if cut:
+        return _with_margin(im.crop(cut), rand), "unterlage"
+    cut = _cut_by_box(im, box)
+    if cut:
+        return _with_margin(im.crop(cut), rand), "ki"
+    return im, "keins"
 
 
 def to_jpeg(image: Image.Image, max_edge: int, quality: int = 85) -> bytes:
