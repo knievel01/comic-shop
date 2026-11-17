@@ -4,7 +4,9 @@
 - **Datum:** 2026-10-27, konsolidiert 2026-11-13 (enthält frühere ADR-0013, ADR-0021, ADR-0026), Modell 2026-11-17
 
 ## Kontext
-- Shopify ist Quelle der Wahrheit für den Bestand, über alle Kanäle (eigener Shop, eBay).
+- Heute: eBay an Shopify angeschlossen, Artikelpflege in eBay, Bestellungen über Shopify.
+- Ziel (#15): Artikelpflege in Shopify, eBay als Verkaufskanal, Produkttyp `Comic` → eBay. Danach führt Shopify
+  den Bestand für alle Kanäle.
 - Comics werden über eBay als Variantenangebote verkauft.
 - Heute liegen ca. 1.000 Comics als Variantenartikel auf eBay, noch nicht in Shopify (Übernahme: #15).
 - Viele Hefte liegen 20- oder 100-mal vor. Jedes einzeln scannen kostet zu viel Zeit.

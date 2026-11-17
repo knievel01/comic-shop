@@ -6,8 +6,8 @@
 ## Kontext
 Ursprünglich meldete Shopify jede Bestellung per Webhook über einen Cloudflare-Tunnel an den Rechner, der das
 Exemplar nach `verkauft/` verschob. Das hätte ein Cloudflare-Konto, eine Domain und den einzigen Zugang aus dem Internet
-gebraucht, für Daten, die der Rechner nicht braucht: Shopify führt Verkauf, Zahlung, Storno, Retoure und Bestand selbst,
-für alle Kanäle. Der Rechner steht im Laden-LAN; der Betreiber
+gebraucht, für Daten, die der Rechner nicht braucht: Shopify führt Verkauf, Zahlung, Storno, Retoure und Bestand selbst
+(ab #15 auch für eBay). Der Rechner steht im Laden-LAN; der Betreiber
 wollte keine Anmeldung und kein Zertifikat-Theater.
 
 ## Entscheidung
