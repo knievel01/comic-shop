@@ -208,8 +208,11 @@ class Store:
         Idempotent: returns False if the copy is already at dst and gone from src.
         """
         src_key, dst_key = self.pdf_key(src, copy_id), self.pdf_key(dst, copy_id)
+        src_side, dst_side = self.sidecar_key(src, copy_id), self.sidecar_key(dst, copy_id)
         if not self.exists(src_key):
             if self.exists(dst_key):
+                if self.exists(src_side):                 # leftover of a move cut off before its last delete
+                    self.s3.delete_object(Bucket=self.bucket, Key=src_side)
                 return False
             raise NotFound(src_key)
         current_tags = self.get_tags(src_key)
@@ -231,9 +234,11 @@ class Store:
                 ContentType=head.get("ContentType", "application/pdf"),
             )
         self.s3.copy_object(**args)
-        src_side, dst_side = self.sidecar_key(src, copy_id), self.sidecar_key(dst, copy_id)
-        if self.exists(src_side):
+        has_side = self.exists(src_side)
+        if has_side:
             self.s3.copy_object(Bucket=self.bucket, Key=dst_side, CopySource={"Bucket": self.bucket, "Key": src_side})
-            self.s3.delete_object(Bucket=self.bucket, Key=src_side)
+        # PDF first: a source PDF must never be left without its sidecar (a retry then finishes the move)
         self.s3.delete_object(Bucket=self.bucket, Key=src_key)
+        if has_side:
+            self.s3.delete_object(Bucket=self.bucket, Key=src_side)
         return True

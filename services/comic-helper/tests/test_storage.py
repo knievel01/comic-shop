@@ -72,6 +72,29 @@ def test_move_replace_metadata_and_idempotent(s3, store):
     assert store.locate(cid) == AKTIV
 
 
+def test_move_finishes_after_crash_between_deletes(s3, store):
+    cid = new_id()
+    upload_scan(s3, cid)
+    store.write_json(store.sidecar_key(EINGANG, cid), {"id": cid})
+    real_delete = store.s3.delete_object
+    calls = []
+
+    def crash_on_second(**kw):
+        calls.append(kw["Key"])
+        if len(calls) == 2:
+            raise ConnectionError("cut off")
+        return real_delete(**kw)
+
+    store.s3.delete_object = crash_on_second
+    with pytest.raises(ConnectionError):
+        store.move(cid, EINGANG, AKTIV)
+    store.s3.delete_object = real_delete
+    assert calls[0] == f"eingang/{cid}.pdf"                      # source PDF never outlives its sidecar
+    assert store.move(cid, EINGANG, AKTIV) is False              # retry cleans up
+    assert not store.exists(f"eingang/{cid}.json")
+    assert store.exists(f"aktiv/{cid}.json") and store.locate(cid) == AKTIV
+
+
 def test_move_copy_keeps_metadata(s3, store):
     cid = new_id()
     upload_scan(s3, cid, prefix=AKTIV)

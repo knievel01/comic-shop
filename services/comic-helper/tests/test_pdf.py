@@ -81,9 +81,10 @@ def test_unruhiger_hintergrund_mit_ki_rahmen_wird_nach_dem_rahmen_geschnitten():
     page.paste(comic(), (150, 140))
     box = [150 / 600, 140 / 700, 450 / 600, 540 / 700]
     out, verfahren = pdf.freistellen(page, box=box, rand=0.03)
-    r = round(0.03 * (400 + 2 * 7))                  # 1 % safety margin of 600/700 px on each side
+    mx, my = round(pdf.BOX_MARGIN * 600), round(pdf.BOX_MARGIN * 700)   # safety margin on each side
+    r = round(0.03 * (400 + 2 * my))
     assert verfahren == "ki"
-    assert abs(out.width - (300 + 2 * 6 + 2 * r)) <= 6 and abs(out.height - (400 + 2 * 7 + 2 * r)) <= 6
+    assert abs(out.width - (300 + 2 * mx + 2 * r)) <= 6 and abs(out.height - (400 + 2 * my + 2 * r)) <= 6
     assert white_border_ok(out, r)
 
 

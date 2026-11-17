@@ -41,3 +41,4 @@ testdata/
 !services/comic-helper/tests/fixtures/*.pdf
 
 .DS_Store
+*.egg-info/
