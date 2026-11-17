@@ -57,6 +57,7 @@ BAND_SHARE = 0.02        # border strip that shows the backdrop
 CALM_STDDEV = 18         # a plain backdrop has little variation in that strip
 SAME_COLOUR = 25         # calm strips must agree on one colour
 MIN_SHARE, MAX_SHARE = 0.15, 0.98
+BOX_MARGIN = 0.03        # added on each side of the model's frame (share of width/height)
 
 
 def _max_channel(rgb: Image.Image) -> Image.Image:
@@ -112,7 +113,10 @@ def _cut_on_backdrop(image: Image.Image) -> tuple[int, int, int, int] | None:
 
 
 def _cut_by_box(image: Image.Image, box) -> tuple[int, int, int, int] | None:
-    """Frame from the recognition call: [left, top, right, bottom], relative 0..1, plus 1 % safety margin."""
+    """Frame from the recognition call: [left, top, right, bottom], relative 0..1, plus a safety margin.
+
+    The model's frame is often a few percent too tight; cutting into the comic is worse than a bit of backdrop.
+    """
     try:
         x0, y0, x1, y1 = (float(v) for v in box)
     except (TypeError, ValueError):
@@ -120,8 +124,9 @@ def _cut_by_box(image: Image.Image, box) -> tuple[int, int, int, int] | None:
     if not (0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1) or (x1 - x0) * (y1 - y0) < 0.1:
         return None
     w, h = image.size
-    return (max(0, round((x0 - 0.01) * w)), max(0, round((y0 - 0.01) * h)),
-            min(w, round((x1 + 0.01) * w)), min(h, round((y1 + 0.01) * h)))
+    m = BOX_MARGIN
+    return (max(0, round((x0 - m) * w)), max(0, round((y0 - m) * h)),
+            min(w, round((x1 + m) * w)), min(h, round((y1 + m) * h)))
 
 
 def _with_margin(image: Image.Image, rand: float) -> Image.Image:
