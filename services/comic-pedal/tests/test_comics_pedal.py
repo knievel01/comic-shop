@@ -153,6 +153,8 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
             if cmd[0] == "gphoto2" and "--auto-detect" in cmd:
                 out = "Model  Port\n-----\n" + ("Canon EOS  usb:001,004\n" if canon else "")
                 return SimpleNamespace(returncode=0, stdout=out)
+            if cmd[0] == "gphoto2" and "--set-config" in cmd:
+                return SimpleNamespace(returncode=0, stdout="")
             if cmd[0] == "gphoto2":                          # capture: file named after --filename, %C = jpg
                 Path(cmd[cmd.index("--filename") + 1].replace("%C", "jpg")).write_bytes(b"raw")
             else:                                            # fswebcam and convert both end with the target path
@@ -165,7 +167,66 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
     assert calls == ["gphoto2", "fswebcam"]
     calls.clear()
     assert cp.shoot(str(target), run=run_factory(True)) is True
-    assert calls == ["gphoto2", "gphoto2", "convert"]
+    assert calls == ["gphoto2", "gphoto2", "gphoto2", "convert"]
+
+
+def canon_run(seen, ext="jpg", capture_fails=False):
+    def run(cmd, **kw):
+        seen.append(cmd)
+        if cmd[0] == "gphoto2" and "--auto-detect" in cmd:
+            return SimpleNamespace(returncode=0, stdout="Model  Port\n-----\nCanon EOS 450D (PTP mode)  usb:001,004\n")
+        if cmd[0] == "gphoto2" and "--capture-image-and-download" in cmd:
+            if capture_fails:
+                raise cp.subprocess.CalledProcessError(1, cmd)
+            Path(cmd[cmd.index("--filename") + 1].replace("%C", ext)).write_bytes(b"raw")
+        elif cmd[0] == "convert":
+            Path(cmd[-1]).write_bytes(b"jpg")
+        return SimpleNamespace(returncode=0, stdout="")
+    return run
+
+
+def test_canon_speichert_auf_die_sd_karte(tmp_path):
+    seen = []
+    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) is True
+    target = next(c for c in seen if "--set-config" in c)
+    assert "capturetarget=1" in target
+    assert seen.index(target) < next(i for i, c in enumerate(seen) if "--capture-image-and-download" in c)
+
+
+def test_canon_auf_raw_gibt_klaren_hinweis(tmp_path):
+    seen = []
+    try:
+        cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen, ext="cr2"))
+        raise AssertionError("expected CameraHint")
+    except cp.CameraHint as e:
+        assert "JPEG" in str(e)
+    assert not any(c[0] == "convert" for c in seen)
+
+
+def test_canon_fehler_nimmt_nicht_die_webcam(tmp_path):
+    seen = []
+    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen, capture_fails=True)) is False
+    assert not any(c[0] == "fswebcam" for c in seen)
+
+
+def test_hinweis_der_kamera_steht_im_status_bis_zum_naechsten_guten_foto(tmp_path):
+    env = make_session(tmp_path)
+    answers = iter([cp.CameraHint("Kamera auf JPEG stellen"), True])
+
+    def shoot(path):
+        a = next(answers)
+        if isinstance(a, Exception):
+            raise a
+        Path(path).write_bytes(b"jpg")
+        return True
+
+    env.s.shoot = shoot
+    env.s.press_new()
+    env.s.press_photo()
+    assert env.s.status()["hinweis"] == "Kamera auf JPEG stellen" and env.events[-1] == "fehler"
+    assert env.s.status()["fotos"] == 0
+    env.s.press_photo()
+    assert env.s.status()["hinweis"] is None and env.s.status()["fotos"] == 1
 
 
 def test_aufnahme_meldet_fehler_wenn_kein_bild_entsteht(tmp_path):

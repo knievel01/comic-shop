@@ -48,9 +48,15 @@ SOUNDS = {  # freedesktop sound theme, installed with the desktop
 }
 
 
+class CameraHint(Exception):
+    """The camera works but is set up wrong; the message tells the person at the station what to change."""
+
+
 # --- capture ------------------------------------------------------------------------------------------------
 def shoot(path: str, run=subprocess.run) -> bool:
-    """One photo to `path`: the Canon if gphoto2 sees one, otherwise the webcam."""
+    """One photo to `path`: the Canon if gphoto2 sees one, otherwise the webcam.
+
+    A Canon that fails is a failure, never a silent webcam photo. Raises CameraHint for a fixable setting."""
     try:
         det = run(["gphoto2", "--auto-detect"], capture_output=True, text=True, timeout=15)
         canon = any(line.strip() for line in det.stdout.splitlines()[2:])
@@ -63,9 +69,14 @@ def shoot(path: str, run=subprocess.run) -> bool:
         else:
             tmp = tempfile.mkdtemp(prefix="comics-pedal-")
             try:
+                # save to the SD card: the 450D's internal RAM target fails now and then
+                run(["gphoto2", "--quiet", "--set-config", "capturetarget=1"], capture_output=True, text=True,
+                    timeout=30)
                 run(["gphoto2", "--quiet", "--capture-image-and-download", "--filename", f"{tmp}/raw.%C",
                      "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True)
                 raw = sorted(glob.glob(f"{tmp}/raw.*"))[0]
+                if not raw.lower().endswith((".jpg", ".jpeg")):
+                    raise CameraHint("Kamera auf JPEG stellen (Menü: Qualität → JPEG L, kein RAW)")
                 run(["convert", raw, "-auto-orient", "-resize", f"{MAX_EDGE}x{MAX_EDGE}>", "-quality", QUALITY, path],
                     capture_output=True, text=True, timeout=60, check=True)
             finally:
@@ -91,6 +102,7 @@ class Session:
         self.photos: list[Path] = []
         self.touched = 0.0
         self.recent: list[dict] = []
+        self.hint: str | None = None
         self.lock = threading.RLock()
 
     def _dir(self, name: str) -> Path:
@@ -116,7 +128,13 @@ class Session:
                 self.notify("fehler")                           # first switch 1, else two comics get mixed up
                 return
             target = self.folder / f"foto-{len(self.photos) + 1:03d}.jpg"
-            if self.shoot(str(target)):
+            try:
+                ok = self.shoot(str(target))
+                self.hint = None
+            except CameraHint as e:
+                ok, self.hint = False, str(e)
+                log.warning("camera: %s", e)
+            if ok:
                 self.photos.append(target)
                 self.touched = self.clock()
                 self.notify("foto")
@@ -168,7 +186,7 @@ class Session:
             else:
                 nxt = "Schalter 2: Rückseite (oder weiteres Foto), Schalter 1: nächstes Heft"
             return {"heft": self.folder.name if self.folder else None, "fotos": len(self.photos), "naechstes": nxt,
-                    "letzte": list(self.recent)}
+                    "letzte": list(self.recent), "hinweis": self.hint}
 
 
 # --- switches -----------------------------------------------------------------------------------------------
