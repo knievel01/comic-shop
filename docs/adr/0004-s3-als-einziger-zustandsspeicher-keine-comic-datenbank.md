@@ -25,7 +25,7 @@ bei Neustarts nicht verloren gehen.
 ## Konsequenzen
 - Kein Datenbankbetrieb für Comics; Zählungen und Statistik über Listings, Tags und Sidecars (bei ~40.000
   Objekten ok, bei deutlich mehr wäre ein Zwischenspeicher nötig).
-- Abfragen über Metadaten sind teuer (HEAD je Objekt); Suche nach Exemplar über Schlüsselpräfix (ADR-0012, SKU).
+- Abfragen über Metadaten sind teuer (HEAD je Objekt); Suche nach Exemplar über die UUID im Schlüssel (ADR-0007). Eine SKU steht für eine Variante, nicht für ein Exemplar (ADR-0012).
 - Ein Exemplar kann kurz in Shopify existieren, während die PDF noch in `eingang/` liegt (unkritisch).
 - Je Erkennung einige zusätzliche Tag-Schreibvorgänge; bei den Mengen vernachlässigbar.
 - `papierkorb/` wächst; eine Lifecycle-Regel ist ein späterer Schritt.

@@ -7,7 +7,7 @@
 Ursprünglich meldete Shopify jede Bestellung per Webhook über einen Cloudflare-Tunnel an den Rechner, der das
 Exemplar nach `verkauft/` verschob. Das hätte ein Cloudflare-Konto, eine Domain und den einzigen Zugang aus dem Internet
 gebraucht, für Daten, die der Rechner nicht braucht: Shopify führt Verkauf, Zahlung, Storno, Retoure und Bestand selbst,
-und jede Variante hat Bestand 1, ein Doppelverkauf ist ausgeschlossen. Der Rechner steht im Laden-LAN; der Betreiber
+für alle Kanäle. Der Rechner steht im Laden-LAN; der Betreiber
 wollte keine Anmeldung und kein Zertifikat-Theater.
 
 ## Entscheidung
@@ -22,7 +22,7 @@ wollte keine Anmeldung und kein Zertifikat-Theater.
 ## Konsequenzen
 - Leichter: kein Cloudflare-Konto, keine Domain, keine Webhook-Einrichtung; die Angriffsfläche ist das LAN.
 - Verloren: Auf dem Rechner ist nicht erkennbar, was verkauft ist. Auswertungen (z. B. Preise nach 100 Verkäufen)
-  laufen über einen Shopify-Bestellexport, verbunden über die Kurz-ID in der SKU (ADR-0012). `aktiv/` wächst weiter.
+  laufen über einen Shopify-Bestellexport, verbunden über die SKU (Titel, Ausgabe, Zustand, ADR-0012). `aktiv/` wächst weiter.
 - **Wer im LAN ist (auch Gäste-WLAN im selben Netz), kann Comics bestätigen, löschen, Preise ändern und
   Shopify-Entwürfe auslösen.** Die Fritzbox sollte Gäste-WLAN trennen. Verkehr ist unverschlüsselt: keine sensiblen
   Zugangsdaten in der Oberfläche.
