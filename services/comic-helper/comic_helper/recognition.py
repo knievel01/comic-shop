@@ -47,6 +47,9 @@ Regeln:
   allein nach dem, was auf den Bildern sichtbar ist. Fehlt eine echte Rückseite oder ist der Zustand
   nicht beurteilbar, null. Die Fachkraft entscheidet am Exemplar; die Empfehlung ist nur ein Hinweis.
 - zustand_begruendung: ein Satz mit den sichtbaren Merkmalen, auf die sich die Empfehlung stützt.
+- cover_rahmen und rueckseite_rahmen: Rahmen des Hefts auf Seite 1 bzw. Seite 2 als [links, oben, rechts, unten],
+  jeweils als Anteil von 0.0 bis 1.0 der Bildbreite bzw. -höhe (links oben = 0, 0). Nur das Heft selbst, ohne Hände,
+  Unterlage oder Hintergrund. null, wenn das Heft nicht ganz zu sehen ist.
 """
 
 CONDITION_SCALE_HEADER = "\nZustandsskala (Comicguide-Stufen):\n"
@@ -71,6 +74,13 @@ class Erkennung(BaseModel):
     auffaelligkeiten: str | None
     zustand_empfehlung: int | None = Field(description="0 bis 4 oder null")
     zustand_begruendung: str | None
+    # content text for the shop (only asked for when inhalt.aktiv; the only fields that may use knowledge)
+    inhalt_text: str | None = None
+    inhalt_quelle: Literal["rueckseite", "wissen", "keine"] = "keine"
+    inhalt_sicherheit: float = 0.0
+    # where the comic is on each image, used to cut it out when no plain backdrop is visible (ADR-0007)
+    cover_rahmen: list[float] | None = Field(default=None, description="[links, oben, rechts, unten] 0.0 bis 1.0")
+    rueckseite_rahmen: list[float] | None = Field(default=None, description="[links, oben, rechts, unten] 0.0 bis 1.0")
 
 
 class RecognitionError(Exception):
@@ -86,16 +96,28 @@ def _image_block(jpeg: bytes) -> dict:
     }
 
 
-def system_prompt(zustaende: dict | None = None) -> str:
-    """Rules plus the condition scale from config/pricing.yaml (single source, ADR-0011)."""
-    if not zustaende:
-        return SYSTEM_PROMPT
-    scale = "".join(f"- {z} {d['bezeichnung']}: {d['hilfe']}\n" for z, d in sorted(zustaende.items()))
-    return SYSTEM_PROMPT + CONDITION_SCALE_HEADER + scale
+INHALT_HEADER = """
+Inhaltstext für den Shop (Felder inhalt_text, inhalt_quelle, inhalt_sicherheit):
+Nur für diese drei Felder gilt eine Ausnahme von "kein Wissen ergänzen": hier darfst du sicheres Wissen über genau
+diesen Band nutzen. Alle anderen Felder liest du weiterhin nur von den Scans ab; der Inhaltstext ändert sie nicht.
+"""
+
+
+def system_prompt(zustaende: dict | None = None, cfg: dict | None = None) -> str:
+    """Rules plus the condition scale from config/pricing.yaml (single source, ADR-0011), plus the content-text
+    section when inhalt.aktiv (ADR-0010)."""
+    prompt = SYSTEM_PROMPT
+    if zustaende:
+        prompt += CONDITION_SCALE_HEADER + "".join(
+            f"- {z} {d['bezeichnung']}: {d['hilfe']}\n" for z, d in sorted(zustaende.items()))
+    if cfg and (cfg.get("inhalt") or {}).get("aktiv"):
+        from . import inhalt  # local import: inhalt imports from this module
+        prompt += INHALT_HEADER + inhalt.regeln(cfg, "inhalt_text", "inhalt_quelle", "inhalt_sicherheit")
+    return prompt
 
 
 def recognize(client: anthropic.Anthropic, cover_jpeg: bytes, back_jpeg: bytes, model: str, effort: str = "low",
-              zustaende: dict | None = None) -> tuple[Erkennung, dict]:
+              zustaende: dict | None = None, cfg: dict | None = None) -> tuple[Erkennung, dict]:
     """Returns (parsed result, usage/model info). Raises RecognitionError."""
     extra = {}
     if model in FALLBACK_MODELS:
@@ -106,7 +128,7 @@ def recognize(client: anthropic.Anthropic, cover_jpeg: bytes, back_jpeg: bytes, 
             max_tokens=16000,
             thinking={"type": "adaptive"},
             output_config={"effort": effort},
-            system=system_prompt(zustaende),
+            system=system_prompt(zustaende, cfg),
             messages=[{
                 "role": "user",
                 "content": [

@@ -23,6 +23,12 @@ Einzelne Exemplare sollen auch ohne Station erfassbar sein.
   `comics-folder-rename` (`ExecStartPost=+` derselben Unit) den Ordner nach dem Shop-Handle um
   (`GET /api/scans/{id}/handle`) und verschiebt ihn nach `hochgeladen/`. Die Seite „Hochladen“ zeigt den Stand
   (Dienst antwortet nur auf `127.0.0.1:8099`). `comics-capture` im Terminal bleibt möglich.
+- **Freistellen der Shop-Bilder** (`pdf.freistellen`, beim Erkennen): Ist am Bildrand eine einfarbige Unterlage zu
+  sehen (dunkle Unterlage unter der Kamera, auch das weiße Scannerbett), wird das Heft danach ausgeschnitten.
+  Sonst schneidet der Dienst nach dem Rahmen, den Claude im selben Erkennungsaufruf liefert (`cover_rahmen`,
+  `rueckseite_rahmen`, relativ 0..1, kein Zusatzaufruf). Rundum kommt ein weißer Rand von `bilder.rand_anteil`
+  (3 %) der langen Kante. Das Verfahren steht im Sidecar (`bilder_verfahren`) und im Review. Die PDF bleibt
+  unverändert.
 - **Zweiter Eingang: Foto-Upload** im Review (`/review/hochladen`, z. B. Handyfotos). Der comic-helper baut dieselbe
   2-seitige PDF und legt sie wie der Sync-Weg in `eingang/` ab. Der comic-helper darf schon dorthin schreiben:
   kein neuer Dienst, kein neuer Schlüssel.

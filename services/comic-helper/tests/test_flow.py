@@ -40,6 +40,7 @@ class FakeClaude:
                                      quelle="rueckseite", sicherheit=0.9)
         self.inhalt_error = None
         self.inhalt_calls = []
+        self.rahmen = (None, None)  # frames of the comic on cover/back the fake "sees" (relative 0..1)
         self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
         self.messages = SimpleNamespace(create=self.search)
 
@@ -72,7 +73,10 @@ class FakeClaude:
             ean_isbn=feld("978-3-7704-0012-3"), coverpreis=feld("6.99"), waehrung=feld("EUR"),
             format=feld("Album"), auffaelligkeiten="leichter Knick oben rechts",
             zustand_empfehlung=1, zustand_begruendung="Kanten minimal bestoßen, sonst sauber.",
+            inhalt_text=self.inhalt.text, inhalt_quelle=self.inhalt.quelle, inhalt_sicherheit=self.inhalt.sicherheit,
+            cover_rahmen=self.rahmen[0], rueckseite_rahmen=self.rahmen[1],
         )
+        self.recognition_kwargs = kwargs
         return SimpleNamespace(stop_reason=self.stop_reason, parsed_output=out, model=kwargs["model"],
                                usage=SimpleNamespace(input_tokens=3000, output_tokens=400))
 
@@ -634,18 +638,17 @@ def test_recognize_schreibt_inhalt_in_den_vorschlag(env):
     side = env.store.read_json(f"eingang/{cid}.json")
     assert side["vorschlag"]["inhalt"]["quelle"] == "rueckseite"
     assert side["vorschlag"]["inhalt"]["text"].startswith("Obelix")
-    run = side["laeufe"][-1]["inhalt"]
-    assert run["input_tokens"] == 1200 and run["output_tokens"] == 150 and run["modell"] == "claude-opus-5-5"
-    assert len(env.claude.inhalt_calls) == 1
+    # written in the recognition call itself: no second Claude call, no separate cost entry
+    assert side["laeufe"][-1]["inhalt"] is None and env.claude.inhalt_calls == []
+    assert "inhalt_text" in env.claude.recognition_kwargs["system"]
     assert env.store.get_tags(f"eingang/{cid}.pdf").get("schritt") in (None, "")  # cleared when done
 
 
-def test_recognize_bleibt_offen_wenn_inhalt_fehlschlaegt(env):
-    env.claude.inhalt_error = RuntimeError("boom")
+def test_recognize_verwirft_unsicheren_inhalt_und_bleibt_offen(env):
+    env.claude.inhalt = InhaltErgebnis(text="Irgendwas Erfundenes.", quelle="wissen", sicherheit=0.5)
     cid = recognized(env)
     side = env.store.read_json(f"eingang/{cid}.json")
-    assert side["vorschlag"]["inhalt"] is None
-    assert side["laeufe"][-1]["inhalt"]["fehler"]
+    assert side["vorschlag"]["inhalt"] is None                      # below inhalt.schwelle
     assert env.store.get_tags(f"eingang/{cid}.pdf")["status"] == "offen"
 
 
@@ -653,7 +656,7 @@ def test_recognize_ohne_schalter_ruft_inhalt_nicht_auf(env):
     cid = recognized(env, inhalt_aktiv=False)
     side = env.store.read_json(f"eingang/{cid}.json")
     assert "inhalt" not in side["vorschlag"] and side["laeufe"][-1]["inhalt"] is None
-    assert env.claude.inhalt_calls == []
+    assert env.claude.inhalt_calls == [] and "inhalt_text" not in env.claude.recognition_kwargs["system"]
 
 
 def test_inhalt_endpunkt_schreibt_neu(env):
@@ -661,7 +664,7 @@ def test_inhalt_endpunkt_schreibt_neu(env):
     assert env.client.post(f"/api/scans/{cid}/inhalt").status_code == 401
     r = env.client.post(f"/api/scans/{cid}/inhalt", headers=H)
     assert r.status_code == 200 and r.json()["text"].startswith("Obelix")
-    assert len(env.claude.inhalt_calls) == 1  # idempotent: the draft exists already
+    assert env.claude.inhalt_calls == []  # idempotent: the draft from the recognition exists already
     env.claude.inhalt = InhaltErgebnis(text="Ein ganz neuer Text.", quelle="wissen", sicherheit=0.95)
     r = env.client.post(f"/api/scans/{cid}/inhalt?neu=1", headers=H)
     assert r.json() == {"text": "Ein ganz neuer Text.", "quelle": "wissen", "sicherheit": 0.95}
@@ -823,3 +826,54 @@ def test_inhalt_abschnitt_hat_eigene_reiterfarbe_und_kurze_ueberschrift(env):
     page = env.client.get(f"/review/{cid}").text
     assert ".inhalt  { --reiter:" in page or ".inhalt { --reiter:" in page   # without it the heading is white on white
     assert "<h2>Inhalt</h2>" in page and 'for="inhalt"' in page
+
+
+# --- Freistellen der Shop-Bilder (ADR-0007) ---------------------------------------------------------------
+def shop_image(env, cid, page):
+    from PIL import Image
+    return Image.open(io.BytesIO(env.store.get_bytes(f"bilder/{cid}-{page}.jpg"))).convert("RGB")
+
+
+def recognize_pdf(env, data=None):
+    cid = str(uuid.uuid4())
+    if data is None:
+        upload_scan(env.s3, cid)
+    else:
+        env.s3.put_object(Bucket=BUCKET, Key=f"eingang/{cid}.pdf", Body=data, ContentType="application/pdf",
+                          Tagging="status=neu")
+    env.client.post("/api/scans/claim", headers=H)
+    assert env.client.post(f"/api/scans/{cid}/recognize", headers=H).status_code == 200
+    return cid
+
+
+def test_ohne_unterlage_und_ohne_rahmen_bleiben_die_bilder_ungeschnitten(env):
+    cid = recognize_pdf(env)
+    assert env.store.read_json(f"eingang/{cid}.json")["bilder_verfahren"] == ["keins", "keins"]
+
+
+def test_ohne_unterlage_schneidet_der_rahmen_aus_der_erkennung(env):
+    plain = shop_image(env, recognize_pdf(env), 1)            # no frame: unchanged
+    env.claude.rahmen = ([0.1, 0.1, 0.9, 0.9], [0.2, 0.1, 0.8, 0.9])
+    cid = recognize_pdf(env)
+    side = env.store.read_json(f"eingang/{cid}.json")
+    assert side["bilder_verfahren"] == ["ki", "ki"]
+    cut = shop_image(env, cid, 1)
+    assert cut.size != plain.size and cut.getpixel((2, 2)) == (255, 255, 255)   # white margin
+
+
+def test_dunkle_unterlage_wird_ohne_ki_freigestellt(env):
+    from PIL import Image, ImageDraw
+    pages = []
+    for colour in ((200, 40, 40), (40, 160, 60)):
+        im = Image.new("RGB", (600, 850), (25, 25, 25))
+        ImageDraw.Draw(im).rectangle((120, 150, 479, 699), fill=colour)
+        pages.append(im)
+    buf = io.BytesIO()
+    pages[0].save(buf, "PDF", save_all=True, append_images=pages[1:], resolution=100)
+    env.claude.rahmen = ([0, 0, 1, 1], [0, 0, 1, 1])   # would be wrong; must not be used
+    cid = recognize_pdf(env, buf.getvalue())
+    assert env.store.read_json(f"eingang/{cid}.json")["bilder_verfahren"] == ["unterlage", "unterlage"]
+    img = shop_image(env, cid, 1)                      # 360x550 px at 100 dpi -> 720x1100 at 200 dpi, +3 % margin
+    r = round(0.03 * 1100)
+    assert abs(img.width - (720 + 2 * r)) <= 8 and abs(img.height - (1100 + 2 * r)) <= 8
+    assert "freigestellt" in env.client.get(f"/review/{cid}").text
