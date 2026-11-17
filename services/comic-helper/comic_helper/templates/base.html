@@ -42,16 +42,7 @@
   }
   /* dark: the same inked page at night. Ink and paper swap; bright sticker fills stay bright
      and carry dark text (--schrift-hell). Red fills keep light text (--licht). */
-  /* Follows the system unless the header switch sets data-theme (light or dark). */
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme:dark;
-      --ink:#f1e6cc; --seite:#14110d; --paper:#24201a; --muted:#b9ac92;
-      --soft:#4d4118; --blue:#9bbcff; --ok:#6fdc9a; --warn:#f0b35a; --bad:#ff7a7a;
-      --feld:#15120e; --mint:#173d28; --gelb-sanft:#4a3d12; --gelb-fokus:#4a3d12; --schleier:rgba(14,11,8,.6);
-      --faser:none; --flecken:none;
-    }
-  }
+  /* Light is the default for everyone; dark only when picked with the header switch (data-theme="dark"). */
   :root[data-theme="dark"] {
     color-scheme:dark;
     --ink:#f1e6cc; --seite:#14110d; --paper:#24201a; --muted:#b9ac92;
@@ -121,6 +112,11 @@
                    background:radial-gradient(var(--akzent) 1.5px, transparent 1.9px) 0 0 / 8px 8px;
                    -webkit-mask:linear-gradient(215deg, #000, transparent 65%); mask:linear-gradient(215deg, #000, transparent 65%); }
 
+  /* the tagline needs ~340px; below this width it would push the theme switch onto a second row */
+  @media (max-width: 1120px) {
+    header .tagline { display:none; }
+    header .theme-switch { margin-left:auto; }
+  }
   @media (max-width: 640px) {
     header { position:sticky; top:0; z-index:5; gap:.9rem; }
     header .marke { font-size:1.55rem; padding:.3rem 2rem .2rem .8rem; }
@@ -142,6 +138,7 @@
     <a href="/review/"{% if pfad == '/review/' %} aria-current="page"{% endif %}>Offene Comics</a>
     <a href="/review/hochladen"{% if pfad == '/review/hochladen' %} aria-current="page"{% endif %}>Hochladen</a>
     <a href="/review/statistik"{% if pfad.startswith('/review/statistik') %} aria-current="page"{% endif %}>Statistik</a>
+    <a href="/shop/">Interner Shop</a>
   </nav>
   <span class="tagline">Scannen → Prüfen → Shop</span>
   <button type="button" class="theme-switch" id="theme-switch" title="Farbschema wechseln">Dunkel</button>
@@ -152,12 +149,11 @@
 // reload so groups and status are always computed live.
 window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); });
 
-// Theme switch: the button shows the theme it switches to. Without a saved choice the system setting applies.
+// Theme switch: the button shows the theme it switches to. Without a saved choice the page is light.
 (function () {
   const root = document.documentElement;
   const button = document.getElementById("theme-switch");
-  const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
-  const isDark = () => (root.dataset.theme ? root.dataset.theme === "dark" : systemDark.matches);
+  const isDark = () => root.dataset.theme === "dark";
   const render = () => { button.textContent = isDark() ? "Hell" : "Dunkel"; };
   button.addEventListener("click", () => {
     const next = isDark() ? "light" : "dark";
@@ -165,7 +161,6 @@ window.addEventListener("pageshow", e => { if (e.persisted) location.reload(); }
     try { localStorage.setItem("theme", next); } catch (e) { /* storage blocked: switch works for this page only */ }
     render();
   });
-  systemDark.addEventListener("change", render);
   render();
 })();
 </script>
