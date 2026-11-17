@@ -18,7 +18,7 @@ Verlauf steht in Git. Neue Entscheidung: zuerst prüfen, ob ein bestehendes ADR 
 | [0008](0008-n8n-als-einzelinstanz-mit-postgres-auf-k3s.md) | n8n als Einzelinstanz mit Postgres auf K3s | Akzeptiert |
 | [0010](0010-erkennung-mit-claude-ximilar-nur-nach-vergleichstest.md) | Erkennung mit Claude, Ximilar nur nach Vergleichstest | Vorgeschlagen |
 | [0011](0011-preisfindung-comicguide-skala-booklooker-ohne-scraping.md) | Preisfindung: Comicguide-Skala, Booklooker-Marktpreis mit Beleg, kein Scraping | Akzeptiert |
-| [0012](0012-shopify-anbindung-variante-je-exemplar.md) | Shopify-Anbindung: Variante je Zustand, Batch-Erfassung, Dev-Dashboard-App | Akzeptiert (Umsetzung offen: #11, #12, #13) |
+| [0012](0012-shopify-anbindung-variante-je-exemplar.md) | Shopify-Anbindung: Variante je Zustand, Batch-Erfassung, Dev-Dashboard-App | Akzeptiert (Umsetzung offen: #11, #12) |
 | [0025](0025-kein-internetzugang-zugriff-nur-im-lan.md) | Kein Zugang aus dem Internet, Zugriff nur im LAN, Verkäufe nur in Shopify | Akzeptiert |
 | [0027](0027-sandbox-zuerst-rollout-per-ssh.md) | Sandbox zuerst, dann Rollout per SSH; Sandbox und Produktion teilen keine Daten | Akzeptiert |
 

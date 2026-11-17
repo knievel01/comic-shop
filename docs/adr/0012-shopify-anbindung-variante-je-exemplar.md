@@ -1,6 +1,6 @@
 # ADR-0012: Shopify-Anbindung: Variante je Zustand, Batch-Erfassung, Dev-Dashboard-App
 
-- **Status:** Akzeptiert (Modell geändert am 2026-11-17, Umsetzung offen: #11, #12, #13)
+- **Status:** Akzeptiert (Modell geändert am 2026-11-17, Umsetzung offen: #11, #12)
 - **Datum:** 2026-10-27, konsolidiert 2026-11-13 (enthält frühere ADR-0013, ADR-0021, ADR-0026), Modell 2026-11-17
 
 ## Kontext
@@ -53,4 +53,4 @@
 
 ## Bezug
 `comic_helper/shopify.py`, `config.py`, `pricing.py`, `config/pricing.yaml`, `docs/SHOPIFY-EINRICHTUNG.md`,
-`docs/SCANNEN-UND-BESTAETIGEN.md`, Issues #11, #12, #13
+`docs/SCANNEN-UND-BESTAETIGEN.md`, Issues #11, #12
