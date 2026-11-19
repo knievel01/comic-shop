@@ -647,6 +647,34 @@ def review_progress(ids: str = "", store: Store = Depends(get_store)):
     return out
 
 
+@app.get("/review/erfassung", dependencies=[Depends(require_reviewer)])
+def review_capture(ids: str = "", store: Store = Depends(get_store)):
+    """Where the comics of the footswitch station are now, polled by the upload page (ADR-0007): the folder uuid
+    is the exemplar id. status: wartet (not in S3 yet) | neu | in-arbeit (+schritt) | offen | fehler | bestaetigt
+    | aktiv; titel/ausgabe once recognized."""
+    wanted = [i for i in ids.split(",") if i][:50]
+    out = {}
+    for copy_id in wanted:
+        _check_id(copy_id)
+        entry = {"status": "wartet", "schritt": "", "titel": None, "ausgabe": None,
+                 "review_url": f"/review/{copy_id}"}
+        for prefix in (EINGANG, AKTIV):
+            key = store.pdf_key(prefix, copy_id)
+            if not store.exists(key):
+                continue
+            tags = {} if prefix == AKTIV else store.get_tags(key)
+            entry["status"] = "aktiv" if prefix == AKTIV else tags.get("status", "neu")
+            entry["schritt"] = tags.get("schritt", "")
+            side_key = store.sidecar_key(prefix, copy_id)
+            if store.exists(side_key):
+                side = store.read_json(side_key)
+                d = side.get("entscheidung") or side.get("vorschlag") or {}
+                entry["titel"], entry["ausgabe"] = d.get("titel") or None, d.get("ausgabe") or None
+            break
+        out[copy_id] = entry
+    return out
+
+
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp", "image/avif")
 templates.env.globals["upload_typen"] = ",".join(UPLOAD_TYPES)

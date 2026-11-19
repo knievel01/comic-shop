@@ -81,7 +81,8 @@ def test_naechstes_heft_schliesst_und_baut_pdf_aus_erstem_und_letztem_foto(tmp_p
     assert not list((env.base / "neu").glob("*.part"))          # no half-written file is left behind
     assert (env.base / "erfassung" / uuid1).is_dir()            # the folder stays until it is renamed
     assert len(folders(env)) == 2 and "zu" in env.events
-    assert env.s.status()["letzte"][0] == {"name": uuid1, "fotos": 3}
+    h = env.s.status()["hefte"][0]
+    assert h["name"] == uuid1 and h["fotos"] == 3 and h["fehler"] is None and h["zu"] > 0
 
 
 def test_ordner_mit_einem_foto_geht_nach_fehler(tmp_path):
@@ -168,7 +169,7 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
     assert calls == ["gphoto2", "fswebcam"]
     calls.clear()
     assert cp.shoot(str(target), run=run_factory(True)) == "Canon"
-    assert calls == ["gphoto2", "gphoto2", "gphoto2", "convert"]
+    assert calls == ["gphoto2", "gphoto2", "gphoto2"]                   # no conversion: the camera sends the size
 
 
 def canon_run(seen, ext="jpg", capture_fails=False, no_file=False, cwds=None):
@@ -194,7 +195,9 @@ def test_canon_speichert_auf_die_sd_karte(tmp_path):
     seen = []
     assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) == "Canon"
     target = next(c for c in seen if "--set-config" in c)
-    assert "capturetarget=1" in target
+    assert "capturetarget=1" in target and f"imageformat={cp.CANON_FORMAT}" in target
+    assert not any(c[0] == "convert" for c in seen)
+    assert (tmp_path / "f.jpg").read_bytes() == b"raw"          # the camera's JPEG, moved as it is
     assert seen.index(target) < next(i for i, c in enumerate(seen) if "--capture-image-and-download" in c)
 
 
@@ -300,32 +303,73 @@ def test_status_zeigt_kamera_schalter_und_bilder_des_hefts(tmp_path):
     env = make_session(tmp_path)
     env.s.shoot = lambda path: Path(path).write_bytes(b"jpg") and "Canon"
     st = env.s.status()
-    assert st["schalter"] == "fehlen" and st["ansicht"] is None and st["kamera"] is None
+    assert st["schalter"] == "fehlen" and st["hefte"] == [] and st["kamera"] is None and st["aufnahme"] is False
     env.s.press_new()
     env.s.press_photo()
     env.s.press_photo()
     st = env.s.status()
-    assert st["kamera"] == "Canon" and st["ansicht"]["fotos"] == 2 and st["ansicht"]["offen"]
+    assert st["kamera"] == "Canon" and st["fotos"] == 2
     assert env.s.photo(1).name == "foto-001.jpg" and env.s.photo(-1).name == "foto-002.jpg" and env.s.photo(3) is None
-    env.s.press_new()                                            # closes: the old comic stays visible ... no
-    assert env.s.status()["ansicht"]["fotos"] == 0               # ... the new one is on screen
+
+
+def test_alle_hefte_seit_start_neuestes_zuerst_mit_fotos(tmp_path):
+    env = make_session(tmp_path)
+    names = []
+    for fotos in (2, 3, 1):
+        env.s.press_new()
+        names.append(env.s.status()["heft"])
+        for _ in range(fotos):
+            env.s.press_photo()
     env.s.close()
-    assert env.s.status()["ansicht"] is None                     # empty comic: nothing to show
+    hefte = env.s.status()["hefte"]
+    assert [h["name"] for h in hefte] == names[::-1]
+    assert [h["fotos"] for h in hefte] == [1, 3, 2] and hefte[0]["fehler"] == "zu_wenig"
+    assert env.s.photo(1, names[0]) == env.base / "erfassung" / names[0] / "foto-001.jpg"
+    assert env.s.photo(1, names[2]) == env.base / "fehler" / names[2] / "foto-001.jpg"
+    assert env.s.photo(1, "00000000-0000-0000-0000-000000000000") is None
 
 
-def test_abgeschlossenes_heft_bleibt_sichtbar_auch_nach_dem_umbenennen(tmp_path):
+def test_bilder_auch_nach_dem_umbenennen_ueber_den_link(tmp_path):
     env = make_session(tmp_path, idle=10)
     env.s.press_new()
     name = folders(env)[0]
     env.s.press_photo()
     env.s.press_photo()
-    env.clock.t += 11
-    env.s.tick()
-    st = env.s.status()
-    assert st["ansicht"] == {"name": name, "fotos": 2, "offen": False}
+    env.s.close()
     (env.base / "hochgeladen").mkdir()
-    (env.base / "erfassung" / name).rename(env.base / "hochgeladen" / name)
-    assert env.s.photo(1) == env.base / "hochgeladen" / name / "foto-001.jpg"
+    target = env.base / "hochgeladen" / "yakari-1-ehapa"
+    (env.base / "erfassung" / name).rename(target)              # what comics-folder-rename does
+    (env.base / ".umbenannt").mkdir()
+    (env.base / ".umbenannt" / name).symlink_to(target)
+    assert env.s.photo(-1, name).resolve() == (target / "foto-002.jpg").resolve()
+
+
+def test_status_antwortet_waehrend_die_kamera_ausloest(tmp_path):
+    import threading
+    env = make_session(tmp_path)
+    started, release = threading.Event(), threading.Event()
+
+    def slow_shoot(path):
+        started.set()
+        release.wait(5)
+        Path(path).write_bytes(b"jpg")
+        return "Canon"
+
+    env.s.shoot = slow_shoot
+    env.s.press_new()
+    t = threading.Thread(target=env.s.press_photo)
+    t.start()
+    try:
+        assert started.wait(5)
+        done = []
+        reader = threading.Thread(target=lambda: done.append(env.s.status()))
+        reader.start()
+        reader.join(1)
+        assert done and done[0]["aufnahme"] is True and done[0]["fotos"] == 0
+    finally:
+        release.set()
+        t.join(5)
+    assert env.s.status()["aufnahme"] is False and env.s.status()["fotos"] == 1
 
 
 def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
@@ -349,6 +393,9 @@ def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
         assert post("/foto", "http://localhost:8080") == 200 and env.s.status()["fotos"] == 1
         img = urllib.request.urlopen(url + "/foto/1.jpg", timeout=5)
         assert img.headers["Content-Type"] == "image/jpeg" and img.read() == b"jpg"
+        assert img.headers["Cache-Control"] == "max-age=86400"
+        name = env.s.status()["heft"]
+        assert urllib.request.urlopen(f"{url}/heft/{name}/foto/1.jpg", timeout=5).read() == b"jpg"
         try:
             urllib.request.urlopen(url + "/foto/9.jpg", timeout=5)
             raise AssertionError("expected 404")

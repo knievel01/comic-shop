@@ -8,6 +8,12 @@
 3. Nächstes Heft: wieder **Schalter 1**. Das letzte Heft des Tages schließt sich nach 5 Minuten Ruhe von selbst.
 4. Die Seite „Hochladen“ zeigt am Scan-Rechner groß, welcher Schalter dran ist, dazu Cover und Rückseite des Hefts und
    welche Kamera ausgelöst hat. Sind keine Fußschalter angeschlossen, sind die beiden Kacheln links und rechts die Schalter.
+5. Darunter steht „Erfasst seit Start“: jedes Heft seit dem Start des Fußschalter-Dienstes als Kachel mit Cover und
+   Stand (Lädt hoch, Erkennung läuft, Prüfen, Fehler, Bestätigt). Ein Klick öffnet die Prüfseite.
+
+Die Canon wird vor jedem Foto auf „Medium Fine JPEG“ gestellt (3088×2056) und auf die SD-Karte; das Foto wird nicht
+mehr umgerechnet. Vertauschte Schalter: `sudo rm /var/lib/comics-pedal/pedals.json && sudo systemctl restart
+comics-pedal`, dann erst den Schalter für „Neues Heft“, danach den für „Foto“ treten.
 
 Das Heft liegt flach auf der **dunklen, einfarbigen Unterlage** und ist ganz im Bild, nicht in der Hand. Dann wird es
 für den Shop sauber freigestellt (gleich breiter weißer Rand). Sonst schneidet die KI nach Augenmaß; im Review steht
