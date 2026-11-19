@@ -18,8 +18,8 @@
   .blaettern.aus { opacity:.35; box-shadow:none; }
   .blaettern small { position:absolute; bottom:.3rem; font:700 .75rem var(--text); letter-spacing:0; }
   @media (max-width:900px) { main:has(.blaettern) { padding-inline:1.4rem; }
-    .blaettern { top:auto; bottom:5.2rem; transform:none; width:3rem; height:3rem; font-size:1.8rem; }
-    a.blaettern:active { transform:translate(3px,3px); } .blaettern small { display:none; } }
+    .blaettern { top:36%; width:2.6rem; height:3rem; font-size:1.8rem; }    /* upper half: clear of the action bar */
+    a.blaettern:active { transform:translateY(-50%) translate(3px,3px); } .blaettern small { display:none; } }
   /* cover and back as two comic panels with caption boxes */
   .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
   .pics figure { margin:0; position:relative; border:var(--strich); background:var(--paper); }
