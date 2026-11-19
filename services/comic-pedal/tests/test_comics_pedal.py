@@ -1,6 +1,5 @@
 import json
 import sys
-import urllib.error
 import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
@@ -164,25 +163,21 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
         return run
 
     target = tmp_path / "foto-001.jpg"
-    assert cp.shoot(str(target), run=run_factory(False)) == "Webcam"
+    assert cp.shoot(str(target), run=run_factory(False)) is True
     assert calls == ["gphoto2", "fswebcam"]
     calls.clear()
-    assert cp.shoot(str(target), run=run_factory(True)) == "Canon"
+    assert cp.shoot(str(target), run=run_factory(True)) is True
     assert calls == ["gphoto2", "gphoto2", "gphoto2", "convert"]
 
 
-def canon_run(seen, ext="jpg", capture_fails=False, no_file=False, cwds=None):
+def canon_run(seen, ext="jpg", capture_fails=False):
     def run(cmd, **kw):
         seen.append(cmd)
-        if cwds is not None and cmd[0] == "gphoto2":
-            cwds.append(kw.get("cwd"))
         if cmd[0] == "gphoto2" and "--auto-detect" in cmd:
             return SimpleNamespace(returncode=0, stdout="Model  Port\n-----\nCanon EOS 450D (PTP mode)  usb:001,004\n")
         if cmd[0] == "gphoto2" and "--capture-image-and-download" in cmd:
             if capture_fails:
                 raise cp.subprocess.CalledProcessError(1, cmd)
-            if no_file:                                  # gphoto2 exits 0 although the download failed
-                return SimpleNamespace(returncode=0, stdout="")
             Path(cmd[cmd.index("--filename") + 1].replace("%C", ext)).write_bytes(b"raw")
         elif cmd[0] == "convert":
             Path(cmd[-1]).write_bytes(b"jpg")
@@ -192,7 +187,7 @@ def canon_run(seen, ext="jpg", capture_fails=False, no_file=False, cwds=None):
 
 def test_canon_speichert_auf_die_sd_karte(tmp_path):
     seen = []
-    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) == "Canon"
+    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) is True
     target = next(c for c in seen if "--set-config" in c)
     assert "capturetarget=1" in target
     assert seen.index(target) < next(i for i, c in enumerate(seen) if "--capture-image-and-download" in c)
@@ -210,7 +205,7 @@ def test_canon_auf_raw_gibt_klaren_hinweis(tmp_path):
 
 def test_canon_fehler_nimmt_nicht_die_webcam(tmp_path):
     seen = []
-    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen, capture_fails=True)) is None
+    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen, capture_fails=True)) is False
     assert not any(c[0] == "fswebcam" for c in seen)
 
 
@@ -237,7 +232,7 @@ def test_hinweis_der_kamera_steht_im_status_bis_zum_naechsten_guten_foto(tmp_pat
 def test_aufnahme_meldet_fehler_wenn_kein_bild_entsteht(tmp_path):
     def run(cmd, **kw):
         return SimpleNamespace(returncode=0, stdout="")
-    assert cp.shoot(str(tmp_path / "nicht-da.jpg"), run=run) is None
+    assert cp.shoot(str(tmp_path / "nicht-da.jpg"), run=run) is False
 
 
 def test_pdf_wird_mit_img2pdf_aus_zwei_bildern_gebaut(tmp_path):
@@ -279,80 +274,3 @@ def test_entprellen_nach_ereigniszeit_doppelte_meldung_derselben_betaetigung_fae
     assert cp.DEBOUNCE_S <= 0.25
     assert d.ok("s2", 10.000) and not d.ok("s2", 10.005)   # same press reported by keyboard and mouse node
     assert d.ok("s2", 10.300)                              # a quick second tap is a second photo
-
-
-def test_gphoto2_laeuft_im_temp_ordner_weil_der_dienst_in_wurzel_nicht_schreiben_darf(tmp_path):
-    seen, cwds = [], []
-    cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen, cwds=cwds))
-    capture = [c for c in seen if c[0] == "gphoto2" and "--auto-detect" not in c]
-    assert cwds[-len(capture):] and all(c and c != "/" and "comics-pedal-" in c for c in cwds[-len(capture):])
-
-
-def test_ausgeloest_aber_kein_bild_gibt_hinweis(tmp_path):
-    try:
-        cp.shoot(str(tmp_path / "f.jpg"), run=canon_run([], no_file=True))
-        raise AssertionError("expected CameraHint")
-    except cp.CameraHint as e:
-        assert "kam nicht an" in str(e)
-
-
-def test_status_zeigt_kamera_schalter_und_bilder_des_hefts(tmp_path):
-    env = make_session(tmp_path)
-    env.s.shoot = lambda path: Path(path).write_bytes(b"jpg") and "Canon"
-    st = env.s.status()
-    assert st["schalter"] == "fehlen" and st["ansicht"] is None and st["kamera"] is None
-    env.s.press_new()
-    env.s.press_photo()
-    env.s.press_photo()
-    st = env.s.status()
-    assert st["kamera"] == "Canon" and st["ansicht"]["fotos"] == 2 and st["ansicht"]["offen"]
-    assert env.s.photo(1).name == "foto-001.jpg" and env.s.photo(-1).name == "foto-002.jpg" and env.s.photo(3) is None
-    env.s.press_new()                                            # closes: the old comic stays visible ... no
-    assert env.s.status()["ansicht"]["fotos"] == 0               # ... the new one is on screen
-    env.s.close()
-    assert env.s.status()["ansicht"] is None                     # empty comic: nothing to show
-
-
-def test_abgeschlossenes_heft_bleibt_sichtbar_auch_nach_dem_umbenennen(tmp_path):
-    env = make_session(tmp_path, idle=10)
-    env.s.press_new()
-    name = folders(env)[0]
-    env.s.press_photo()
-    env.s.press_photo()
-    env.clock.t += 11
-    env.s.tick()
-    st = env.s.status()
-    assert st["ansicht"] == {"name": name, "fotos": 2, "offen": False}
-    (env.base / "hochgeladen").mkdir()
-    (env.base / "erfassung" / name).rename(env.base / "hochgeladen" / name)
-    assert env.s.photo(1) == env.base / "hochgeladen" / name / "foto-001.jpg"
-
-
-def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
-    env = make_session(tmp_path)
-    server = cp.start_status_server(env.s, port=0)
-    url = f"http://127.0.0.1:{server.server_address[1]}"
-    try:
-        def post(path, origin, header=True):
-            h = {"Origin": origin} if origin else {}
-            if header:
-                h["X-Comics-Pedal"] = "1"
-            req = urllib.request.Request(url + path, method="POST", headers=h, data=b"")
-            try:
-                return urllib.request.urlopen(req, timeout=5).status
-            except urllib.error.HTTPError as e:
-                return e.code
-        assert post("/neu", "https://boese.example.com") == 403
-        assert post("/neu", "http://192.168.40.120", header=False) == 403
-        assert post("/neu", None) == 403
-        assert post("/neu", "http://192.168.40.120") == 200 and env.events == ["neu"]
-        assert post("/foto", "http://localhost:8080") == 200 and env.s.status()["fotos"] == 1
-        img = urllib.request.urlopen(url + "/foto/1.jpg", timeout=5)
-        assert img.headers["Content-Type"] == "image/jpeg" and img.read() == b"jpg"
-        try:
-            urllib.request.urlopen(url + "/foto/9.jpg", timeout=5)
-            raise AssertionError("expected 404")
-        except urllib.error.HTTPError as e:
-            assert e.code == 404
-    finally:
-        server.shutdown()

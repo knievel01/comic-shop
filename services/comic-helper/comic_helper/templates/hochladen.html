@@ -4,39 +4,12 @@
 <style>
   form.upload { background:var(--paper); border:var(--strich); padding:.4rem 1.4rem 1.4rem; max-width:40rem; }
   main > p { max-width:40rem; font-size:1.1rem; }
-  h2.reserve { font:1.5rem/1.2 var(--display); letter-spacing:.04em; margin:1rem 0 .4rem; }
-  /* footswitch station: switch 1 | cover + back | switch 2 */
-  #fussschalter { background:var(--paper); border:var(--strich); box-shadow:var(--druck); padding:.6rem 1.4rem 1.4rem;
-    max-width:72rem; margin-bottom:2rem; }
-  #fussschalter h2 { font:1.9rem/1.1 var(--display); letter-spacing:.04em; margin:.6rem 0 .2rem; }
-  #fussschalter .naechstes { font-size:1.6rem; font-weight:800; margin:.2rem 0 1rem; }
-  #fussschalter.aus .naechstes { font-size:1.1rem; font-weight:400; color:var(--muted); }
-  .station { display:grid; grid-template-columns:minmax(9rem,12rem) 1fr minmax(9rem,12rem); gap:1.2rem; align-items:stretch; }
-  .schalter { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem;
-    background:var(--feld); border:var(--strich); box-shadow:var(--druck); color:var(--ink); font:inherit;
-    padding:1rem .6rem; cursor:pointer; min-height:12rem; text-align:center; transition:transform .08s, box-shadow .08s; }
-  .schalter:hover:not(:disabled) { background:var(--gelb-fokus); }
-  .schalter:active:not(:disabled), .schalter.tritt { transform:translate(3px,3px); box-shadow:var(--gedrueckt); }
-  .schalter.dran { background:var(--soft); outline:4px solid var(--accent); outline-offset:3px; }
-  .schalter:disabled { cursor:default; opacity:.55; }
-  .schalter .nr { font:3.4rem/1 var(--display); }
-  .schalter .was { font-size:1.25rem; font-weight:800; }
-  .schalter .wie { font-size:.95rem; color:var(--muted); }
-  .bilder { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-  .bilder figure { margin:0; display:flex; flex-direction:column; gap:.3rem; }
-  .bilder figcaption { font-weight:800; font-size:1.05rem; }
-  .platz { aspect-ratio:3/4; border:2px dashed var(--muted); background:var(--feld); display:grid; place-items:center;
-    color:var(--muted); font-size:1.05rem; overflow:hidden; }
-  .platz.voll { border-style:solid; border-color:var(--ink); }
-  .platz img { width:100%; height:100%; object-fit:contain; display:block; }
-  .zeile { display:flex; flex-wrap:wrap; gap:.4rem 1.4rem; margin-top:1rem; color:var(--muted); }
-  .zeile b { color:var(--ink); }
-  #fussschalter ul { margin:.6rem 0 0; padding-left:1.2rem; color:var(--muted); }
-  @media (max-width:800px) {
-    .station { grid-template-columns:1fr 1fr; }
-    .bilder { grid-column:1 / -1; order:-1; }
-    .schalter { min-height:7rem; }
-  }
+  #fussschalter { background:var(--paper); border:var(--strich); padding:.4rem 1.4rem 1.2rem; max-width:40rem; margin-bottom:1.6rem; }
+  #fussschalter h2, h2.reserve { font:1.5rem/1.2 var(--display); letter-spacing:.04em; margin:1rem 0 .4rem; }
+  #fussschalter .naechstes { font-size:1.35rem; font-weight:800; margin:.4rem 0; }
+  #fussschalter .heft { margin:.2rem 0; }
+  #fussschalter ul { margin:.4rem 0 0; padding-left:1.2rem; color:var(--muted); }
+  #fussschalter.aus .naechstes { font-size:1.05rem; font-weight:400; color:var(--muted); }
 </style>
 {% endblock %}
 {% block body %}
@@ -46,23 +19,7 @@
   <h2>Erfassung per Fußschalter</h2>
   <p class="naechstes" id="fuss-naechstes">Status wird geladen …</p>
   <p class="msg err" id="fuss-hinweis" hidden></p>
-  <div class="station">
-    <button type="button" class="schalter" id="taste-neu" data-aktion="neu" disabled>
-      <span class="nr">1</span><span class="was">Neues Heft</span><span class="wie" id="wie-neu">linker Fußschalter</span>
-    </button>
-    <div class="bilder">
-      <figure><figcaption>Cover</figcaption><div class="platz" id="bild-cover">erstes Foto</div></figure>
-      <figure><figcaption>Rückseite</figcaption><div class="platz" id="bild-rueck">letztes Foto</div></figure>
-    </div>
-    <button type="button" class="schalter" id="taste-foto" data-aktion="foto" disabled>
-      <span class="nr">2</span><span class="was">Foto</span><span class="wie" id="wie-foto">rechter Fußschalter</span>
-    </button>
-  </div>
-  <div class="zeile">
-    <span id="fuss-heft">Kein Heft offen</span>
-    <span>Kamera: <b id="fuss-kamera">–</b></span>
-    <span>Fußschalter: <b id="fuss-schalter">–</b></span>
-  </div>
+  <p class="heft" id="fuss-heft" hidden></p>
   <ul id="fuss-letzte" hidden></ul>
 </section>
 <h2 class="reserve">Oder Fotos von Hand hochladen</h2>
@@ -70,81 +27,32 @@
 startet innerhalb von 2 Minuten.</p>
 {% include "_hochladen_form.html" %}
 <script>
-// Footswitch station (comics-pedal on the scan machine, ADR-0007). It answers on 127.0.0.1 only, so this panel
-// works on the scan machine itself; elsewhere it says so and the upload form below stays usable.
-// The two big tiles show which switch is next; without footswitches they are the switches.
+// Footswitch station (comics-pedal on the scan machine, ADR-0007): it answers on 127.0.0.1 only, so this panel
+// works on the scan machine itself. Elsewhere it says so and the upload form below stays usable.
 (() => {
-  const PEDAL = "http://127.0.0.1:8099";
-  const $ = id => document.getElementById(id);
-  const box = $("fussschalter"), tasten = [$("taste-neu"), $("taste-foto")];
-  const SCHALTER = { fehlen: "nicht angeschlossen – Kacheln anklicken", einrichtung: "Einrichtung: erst Schalter 1, dann Schalter 2 treten", bereit: "bereit" };
-  let fotosVorher = null;
-
-  function bild(platz, name, n, fotos, ersatz) {
-    const key = `${name}:${n}:${fotos}`;
-    if (platz.dataset.key === key) return;
-    platz.dataset.key = key;
-    if (!name || !fotos || (n === -1 && fotos < 2)) {
-      platz.classList.remove("voll");
-      platz.replaceChildren(ersatz);
-      return;
-    }
-    const img = new Image();
-    img.alt = n === 1 ? "Cover" : "Rückseite";
-    img.onload = () => { platz.classList.add("voll"); platz.replaceChildren(img); };
-    img.onerror = () => { platz.classList.remove("voll"); platz.replaceChildren("Bild nicht mehr da"); };
-    img.src = `${PEDAL}/foto/${n}.jpg?k=${encodeURIComponent(key)}`;
-  }
-
-  function zeigen(s) {
-    box.classList.remove("aus");
-    $("fuss-naechstes").textContent = "Als Nächstes: " + s.naechstes;
-    $("fuss-hinweis").hidden = !s.hinweis;
-    $("fuss-hinweis").textContent = s.hinweis || "";
-    const v = s.ansicht;
-    $("fuss-heft").textContent = v ? `${v.offen ? "Aktuelles" : "Letztes"} Heft ${v.name.slice(0, 8)}: ${v.fotos} Foto${v.fotos === 1 ? "" : "s"}` : "Kein Heft offen";
-    $("fuss-kamera").textContent = s.kamera || "noch kein Foto";
-    $("fuss-schalter").textContent = SCHALTER[s.schalter] || s.schalter;
-    const ohne = s.schalter !== "bereit";
-    $("wie-neu").textContent = ohne ? "hier klicken" : "linker Fußschalter";
-    $("wie-foto").textContent = ohne ? "hier klicken" : "rechter Fußschalter";
-    tasten.forEach(t => t.disabled = false);
-    $("taste-neu").classList.toggle("dran", !s.heft);
-    $("taste-foto").classList.toggle("dran", !!s.heft);
-    if (fotosVorher !== null && s.fotos > fotosVorher) tritt($("taste-foto"));
-    fotosVorher = s.fotos;
-    bild($("bild-cover"), v && v.name, 1, v ? v.fotos : 0, "erstes Foto");
-    bild($("bild-rueck"), v && v.name, -1, v ? v.fotos : 0, "letztes Foto");
-    $("fuss-letzte").replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
-      { textContent: `${h.name.slice(0, 8)}: ${h.fotos} Fotos` })));
-    $("fuss-letzte").hidden = !s.letzte.length;
-  }
-
-  function tritt(t) { t.classList.add("tritt"); setTimeout(() => t.classList.remove("tritt"), 180); }
-
+  const box = document.getElementById("fussschalter");
+  const naechstes = document.getElementById("fuss-naechstes"), heft = document.getElementById("fuss-heft");
+  const letzte = document.getElementById("fuss-letzte"), hinweis = document.getElementById("fuss-hinweis");
   async function holen() {
     try {
-      const r = await fetch(`${PEDAL}/status.json`, { cache: "no-store" });
+      const r = await fetch("http://127.0.0.1:8099/status.json", { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
-      zeigen(await r.json());
+      const s = await r.json();
+      box.classList.remove("aus");
+      naechstes.textContent = "Als Nächstes: " + s.naechstes;
+      hinweis.hidden = !s.hinweis;
+      hinweis.textContent = s.hinweis || "";
+      heft.hidden = !s.heft;
+      heft.textContent = s.heft ? `Aktuelles Heft ${s.heft.slice(0, 8)}: ${s.fotos} Foto${s.fotos === 1 ? "" : "s"}` : "";
+      letzte.replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
+        { textContent: `${h.name.slice(0, 8)}: ${h.fotos} Fotos` })));
+      letzte.hidden = !s.letzte.length;
     } catch {
       box.classList.add("aus");
-      $("fuss-naechstes").textContent = "Nur am Scan-Rechner sichtbar (dort laufen die Fußschalter).";
-      $("fuss-hinweis").hidden = true;
-      tasten.forEach(t => t.disabled = true);
+      naechstes.textContent = "Nur am Scan-Rechner sichtbar (dort laufen die Fußschalter).";
+      heft.hidden = letzte.hidden = hinweis.hidden = true;
     }
   }
-
-  tasten.forEach(t => t.addEventListener("click", async () => {
-    tritt(t);
-    t.disabled = true;                       // a photo takes a few seconds
-    try {
-      const r = await fetch(`${PEDAL}/${t.dataset.aktion}`, { method: "POST", headers: { "X-Comics-Pedal": "1" } });
-      if (r.ok) zeigen(await r.json());
-    } catch { /* the next poll shows the state */ }
-    t.disabled = false;
-  }));
-
   holen();
   setInterval(() => { if (!document.hidden) holen(); }, 1500);
 })();

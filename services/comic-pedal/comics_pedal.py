@@ -53,11 +53,10 @@ class CameraHint(Exception):
 
 
 # --- capture ------------------------------------------------------------------------------------------------
-def shoot(path: str, run=subprocess.run) -> str | None:
+def shoot(path: str, run=subprocess.run) -> bool:
     """One photo to `path`: the Canon if gphoto2 sees one, otherwise the webcam.
 
-    Returns "Canon" or "Webcam" for the camera that took it, None if it failed. A Canon that fails is a failure,
-    never a silent webcam photo. Raises CameraHint for a fixable setting."""
+    A Canon that fails is a failure, never a silent webcam photo. Raises CameraHint for a fixable setting."""
     try:
         det = run(["gphoto2", "--auto-detect"], capture_output=True, text=True, timeout=15)
         canon = any(line.strip() for line in det.stdout.splitlines()[2:])
@@ -71,25 +70,21 @@ def shoot(path: str, run=subprocess.run) -> str | None:
             tmp = tempfile.mkdtemp(prefix="comics-pedal-")
             try:
                 # save to the SD card: the 450D's internal RAM target fails now and then
-                # gphoto2 downloads into a temp file in the working directory: the service's cwd (/) is read-only
                 run(["gphoto2", "--quiet", "--set-config", "capturetarget=1"], capture_output=True, text=True,
-                    timeout=30, cwd=tmp)
+                    timeout=30)
                 run(["gphoto2", "--quiet", "--capture-image-and-download", "--filename", f"{tmp}/raw.%C",
-                     "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True, cwd=tmp)
-                found = sorted(glob.glob(f"{tmp}/raw.*"))
-                if not found:                                    # gphoto2 exits 0 even when the download fails
-                    raise CameraHint("Kamera hat ausgelöst, aber das Bild kam nicht an (USB-Kabel prüfen)")
-                raw = found[0]
+                     "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True)
+                raw = sorted(glob.glob(f"{tmp}/raw.*"))[0]
                 if not raw.lower().endswith((".jpg", ".jpeg")):
                     raise CameraHint("Kamera auf JPEG stellen (Menü: Qualität → JPEG L, kein RAW)")
                 run(["convert", raw, "-auto-orient", "-resize", f"{MAX_EDGE}x{MAX_EDGE}>", "-quality", QUALITY, path],
                     capture_output=True, text=True, timeout=60, check=True)
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
-        return ("Canon" if canon else "Webcam") if os.path.getsize(path) > 0 else None
-    except (OSError, subprocess.SubprocessError) as e:
+        return os.path.getsize(path) > 0
+    except (OSError, subprocess.SubprocessError, IndexError) as e:
         log.warning("photo failed: %s", e)
-        return None
+        return False
 
 
 def build_pdf(first: str, last: str, out: str, run=subprocess.run) -> None:
@@ -108,9 +103,6 @@ class Session:
         self.touched = 0.0
         self.recent: list[dict] = []
         self.hint: str | None = None
-        self.camera: str | None = None                          # camera of the last good photo
-        self.switches = "fehlen"                                # fehlen | einrichtung | bereit (set by run())
-        self.shown: tuple[str, list[Path]] | None = None        # last closed comic, shown until the next one starts
         self.lock = threading.RLock()
 
     def _dir(self, name: str) -> Path:
@@ -125,7 +117,6 @@ class Session:
                 self.notify("neu")
                 return
             self.close()
-            self.shown = None
             self.folder = self._dir("erfassung") / str(uuid.uuid4())
             self.folder.mkdir()
             self.photos, self.touched = [], self.clock()
@@ -144,8 +135,6 @@ class Session:
                 ok, self.hint = False, str(e)
                 log.warning("camera: %s", e)
             if ok:
-                if isinstance(ok, str):
-                    self.camera = ok
                 self.photos.append(target)
                 self.touched = self.clock()
                 self.notify("foto")
@@ -163,7 +152,6 @@ class Session:
         if self.folder is None:
             return
         folder, photos, self.folder, self.photos = self.folder, self.photos, None, []
-        self.shown = (folder.name, photos) if photos else None
         if not photos:
             shutil.rmtree(folder, ignore_errors=True)
             return
@@ -197,28 +185,8 @@ class Session:
                 nxt = "Schalter 2: Cover fotografieren"
             else:
                 nxt = "Schalter 2: Rückseite (oder weiteres Foto), Schalter 1: nächstes Heft"
-            if self.folder is not None:
-                view = {"name": self.folder.name, "fotos": len(self.photos), "offen": True}
-            elif self.shown:
-                view = {"name": self.shown[0], "fotos": len(self.shown[1]), "offen": False}
-            else:
-                view = None
             return {"heft": self.folder.name if self.folder else None, "fotos": len(self.photos), "naechstes": nxt,
-                    "letzte": list(self.recent), "hinweis": self.hint, "kamera": self.camera,
-                    "schalter": self.switches, "ansicht": view}
-
-    def photo(self, n: int) -> Path | None:
-        """n-th photo (1-based, -1 = last) of the comic on screen; None once it was moved away."""
-        with self.lock:
-            photos = self.photos if self.folder is not None else (self.shown[1] if self.shown else [])
-            try:
-                p = photos[n - 1] if n > 0 else photos[n]
-            except IndexError:
-                return None
-            if p.exists():
-                return p
-            moved = [q for q in self.base.glob(f"*/*/{p.name}") if q.parent.name == p.parent.name]
-            return moved[0] if moved else None
+                    "letzte": list(self.recent), "hinweis": self.hint}
 
 
 # --- switches -----------------------------------------------------------------------------------------------
@@ -265,21 +233,6 @@ class Calibrator:
         return {"schalter1": self.keys[0], "schalter2": self.keys[1]}
 
 
-def local_origin(origin: str | None) -> bool:
-    """Origin of a page on this machine or in the private LAN (the review UI), not some website on the internet."""
-    import ipaddress
-    from urllib.parse import urlparse
-    if not origin:
-        return False
-    host = urlparse(origin).hostname or ""
-    if host in ("localhost", os.uname().nodename) or host.endswith(".local"):
-        return True
-    try:
-        return ipaddress.ip_address(host).is_private
-    except ValueError:
-        return False
-
-
 # --- status server (127.0.0.1 only, read by the upload page on this machine) --------------------------------
 def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingHTTPServer:
     class Handler(BaseHTTPRequestHandler):
@@ -287,8 +240,7 @@ def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingH
             self.send_response(code)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Private-Network", "true")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "X-Comics-Pedal")
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(length))
 
@@ -296,32 +248,16 @@ def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingH
             self._headers(204)
             self.end_headers()
 
-        def _send(self, code: int, body: bytes = b"", ctype: str = "application/json; charset=utf-8") -> None:
-            self._headers(code, len(body))
-            if body:
-                self.send_header("Content-Type", ctype)
+        def do_GET(self):  # noqa: N802
+            if self.path.split("?")[0] != "/status.json":
+                self._headers(404)
+                self.end_headers()
+                return
+            body = json.dumps(session.status(), ensure_ascii=False).encode()
+            self._headers(200, len(body))
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(body)
-
-        def do_GET(self):  # noqa: N802
-            path = self.path.split("?")[0]
-            if path == "/status.json":
-                return self._send(200, json.dumps(session.status(), ensure_ascii=False).encode())
-            m = re.fullmatch(r"/foto/(-?\d+)\.jpg", path)
-            p = session.photo(int(m.group(1))) if m else None
-            if p is None:
-                return self._send(404)
-            self._send(200, p.read_bytes(), "image/jpeg")
-
-        def do_POST(self):  # noqa: N802
-            # on-screen switches; the custom header forces a CORS preflight, so only pages on this LAN may press
-            if self.headers.get("X-Comics-Pedal") != "1" or not local_origin(self.headers.get("Origin")):
-                return self._send(403)
-            action = {"/neu": session.press_new, "/foto": session.press_photo}.get(self.path.split("?")[0])
-            if action is None:
-                return self._send(404)
-            action()
-            self._send(200, json.dumps(session.status(), ensure_ascii=False).encode())
 
         def log_message(self, *args):
             pass
@@ -384,8 +320,6 @@ def run() -> None:
     while True:
         groups = find_switches()
         if len(groups) < 2:
-            session.switches = "fehlen"
-            session.tick()
             log.info("waiting for two footswitches (found %d)", len(groups))
             for ds in groups.values():
                 for d in ds:
@@ -404,7 +338,6 @@ def run() -> None:
                 log.warning("saved switches not found at their USB ports, setting up again")
                 cfg = None
             if cfg is None:
-                session.switches = "einrichtung"
                 cal = Calibrator()
                 log.info("Einrichtung: bitte Fußschalter 1 treten, dann Fußschalter 2")
                 play("einrichtung")
@@ -421,7 +354,6 @@ def run() -> None:
                 STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
                 STATE_FILE.write_text(json.dumps(cfg))
                 log.info("Einrichtung gespeichert: %s", cfg)
-            session.switches = "bereit"
             log.info("running: switch 1 = %s, switch 2 = %s", cfg["schalter1"], cfg["schalter2"])
             while True:
                 for k, t in pressed(groups):                    # every tap counts, also those queued during a photo
@@ -434,7 +366,6 @@ def run() -> None:
                 session.tick()
         except OSError as e:                                    # unplugged: look again
             log.warning("switch lost: %s", e)
-            session.switches = "fehlen"
             session.tick()
         finally:
             for ds in groups.values():

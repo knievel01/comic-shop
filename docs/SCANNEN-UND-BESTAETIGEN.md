@@ -6,8 +6,7 @@
 2. **Schalter 2**: Cover fotografieren. Heft wenden, **Schalter 2**: Rückseite. Weitere Fotos sind möglich, das letzte
    gilt als Rückseite.
 3. Nächstes Heft: wieder **Schalter 1**. Das letzte Heft des Tages schließt sich nach 5 Minuten Ruhe von selbst.
-4. Die Seite „Hochladen“ zeigt am Scan-Rechner groß, welcher Schalter dran ist, dazu Cover und Rückseite des Hefts und
-   welche Kamera ausgelöst hat. Sind keine Fußschalter angeschlossen, sind die beiden Kacheln links und rechts die Schalter.
+4. Auf der Seite „Hochladen“ steht, was als Nächstes kommt (nur am Scan-Rechner).
 
 Das Heft liegt flach auf der **dunklen, einfarbigen Unterlage** und ist ganz im Bild, nicht in der Hand. Dann wird es
 für den Shop sauber freigestellt (gleich breiter weißer Rand). Sonst schneidet die KI nach Augenmaß; im Review steht
