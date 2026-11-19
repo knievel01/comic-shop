@@ -38,6 +38,7 @@ DEBOUNCE_S = 0.25        # one press may arrive on the keyboard and the mouse no
 EV_KEY = 1               # evdev.ecodes.EV_KEY
 STATUS_PORT = int(os.environ.get("COMICS_PEDAL_PORT", "8099"))
 CANON_FORMAT = "Medium Fine JPEG"   # 3088x2056, about the size the shop and the recognition need: no conversion
+CANON_ROTATE = os.environ.get("COMICS_CANON_ROTATE", "90")   # clockwise; the Canon lies landscape over the comic
 MAX_HEFTE = 200                     # comics kept in the station view since the service started
 WEBCAM = os.environ.get("COMICS_WEBCAM", "/dev/video0")
 VENDOR, PRODUCT = 0x3553, 0xB001          # PCsensor FootSwitch
@@ -83,7 +84,12 @@ def shoot(path: str, run=subprocess.run) -> str | None:
                 raw = found[0]
                 if not raw.lower().endswith((".jpg", ".jpeg")):
                     raise CameraHint("Kamera auf JPEG stellen (Menü: Qualität → JPEG, kein RAW)")
-                shutil.move(raw, path)
+                if CANON_ROTATE in ("90", "180", "270"):
+                    # lossless (no re-encoding) and fast; -trim drops the few edge pixels that are not a full block
+                    run(["jpegtran", "-rotate", CANON_ROTATE, "-trim", "-copy", "all", "-outfile", path, raw],
+                        capture_output=True, timeout=30, check=True)
+                else:
+                    shutil.move(raw, path)
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
         return ("Canon" if canon else "Webcam") if os.path.getsize(path) > 0 else None

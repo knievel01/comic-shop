@@ -7,6 +7,7 @@ User={{ comics_scan_user }}
 SupplementaryGroups=scanner plugdev video
 Environment=COMICS_SCAN_DIR={{ comics_scan_dir }}
 Environment=COMICS_PEDAL_IDLE_CLOSE_S={{ comics_pedal_idle_close_s }}
+Environment=COMICS_CANON_ROTATE={{ comics_camera_rotate }}
 ExecStart=/usr/bin/python3 {{ comics_repo_dir }}/services/comic-pedal/comics_pedal.py
 Restart=always
 RestartSec=5

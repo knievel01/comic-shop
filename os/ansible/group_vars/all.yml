@@ -17,6 +17,7 @@ comics_camera_jpeg_quality: 88
 # Two USB footswitches (PCsensor 3553:b001): switch 1 = new comic (folder), switch 2 = photo (ADR-0007).
 comics_pedal_enabled: true
 comics_pedal_idle_close_s: 300
+comics_camera_rotate: 90      # degrees clockwise: the Canon shoots landscape, comics are portrait
 
 # Scan station
 comics_scan_user: scan

@@ -159,8 +159,8 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
                 return SimpleNamespace(returncode=0, stdout="")
             if cmd[0] == "gphoto2":                          # capture: file named after --filename, %C = jpg
                 Path(cmd[cmd.index("--filename") + 1].replace("%C", "jpg")).write_bytes(b"raw")
-            else:                                            # fswebcam and convert both end with the target path
-                Path(cmd[-1]).write_bytes(b"jpg")
+            else:                                            # fswebcam ends with the target, jpegtran names it
+                Path(cmd[cmd.index("-outfile") + 1] if "-outfile" in cmd else cmd[-1]).write_bytes(b"jpg")
             return SimpleNamespace(returncode=0, stdout="")
         return run
 
@@ -169,7 +169,7 @@ def test_aufnahme_nimmt_canon_wenn_erkannt_sonst_webcam(tmp_path):
     assert calls == ["gphoto2", "fswebcam"]
     calls.clear()
     assert cp.shoot(str(target), run=run_factory(True)) == "Canon"
-    assert calls == ["gphoto2", "gphoto2", "gphoto2"]                   # no conversion: the camera sends the size
+    assert calls == ["gphoto2", "gphoto2", "gphoto2", "jpegtran"]       # no conversion, only a lossless rotation
 
 
 def canon_run(seen, ext="jpg", capture_fails=False, no_file=False, cwds=None):
@@ -185,8 +185,8 @@ def canon_run(seen, ext="jpg", capture_fails=False, no_file=False, cwds=None):
             if no_file:                                  # gphoto2 exits 0 although the download failed
                 return SimpleNamespace(returncode=0, stdout="")
             Path(cmd[cmd.index("--filename") + 1].replace("%C", ext)).write_bytes(b"raw")
-        elif cmd[0] == "convert":
-            Path(cmd[-1]).write_bytes(b"jpg")
+        elif cmd[0] in ("convert", "jpegtran"):
+            Path(cmd[cmd.index("-outfile") + 1] if "-outfile" in cmd else cmd[-1]).write_bytes(b"jpg")
         return SimpleNamespace(returncode=0, stdout="")
     return run
 
@@ -197,7 +197,8 @@ def test_canon_speichert_auf_die_sd_karte(tmp_path):
     target = next(c for c in seen if "--set-config" in c)
     assert "capturetarget=1" in target and f"imageformat={cp.CANON_FORMAT}" in target
     assert not any(c[0] == "convert" for c in seen)
-    assert (tmp_path / "f.jpg").read_bytes() == b"raw"          # the camera's JPEG, moved as it is
+    rot = next(c for c in seen if c[0] == "jpegtran")             # portrait: rotated losslessly, not re-encoded
+    assert rot[rot.index("-rotate") + 1] == "90" and rot[-1].endswith("raw.jpg") and rot[-2] == str(tmp_path / "f.jpg")
     assert seen.index(target) < next(i for i, c in enumerate(seen) if "--capture-image-and-download" in c)
 
 
@@ -403,3 +404,10 @@ def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
             assert e.code == 404
     finally:
         server.shutdown()
+
+
+def test_drehung_aus_laesst_das_bild_wie_es_ist(tmp_path, monkeypatch):
+    monkeypatch.setattr(cp, "CANON_ROTATE", "0")
+    seen = []
+    assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) == "Canon"
+    assert not any(c[0] == "jpegtran" for c in seen) and (tmp_path / "f.jpg").read_bytes() == b"raw"
