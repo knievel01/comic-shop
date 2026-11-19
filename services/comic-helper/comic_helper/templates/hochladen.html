@@ -29,6 +29,11 @@
     color:var(--muted); font-size:1.05rem; overflow:hidden; }
   .platz.voll { border-style:solid; border-color:var(--ink); }
   .platz img { width:100%; height:100%; object-fit:contain; display:block; }
+  .streifen { grid-column:1 / -1; display:flex; gap:.5rem; overflow-x:auto; padding:.2rem 0 .4rem; min-height:5.6rem; }
+  .streifen:empty::before { content:"Alle Fotos des Hefts erscheinen hier – beliebig viele, das erste ist das Cover, das letzte die Rückseite."; color:var(--muted); align-self:center; }
+  .streifen figure { margin:0; flex:0 0 auto; text-align:center; font-size:.85rem; color:var(--muted); }
+  .streifen img { height:4.6rem; width:auto; display:block; border:var(--strich); background:var(--feld); }
+  .streifen figure.rand img { border-color:var(--accent); }
   .zeile { display:flex; flex-wrap:wrap; gap:.4rem 1.4rem; margin-top:1rem; color:var(--muted); }
   .zeile b { color:var(--ink); }
   #fussschalter ul { margin:.6rem 0 0; padding-left:1.2rem; color:var(--muted); }
@@ -53,6 +58,7 @@
     <div class="bilder">
       <figure><figcaption>Cover</figcaption><div class="platz" id="bild-cover">erstes Foto</div></figure>
       <figure><figcaption>Rückseite</figcaption><div class="platz" id="bild-rueck">letztes Foto</div></figure>
+      <div class="streifen" id="streifen" aria-label="Alle Fotos des Hefts"></div>
     </div>
     <button type="button" class="schalter" id="taste-foto" data-aktion="foto" disabled>
       <span class="nr">2</span><span class="was">Foto</span><span class="wie" id="wie-foto">rechter Fußschalter</span>
@@ -115,9 +121,30 @@ startet innerhalb von 2 Minuten.</p>
     fotosVorher = s.fotos;
     bild($("bild-cover"), v && v.name, 1, v ? v.fotos : 0, "erstes Foto");
     bild($("bild-rueck"), v && v.name, -1, v ? v.fotos : 0, "letztes Foto");
+    streifen(v);
     $("fuss-letzte").replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
       { textContent: `${h.name.slice(0, 8)}: ${h.fotos} Fotos` })));
     $("fuss-letzte").hidden = !s.letzte.length;
+  }
+
+  // every photo of the comic as a thumbnail, any number of them; only new ones are loaded
+  function streifen(v) {
+    const box = $("streifen"), name = v ? v.name : "", n = v ? v.fotos : 0;
+    if (box.dataset.name !== name) { box.replaceChildren(); box.dataset.name = name; }
+    while (box.children.length > n) box.lastChild.remove();
+    for (let i = box.children.length + 1; i <= n; i++) {
+      const f = document.createElement("figure"), img = new Image();
+      img.alt = `Foto ${i}`;
+      img.loading = "lazy";
+      img.src = `${PEDAL}/foto/${i}.jpg?k=${encodeURIComponent(name)}`;
+      f.append(img, `${i}`);
+      box.append(f);
+    }
+    [...box.children].forEach((f, i) => {
+      f.classList.toggle("rand", i === 0 || i === n - 1);
+      f.lastChild.textContent = i === 0 ? "1 Cover" : i === n - 1 ? `${n} Rückseite` : `${i + 1}`;
+    });
+    box.scrollLeft = box.scrollWidth;
   }
 
   function tritt(t) { t.classList.add("tritt"); setTimeout(() => t.classList.remove("tritt"), 180); }
