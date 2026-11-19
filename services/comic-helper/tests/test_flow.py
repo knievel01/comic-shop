@@ -902,3 +902,30 @@ def test_erfassung_meldet_fehler(env):
     c.post("/api/scans/claim", headers=H)
     c.post(f"/api/scans/{cid}/fail", headers=H, json={"grund": "kaputt"})
     assert c.get(f"/review/erfassung?ids={cid}").json()[cid]["status"] == "fehler"
+
+
+def test_review_blaettert_zwischen_den_offenen_comics(env):
+    c = env.client
+    ids = [str(uuid.uuid4()) for _ in range(3)]
+    for i in ids:
+        upload_scan(env.s3, i)
+    c.post("/api/scans/claim", headers=H)
+    for i in ids:
+        c.post(f"/api/scans/{i}/recognize", headers=H)
+
+    def page(i):
+        return c.get(f"/review/{i}").text
+
+    # first with no previous, then follow "next" through all three, the last has no next
+    start = next(i for i in ids if 'rel="prev"' not in page(i))
+    seen, cur = [start], start
+    while 'rel="next"' in page(cur):
+        cur = re.search(r'href="/review/([0-9a-f-]{36})" rel="next"', page(cur)).group(1)
+        seen.append(cur)
+    assert sorted(seen) == sorted(ids) and len(set(seen)) == 3
+    assert f"Comic <b>2</b> von 3" in page(seen[1])
+    assert 'rel="prev"' in page(seen[2]) and 'rel="next"' not in page(seen[2])
+    # a confirmed comic is out of the sequence: no arrows there, and the others skip it
+    c.post(f"/review/{seen[1]}", data=review_form())
+    assert 'class="blaettern' not in page(seen[1])
+    assert f'href="/review/{seen[1]}"' not in page(seen[0]) and "von 2" in page(seen[0])

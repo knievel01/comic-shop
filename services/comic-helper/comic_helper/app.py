@@ -753,6 +753,19 @@ def review_image(copy_id: str, page: int, store: Store = Depends(get_store)):
     return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
+def _review_neighbours(store: Store, copy_id: str) -> dict | None:
+    """Previous/next comic to review, in the order of the list (open ones first, then failed; oldest first), so the
+    reviewer can page through without going back to the list. None if this comic is not in that sequence."""
+    todo = [c for c in _inbox_cases(store) if c["status"] in REVIEWABLE]
+    todo.sort(key=lambda c: REVIEWABLE.index(c["status"]))      # stable: oldest first inside each group
+    ids = [c["id"] for c in todo]
+    if copy_id not in ids:
+        return None
+    i = ids.index(copy_id)
+    return {"zurueck": ids[i - 1] if i > 0 else None, "weiter": ids[i + 1] if i + 1 < len(ids) else None,
+            "nr": i + 1, "von": len(ids)}
+
+
 @app.get("/review/{copy_id}", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
 def review_form(copy_id: str, request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg),
                 fehler: str = ""):
@@ -781,6 +794,7 @@ def review_form(copy_id: str, request: Request, store: Store = Depends(get_store
     }
     anzahl = v.get("anzahl") or int(tags.get("anzahl", "1") or 1)
     return templates.TemplateResponse(request, "review.html", {
+        "nachbarn": _review_neighbours(store, copy_id),
         "id": copy_id, "side": side, "v": v, "anzahl": anzahl, "max_anzahl": max_lot_size(cfg),
         "zustaende": conditions_of(v) if v.get("zustaende") or v.get("zustand") is not None else [], "tags": tags, "cfg": cfg, "links": links, "labels": STATUS_LABELS,
         "js_cfg": json.dumps(js_cfg), "fehler": fehler, "preis_vorschlag": side.get("preis_vorschlag"),

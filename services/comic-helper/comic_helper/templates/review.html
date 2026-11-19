@@ -7,6 +7,19 @@
   .grid > section { position:sticky; top:1rem; max-height:calc(100vh - 2rem); overflow-y:auto; padding:0 .4rem .6rem 0; }
   /* pictures stay in view while scrolling the form; a long left column scrolls on its own */
   .links-unten { margin-top:1.8rem; }
+  /* paging through the comics to review: big arrows at both screen edges, like turning a page */
+  main:has(.blaettern) { padding-inline:3.4rem; }
+  .blaettern { position:fixed; top:50%; transform:translateY(-50%); z-index:5; display:grid; place-items:center;
+    width:2.6rem; height:7rem; background:var(--paper); color:var(--ink); border:var(--strich); box-shadow:var(--druck);
+    font:2.4rem/1 var(--display); text-decoration:none; }
+  .blaettern.links { left:.3rem; } .blaettern.rechts { right:.3rem; }
+  a.blaettern:hover, a.blaettern:focus-visible { background:var(--yellow); color:var(--schrift-hell); }
+  a.blaettern:active { box-shadow:var(--gedrueckt); transform:translateY(-50%) translate(3px,3px); }
+  .blaettern.aus { opacity:.35; box-shadow:none; }
+  .blaettern small { position:absolute; bottom:.3rem; font:700 .75rem var(--text); letter-spacing:0; }
+  @media (max-width:900px) { main:has(.blaettern) { padding-inline:1.4rem; }
+    .blaettern { top:auto; bottom:5.2rem; transform:none; width:3rem; height:3rem; font-size:1.8rem; }
+    a.blaettern:active { transform:translate(3px,3px); } .blaettern small { display:none; } }
   /* cover and back as two comic panels with caption boxes */
   .pics { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
   .pics figure { margin:0; position:relative; border:var(--strich); background:var(--paper); }
@@ -128,6 +141,20 @@
 {% endblock %}
 {% block body %}
 {% if fehler %}<div class="msg err">{{ fehler }}</div>{% endif %}
+{% if nachbarn %}
+  {% if nachbarn.zurueck %}<a class="blaettern links" href="/review/{{ nachbarn.zurueck }}" rel="prev" title="Voriges Comic (Alt + ←)" aria-label="Voriges Comic">‹<small>{{ nachbarn.nr - 1 }}</small></a>
+  {% else %}<span class="blaettern links aus" aria-hidden="true">‹</span>{% endif %}
+  {% if nachbarn.weiter %}<a class="blaettern rechts" href="/review/{{ nachbarn.weiter }}" rel="next" title="Nächstes Comic (Alt + →)" aria-label="Nächstes Comic">›<small>{{ nachbarn.von - nachbarn.nr }}</small></a>
+  {% else %}<span class="blaettern rechts aus" aria-hidden="true">›</span>{% endif %}
+  <script>
+  // Alt + arrow keys page too (plain arrows stay with the form fields)
+  document.addEventListener("keydown", e => {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+    const a = document.querySelector(e.key === "ArrowLeft" ? 'a[rel=prev]' : e.key === "ArrowRight" ? 'a[rel=next]' : null);
+    if (a) { e.preventDefault(); location.href = a.href; }
+  });
+  </script>
+{% endif %}
 {% set gesperrt = tags.get('status') == 'bestaetigt' %}{% set sperre = ' inert' if gesperrt else '' %}
 <div class="grid">
   <section>
@@ -138,6 +165,7 @@
     {% set status = tags.get('status', 'neu') %}
     <p class="kopf"><span class="badge status-{{ status }}">{{ labels.get(status, status) }}</span>
       <span class="badge {{ side.ki_status }}">KI {{ side.ki_status }} {{ '%.0f' % (side.konfidenz * 100) }} %</span>
+      {% if nachbarn %}<span>Comic <b>{{ nachbarn.nr }}</b> von {{ nachbarn.von }}</span>{% endif %}
       <span>gescannt {{ side.gescannt_am|lokalzeit }}</span><span>Exemplar <code>{{ id[:8] }}</code></span>
       {% if bilder_text %}<span>Bilder: {{ bilder_text }}</span>{% endif %}</p>
     {% if side.vorschlag.auffaelligkeiten %}<p class="sprechblase"><strong>KI-Hinweis:</strong> {{ side.vorschlag.auffaelligkeiten }}</p>{% endif %}

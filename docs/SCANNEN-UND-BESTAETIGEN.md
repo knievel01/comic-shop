@@ -79,6 +79,10 @@ Pro Comic:
 
 Der Comic kommt danach von selbst in den Shop. Nichts weiter tun.
 
+Auf der Prüfseite blättern die Pfeile links und rechts am Bildschirmrand (oder Alt + Pfeiltaste) durch die Comics, die
+noch zu prüfen sind (offene zuerst, dann fehlerhafte, jeweils der älteste zuerst), ohne zurück zur Liste zu müssen.
+Oben steht, das wievielte Comic es ist („Comic 3 von 8“); bestätigte Comics sind nicht mehr dabei.
+
 ## Wenn etwas nicht stimmt
 
 - Exemplar mit rotem **„Fehler“**: Steht dort „Seiten statt 2“, neu scannen.
