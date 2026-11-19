@@ -16,7 +16,7 @@ Einzelne Exemplare sollen auch ohne Station erfassbar sein.
 - **Standard-Eingang ist die Kamera** (Rolle `camera`, Skript `comics-capture`): Enter löst die Canon per gphoto2/USB aus,
   erst Cover, dann Rückseite; Ergebnis ist dieselbe 2-seitige PDF. Ein SANE-Scanner bleibt möglich.
 - **Auslösung per Fußschalter** (Rolle `camera`, Dienst `comics-pedal`, `services/comic-pedal/`): Schalter 1 legt
-  `/srv/scans/erfassung/<uuid>/` an (ein Heft), Schalter 2 löst die Kamera aus (Canon per gphoto2 auf die SD-Karte, nur ohne Canon die Webcam; ein Canon-Fehler ist ein Fehler, kein Webcam-Bild) und
+  `/srv/scans/erfassung/<uuid>/` an (ein Heft), Schalter 2 löst die Kamera aus (Canon über eine offene python-gphoto2-Sitzung in den Kamera-Speicher, Rückfall SD-Karte und Kommandozeile, nur ohne Canon die Webcam; ein Canon-Fehler ist ein Fehler, kein Webcam-Bild) und
   legt das Foto in den Ordner. Der nächste Druck auf Schalter 1 oder 5 Minuten Ruhe schließen den Ordner: erstes Foto =
   Cover, letztes = Rückseite, daraus `neu/<uuid>.pdf` (2 Seiten, die Erkennung bleibt unverändert). **Der Ordnername ist
   die Exemplar-ID**; `comics-scan-sync` übernimmt die UUID aus dem PDF-Namen. Nach der Erkennung benennt der Root-Schritt

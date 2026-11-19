@@ -30,8 +30,9 @@ Die Kamera hängt per USB am Scan-Rechner, WLAN hat sie nicht. Ist sie an, nimmt
 Klappt die Canon nicht, gibt es einen Warnton, aber nie heimlich ein Webcam-Bild.
 
 1. USB-Kabel (Mini-B auf USB-A) direkt an den Rechner, nicht über einen Hub.
-2. Strom über einen Akku-Dummy mit Netzteil (Canon ACK-E5 oder Nachbau „LP-E5 Dummy“). Eine SD-Karte einlegen,
-   die Fotos landen kurz darauf.
+2. Strom über einen Akku-Dummy mit Netzteil (Canon ACK-E5 oder Nachbau „LP-E5 Dummy“). Eine SD-Karte kann drin
+   bleiben; die Fotos gehen aber direkt in den Kamera-Speicher und weiter an den Rechner (schnell, etwa 1 s). Nur wenn
+   das einmal scheitert, nimmt der Dienst die SD-Karte.
 3. Menü: Abschaltautomatik **Aus**, Qualität **JPEG L** (kein RAW), Rückschau **Aus**, Autom. Drehen **Aus**.
    Steht sie auf RAW, sagt die Seite „Hochladen“ das.
 4. Wählrad **Av**, Blende 8, ISO 200–400, Weißabgleich passend zum Licht.

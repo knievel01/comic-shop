@@ -450,8 +450,8 @@ class FakeGp:
     """Just enough of python-gphoto2 (1.x low-level API) to check how the session is used."""
     GP_CAPTURE_IMAGE, GP_FILE_TYPE_NORMAL = 0, 1
 
-    def __init__(self, ext="jpg", fail_first=0):
-        self.calls, self.ext, self.fail = [], ext, fail_first
+    def __init__(self, ext="jpg", fail_first=0, ram_fails=False):
+        self.calls, self.ext, self.fail, self.ram_fails = [], ext, fail_first, ram_fails
         self.values = {}
 
     def check_result(self, r):
@@ -480,7 +480,7 @@ class FakeGp:
         return 2 if w == "capturetarget" else 3
 
     def gp_widget_get_choice(self, w, i):
-        return ["intern", "Karte"][i] if w == "capturetarget" else ["Large Fine JPEG", cp.CANON_FORMAT, "RAW"][i]
+        return ["Internal RAM", "Memory card"][i] if w == "capturetarget" else ["Large Fine JPEG", cp.CANON_FORMAT, "RAW"][i]
 
     def gp_widget_set_value(self, w, v):
         self.values[w] = v
@@ -490,6 +490,8 @@ class FakeGp:
 
     def gp_camera_capture(self, cam, t, ctx):
         self.calls.append("capture")
+        if self.ram_fails and self.values.get("capturetarget") == "Internal RAM":
+            raise OSError("RAM target failed")
         return SimpleNamespace(folder="/store", name=f"IMG_1.{self.ext}")
 
     def gp_camera_file_get(self, cam, folder, name, t, ctx):
@@ -520,7 +522,7 @@ def test_offene_kamerasitzung_richtet_die_kamera_nur_einmal_ein(tmp_path):
         assert Path(c.capture(str(d))).name == "raw.jpg"
     assert gp.calls.count("init") == 1 and gp.calls.count("config") == 1 and gp.calls.count("capture") == 3
     assert gp.calls.count("delete") == 3                         # the card does not fill up
-    assert gp.values == {"capturetarget": "Karte", "imageformat": cp.CANON_FORMAT}
+    assert gp.values == {"capturetarget": "Internal RAM", "imageformat": cp.CANON_FORMAT}   # the fast target
 
 
 def test_kamerasitzung_wird_im_leerlauf_freigegeben_und_neu_geoeffnet(tmp_path):
@@ -560,3 +562,16 @@ def test_aufnahme_nutzt_die_offene_sitzung_statt_der_kommandozeile(tmp_path):
         raise AssertionError("expected CameraHint")
     except cp.CameraHint as e:
         assert "JPEG" in str(e)
+
+
+def test_scheitert_der_kamera_speicher_nimmt_die_sitzung_die_sd_karte_bis_zur_freigabe(tmp_path):
+    gp, clock = FakeGp(ram_fails=True), Clock()
+    c = fake_session(gp, clock, idle_s=120)
+    assert Path(c.capture(str(tmp_path))).name == "raw.jpg"      # second try, now on the card
+    assert gp.values["capturetarget"] == "Memory card" and c.use_card
+    n_init = gp.calls.count("init")
+    c.capture(str(tmp_path))                                     # stays on the card: no failed tries any more
+    assert gp.calls.count("init") == n_init
+    clock.t += 121
+    c.tick()                                                     # released: the next comic tries the RAM target again
+    assert not c.use_card

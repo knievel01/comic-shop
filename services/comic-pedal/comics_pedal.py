@@ -66,6 +66,7 @@ class CanonSession:
         self.tried = False
         self.cam = self.ctx = None
         self.last = 0.0
+        self.use_card = False        # RAM target failed once: stay on the SD card until the session is released
 
     def available(self) -> bool:
         if not self.tried:
@@ -89,7 +90,11 @@ class CanonSession:
         cam = gp.check_result(gp.gp_camera_new())
         gp.check_result(gp.gp_camera_init(cam, self.ctx))
         cfg = gp.check_result(gp.gp_camera_get_config(cam, self.ctx))
-        self._set(cfg, "capturetarget", lambda cs: 1)                              # SD card, not the camera's RAM
+        # The camera's internal RAM is the fast target (about 1.1 s per photo instead of 2.7 s: no SD write first).
+        # If it fails once, the SD card is used until the session is released.
+        ram = lambda cs: next((i for i, c in enumerate(cs) if "RAM" in c.upper() or "INTERN" in c.upper()), 0)
+        card = lambda cs: next((i for i, c in enumerate(cs) if "CARD" in c.upper() or "KARTE" in c.upper()), 1)
+        self._set(cfg, "capturetarget", card if self.use_card else ram)
         self._set(cfg, "imageformat", lambda cs: cs.index(CANON_FORMAT))           # the size we need, no conversion
         gp.check_result(gp.gp_camera_set_config(cam, cfg, self.ctx))
         self.cam = cam
@@ -105,6 +110,7 @@ class CanonSession:
     def tick(self) -> None:
         if self.cam is not None and self.clock() - self.last > self.idle_s:
             self.close()
+            self.use_card = False
 
     def capture(self, target_dir: str) -> str:
         """Take a photo and download it as <target_dir>/raw.<ext>; returns the file. One retry with a fresh session
@@ -116,6 +122,7 @@ class CanonSession:
                 if self.cam is None:
                     self._open()
                 path = gp.check_result(gp.gp_camera_capture(self.cam, gp.GP_CAPTURE_IMAGE, self.ctx))
+                # (with the RAM target the photo is already transferred; file_get below then costs nothing)
                 ext = os.path.splitext(path.name)[1].lower() or ".jpg"
                 f = gp.check_result(gp.gp_camera_file_get(self.cam, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, self.ctx))
                 out = os.path.join(target_dir, "raw" + ext)
@@ -130,6 +137,9 @@ class CanonSession:
                 last_error = e
                 log.warning("camera session failed (try %d): %s", attempt, e)
                 self.close()
+                if not self.use_card:
+                    log.warning("switching to the SD card as capture target")
+                self.use_card = True
         raise OSError(f"Canon: {last_error}")
 
 
