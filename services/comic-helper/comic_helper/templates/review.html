@@ -34,7 +34,7 @@
   .abschnitt > h2 { position:absolute; top:-1rem; left:.9rem; margin:0; padding:.2rem .7rem .05rem; font-size:1.45rem;
                     background:var(--reiter); color:var(--reiter-text, var(--paper)); border:var(--strich); }
   .angaben { --reiter:var(--blue); --akzent:rgba(29,79,216,.45); }
-  .zustand { --reiter:var(--yellow); --reiter-text:var(--ink); --akzent:rgba(230,170,0,.6); }
+  .zustand { --reiter:var(--yellow); --reiter-text:var(--ink); --akzent:var(--akzent-raster); }
   .preis   { --reiter:var(--red); --akzent:rgba(230,36,41,.45); }
   .inhalt  { --reiter:var(--ok); --akzent:rgba(18,130,59,.45); }
   label { display:block; font-weight:800; font-size:.98rem; margin-top:.8rem; }
@@ -56,7 +56,7 @@
   .stufe:has(input:focus-visible) { outline:3px solid var(--blue); outline-offset:-3px; }
   .stufe .ziffer { flex:none; display:grid; place-items:center; width:2.2rem; height:2.2rem; border:var(--strich); background:var(--paper);
                    font:1.5rem/1 var(--display); padding-top:.1rem; }
-  .stufe:has(input:checked) .ziffer { background:var(--umriss); color:var(--yellow); }
+  .stufe:has(input:checked) .ziffer { background:var(--umriss); color:var(--akzent-text); }
   .stufe .badge { margin-left:auto; }
   .pruef { display:flex; align-items:center; gap:.6rem; margin:.8rem 0 0; padding:.5rem .7rem; border:var(--strich);
            background:var(--feld); font-weight:700; cursor:pointer; }
@@ -102,7 +102,7 @@
   .absenden button { margin:0; flex:1; border-color:var(--licht); box-shadow:3px 3px 0 var(--yellow); }
   .absenden button.loeschen { flex:none; width:auto; background:var(--paper); color:var(--red); border-color:var(--ink);
                               text-shadow:none; font-size:1.2rem; box-shadow:3px 3px 0 var(--paper); }
-  .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--yellow); white-space:nowrap; }
+  .absenden .mini { font:2rem/1 var(--display); letter-spacing:.03em; color:var(--akzent-text); white-space:nowrap; }
   /* tablets and phones: one column, pictures first */
   @media (max-width: 900px) {
     .grid { grid-template-columns:1fr; }

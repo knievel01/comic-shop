@@ -22,6 +22,9 @@
     --seite:#efe2c2; --paper:#fffcf4; --muted:#5e5446; --line:#000; --soft:#fff1b0;
     --umriss:#000; --schrift-hell:#000; --licht:#fffcf4; --feld:#fff; --mint:#c9f2d5;
     --gelb-sanft:#fff6c7; --gelb-fokus:#fff8cc; --schleier:rgba(239,226,194,.6);
+    /* shadows, paper layer and accent text: separate so the dark theme can follow the shop (comic-shop-headless) */
+    --schatten:#000; --papier-rand:rgba(140,95,30,.18); --papier-deckkraft:1;
+    --akzent-text:var(--yellow); --akzent-raster:rgba(230,170,0,.6);
     /* paper fibres: tiled SVG noise, warm brown, low alpha */
     --faser:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .32 0 0 0 0 .14 .55 0 0 0 -.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     --flecken:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.004' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .4 0 0 0 0 .12 .45 0 0 0 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
@@ -34,21 +37,26 @@
          and on the one thing floating above the page (dialog)
        - selection is shown by yellow fill, never by a heavier line */
     --strich:2px solid var(--ink);
-    --druck:4px 4px 0 var(--ink); --gedrueckt:1px 1px 0 var(--ink); --schweben:8px 8px 0 var(--ink);
+    --druck:4px 4px 0 var(--schatten); --gedrueckt:1px 1px 0 var(--schatten); --schweben:8px 8px 0 var(--schatten);
     --panel:var(--strich);
     --dots:radial-gradient(var(--ink) 1.1px, transparent 1.4px) 0 0 / 7px 7px;
     /* 12-point "POW" starburst */
     --burst:polygon(50% 0%, 59.3% 15.2%, 75% 6.7%, 75.5% 24.5%, 93.3% 25%, 84.8% 40.7%, 100% 50%, 84.8% 59.3%, 93.3% 75%, 75.5% 75.5%, 75% 93.3%, 59.3% 84.8%, 50% 100%, 40.7% 84.8%, 25% 93.3%, 24.5% 75.5%, 6.7% 75%, 15.2% 59.3%, 0% 50%, 15.2% 40.7%, 6.7% 25%, 24.5% 24.5%, 25% 6.7%, 40.7% 15.2%);
   }
-  /* dark: the same inked page at night. Ink and paper swap; bright sticker fills stay bright
-     and carry dark text (--schrift-hell). Red fills keep light text (--licht). */
+  /* dark: the night edition of the shop (comic-shop-headless, global.css): light grey ink on neutral black/grey
+     paper, petrol instead of print yellow (yellow on black glares at night), red and speech bubbles unchanged.
+     Accent fills (--yellow) carry ink-coloured text (--schrift-hell); accent text on black uses --akzent-text. */
   /* Light is the default for everyone; dark only when picked with the header switch (data-theme="dark"). */
   :root[data-theme="dark"] {
     color-scheme:dark;
-    --ink:#f1e6cc; --seite:#14110d; --paper:#24201a; --muted:#b9ac92;
-    --soft:#4d4118; --blue:#9bbcff; --ok:#6fdc9a; --warn:#f0b35a; --bad:#ff7a7a;
-    --feld:#15120e; --mint:#173d28; --gelb-sanft:#4a3d12; --gelb-fokus:#4a3d12; --schleier:rgba(14,11,8,.6);
-    --faser:none; --flecken:none;
+    --ink:#e8eaed; --seite:#111315; --paper:#1c1f22; --muted:#a3a9b0; --soft:#2a3035; --line:#e8eaed;
+    --blue:#9bbcff; --ok:#6fdc9a; --warn:#f0b35a; --bad:#ff5256;
+    --feld:#15181b; --mint:#183b25; --gelb-sanft:#1f282c; --gelb-fokus:#1f282c; --schleier:rgba(17,19,21,.6);
+    --yellow:#2e6b70; --schrift-hell:var(--ink); --akzent-text:#7cc9cc; --akzent-raster:rgba(124,201,204,.45);
+    --schatten:#3b4248; --papier-rand:rgba(0,0,0,.4); --papier-deckkraft:.35;
+    /* neutral grey paper grain instead of yellowed fibres and stains */
+    --faser:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .62 0 0 0 0 .64 0 0 0 0 .67 .45 0 0 0 -.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --flecken:linear-gradient(transparent, transparent);
   }
   /* burst with ink outline: outer element ink, ::before the fill (set --fill) */
   .burst { position:relative; display:grid; place-items:center; clip-path:var(--burst); background:var(--ink); }
@@ -60,7 +68,8 @@
   /* fixed paper layer: fibres, uneven yellowing, edges browned like an old comic page */
   body::before { content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
                  background:var(--faser), var(--flecken),
-                   radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(140,95,30,.18) 100%); }
+                   radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, var(--papier-rand) 100%);
+                 opacity:var(--papier-deckkraft); }
   a { color:var(--blue); }
   :focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
 
@@ -102,6 +111,9 @@
   .status-geprueft { background:#cfe0ff; color:var(--schrift-hell); }
   .status-aktiv { background:var(--soft); color:var(--muted); border-color:var(--muted); }
   .zki { background:#e3d4ff; color:var(--schrift-hell); }
+  /* pastel badges would carry light text in the dark theme: muted night versions */
+  :root[data-theme="dark"] .status-geprueft { background:#1f3a5c; }
+  :root[data-theme="dark"] .zki { background:#3a2d55; }
 
   .msg { padding:.8rem 1rem; margin-bottom:1.2rem; border:var(--strich); font-weight:700; }
   .msg.err { background:var(--red); color:var(--licht); } .msg.ok { background:var(--mint); }
