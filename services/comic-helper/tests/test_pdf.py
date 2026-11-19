@@ -108,3 +108,30 @@ def test_fast_weisses_cover_auf_weisser_seite_wird_nicht_zerschnitten():
     page = Image.new("RGB", pdf.A4_PX, (245, 245, 245))
     page.paste(Image.new("RGB", (60, 20), "black"), (800, 1100))   # only a small title is darker
     assert pdf.freistellen(page)[1] == "keins"
+
+
+def test_drehen_im_uhrzeigersinn():
+    im = Image.new("RGB", (4, 2), "white")
+    im.putpixel((0, 0), (255, 0, 0))                       # top left
+    assert pdf.drehen(im, 90).size == (2, 4) and pdf.drehen(im, 90).getpixel((1, 0)) == (255, 0, 0)   # -> top right
+    assert pdf.drehen(im, 180).getpixel((3, 1)) == (255, 0, 0)
+    assert pdf.drehen(im, 270).getpixel((0, 3)) == (255, 0, 0)
+    assert pdf.drehen(im, 0) is im and pdf.drehen(im, None) is im and pdf.drehen(im, 45) is im
+
+
+def test_lockerer_ki_rahmen_wird_an_der_unterlage_enger_geschnitten():
+    page = noise((800, 900), seed=11)                       # busy room: no backdrop at the image border
+    page.paste(Image.new("RGB", (500, 600), (225, 215, 195)), (100, 100))   # calm table
+    page.paste(comic(), (200, 200))                         # comic on the table
+    box = [130 / 800, 130 / 900, 570 / 800, 670 / 900]      # frame lies on the table around the comic
+    out, verfahren = pdf.freistellen(page, box=box, rand=0.03)
+    assert verfahren == "ki" and out.width < 300 + 2 * 60   # table is trimmed away (the loose frame alone gives about 530)
+
+
+def test_unterlage_mit_lichtverlauf_wird_freigestellt():
+    page = Image.new("RGB", (600, 700))
+    for y in range(700):                                    # table lit from the top: light to dark
+        page.paste((225 - y // 18, 198 - y // 18, 176 - y // 18), (0, y, 600, y + 1))
+    page.paste(comic(), (150, 140))
+    out, verfahren = pdf.freistellen(page, rand=0.03)
+    assert verfahren == "unterlage" and abs(out.width - (300 + 2 * 12)) <= 8

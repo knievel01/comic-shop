@@ -40,6 +40,7 @@ class FakeClaude:
                                      quelle="rueckseite", sicherheit=0.9)
         self.inhalt_error = None
         self.inhalt_calls = []
+        self.drehung = (None, None)  # clockwise degrees the fake wants the images turned
         self.rahmen = (None, None)  # frames of the comic on cover/back the fake "sees" (relative 0..1)
         self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
         self.messages = SimpleNamespace(create=self.search)
@@ -75,6 +76,7 @@ class FakeClaude:
             zustand_empfehlung=1, zustand_begruendung="Kanten minimal bestoßen, sonst sauber.",
             inhalt_text=self.inhalt.text, inhalt_quelle=self.inhalt.quelle, inhalt_sicherheit=self.inhalt.sicherheit,
             cover_rahmen=self.rahmen[0], rueckseite_rahmen=self.rahmen[1],
+            cover_drehung=self.drehung[0], rueckseite_drehung=self.drehung[1],
         )
         self.recognition_kwargs = kwargs
         return SimpleNamespace(stop_reason=self.stop_reason, parsed_output=out, model=kwargs["model"],
@@ -861,6 +863,15 @@ def test_ohne_unterlage_schneidet_der_rahmen_aus_der_erkennung(env):
     assert side["bilder_verfahren"] == ["ki", "ki"]
     cut = shop_image(env, cid, 1)
     assert cut.size != plain.size and cut.getpixel((2, 2)) == (255, 255, 255)   # white margin
+
+
+def test_falsch_herum_gescannte_bilder_werden_gedreht(env):
+    plain = shop_image(env, recognize_pdf(env), 1)
+    env.claude.drehung = (90, 180)
+    cid = recognize_pdf(env)
+    assert env.store.read_json(f"eingang/{cid}.json")["bilder_drehung"] == [90, 180]
+    turned, upside = shop_image(env, cid, 1), shop_image(env, cid, 2)
+    assert turned.size == (plain.height, plain.width) and upside.size == shop_image(env, recognize_pdf(env), 2).size
 
 
 def test_dunkle_unterlage_wird_ohne_ki_freigestellt(env):

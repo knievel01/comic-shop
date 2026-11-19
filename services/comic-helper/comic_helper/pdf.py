@@ -91,15 +91,48 @@ def _backdrop(image: Image.Image) -> tuple[tuple[int, int, int], float] | None:
     return colour, max(m[1] for m in calm)
 
 
+def _gradient_reference(image: Image.Image) -> tuple[Image.Image, float] | None:
+    """Backdrop with a lighting gradient (a table lit from one side): all four border strips are calm but differ
+    in colour. The expected backdrop colour at each pixel is blended from the strip colours."""
+    w, h = image.size
+    band = max(2, round(min(w, h) * BAND_SHARE))
+    meds, spread = [], 0.0
+    for box in ((0, 0, w, band), (0, h - band, w, h), (0, 0, band, h), (w - band, 0, w, h)):
+        st = ImageStat.Stat(image.crop(box))
+        if max(st.stddev) > CALM_STDDEV:
+            return None
+        meds.append(st.median)
+        spread = max(spread, max(st.stddev))
+    down = Image.linear_gradient("L").resize((w, h))                              # 0 at the top, 255 at the bottom
+    right = Image.linear_gradient("L").transpose(Image.Transpose.ROTATE_90).resize((w, h))  # 0 left, 255 right
+    chans = []
+    for c in range(3):
+        top, bottom, left, rgt = (m[c] for m in meds)
+
+        def part(value, weight):                                                   # value * weight / 255
+            return ImageChops.multiply(Image.new("L", (w, h), round(value)), weight)
+
+        vertical = ImageChops.add(part(top, ImageChops.invert(down)), part(bottom, down))
+        horizontal = ImageChops.add(part(left, ImageChops.invert(right)), part(rgt, right))
+        chans.append(ImageChops.add(vertical, horizontal, 2, 0))                   # mean of both blends
+    return Image.merge("RGB", chans), spread
+
+
 def _cut_on_backdrop(image: Image.Image) -> tuple[int, int, int, int] | None:
-    found = _backdrop(image)
-    if not found:
-        return None
-    colour, spread = found
     small = image.copy()
     small.thumbnail((800, 800))
-    diff = _max_channel(ImageChops.difference(small, Image.new("RGB", small.size, colour)))
-    tolerance = max(30, 4 * spread)
+    found = _backdrop(image)
+    if found:
+        colour, spread = found
+        reference, floor = Image.new("RGB", small.size, colour), 30
+    else:
+        gradient = _gradient_reference(small)
+        if not gradient:
+            return None
+        reference, spread = gradient
+        floor = 35
+    diff = _max_channel(ImageChops.difference(small, reference))
+    tolerance = max(floor, 4 * spread)
     box = diff.point(lambda v: 255 if v > tolerance else 0).filter(ImageFilter.MinFilter(3)).getbbox()
     if not box:
         return None
@@ -153,8 +186,18 @@ def freistellen(image: Image.Image, box=None, rand: float = 0.03) -> tuple[Image
         return _with_margin(im.crop(cut), rand), "unterlage"
     cut = _cut_by_box(im, box)
     if cut:
-        return _with_margin(im.crop(cut), rand), "ki"
+        loose = im.crop(cut)
+        tight = _cut_on_backdrop(loose)       # the model's frame is loose: trim the table that is left inside it
+        return _with_margin(loose.crop(tight) if tight else loose, rand), "ki"
     return im, "keins"
+
+
+def drehen(image: Image.Image, grad) -> Image.Image:
+    """Turn clockwise by 90, 180 or 270 degrees; anything else leaves the image as it is."""
+    if grad not in (90, 180, 270):
+        return image
+    return image.transpose({90: Image.Transpose.ROTATE_270, 180: Image.Transpose.ROTATE_180,
+                            270: Image.Transpose.ROTATE_90}[grad])
 
 
 def to_jpeg(image: Image.Image, max_edge: int, quality: int = 85) -> bytes:

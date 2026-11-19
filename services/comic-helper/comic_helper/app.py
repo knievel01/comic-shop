@@ -240,7 +240,8 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
     recognition_s = round(time.monotonic() - t_claude, 1)
 
     proposal = recognition.to_proposal(result)
-    verfahren = _cut_by_frames(store, copy_id, verfahren, (result.cover_rahmen, result.rueckseite_rahmen), rand)
+    verfahren = _cut_by_frames(store, copy_id, verfahren, (result.cover_rahmen, result.rueckseite_rahmen),
+                                (result.cover_drehung, result.rueckseite_drehung), rand)
     confidence = recognition.overall_confidence(result)
     ki_status = recognition.classify(confidence, float(cfg["konfidenz_schwelle"]))
     _step(store, key, "preissuche")
@@ -264,6 +265,7 @@ def recognize(copy_id: str, store: Store = Depends(get_store), s: Settings = Dep
         "preis_vorschlag": price_hint,
         "preis_suche": _utc(),
         "bilder_verfahren": verfahren,
+        "bilder_drehung": [g if g in (90, 180, 270) else 0 for g in (result.cover_drehung, result.rueckseite_drehung)],
         "ki_roh": result.model_dump(),
         "ki_info": info,
         "laeufe": _prior_runs(store, side_key) + [{
@@ -336,23 +338,26 @@ def _margin_share(cfg: dict) -> float:
     return float((cfg.get("bilder") or {}).get("rand_anteil", 0.03))
 
 
-def _cut_by_frames(store: Store, copy_id: str, verfahren: list[str], frames, rand: float) -> list[str]:
-    """No plain backdrop: cut the stored shop image by the frame the recognition gave (ADR-0007). The frame is
-    relative to the image the model saw, which is the same image as the stored one, only smaller."""
+def _cut_by_frames(store: Store, copy_id: str, verfahren: list[str], frames, drehungen, rand: float) -> list[str]:
+    """Rework the stored shop image after recognition (ADR-0007): cut by the model's frame when no plain backdrop was
+    found, then turn it upright. The frame is relative to the image the model saw, which is the same image as the
+    stored one, only smaller, so it is cut first and turned afterwards."""
     out = list(verfahren)
-    for i, (how, frame) in enumerate(zip(verfahren, frames)):
-        if how != "keins" or not frame:
+    for i, (how, frame, grad) in enumerate(zip(verfahren, frames, drehungen)):
+        cut_it = how == "keins" and frame
+        if not cut_it and grad not in (90, 180, 270):
             continue
         key = store.image_key(copy_id, i + 1)
         try:
             with Image.open(io.BytesIO(store.get_bytes(key))) as im:
-                cut, how = pdf.freistellen(im.convert("RGB"), box=frame, rand=rand)
+                im = im.convert("RGB")
         except (storage.NotFound, OSError) as e:
-            log.warning("cutting %s page %d by frame failed: %s", copy_id, i + 1, e)
+            log.warning("reworking %s page %d failed: %s", copy_id, i + 1, e)
             continue
-        if how != "keins":
-            store.put_bytes(key, pdf.to_jpeg(cut, pdf.SHOP_MAX_EDGE), "image/jpeg")
+        if cut_it:
+            im, how = pdf.freistellen(im, box=frame, rand=rand)
             out[i] = how
+        store.put_bytes(key, pdf.to_jpeg(pdf.drehen(im, grad), pdf.SHOP_MAX_EDGE), "image/jpeg")
     return out
 
 

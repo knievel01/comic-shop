@@ -49,7 +49,10 @@ Regeln:
 - zustand_begruendung: ein Satz mit den sichtbaren Merkmalen, auf die sich die Empfehlung stützt.
 - cover_rahmen und rueckseite_rahmen: Rahmen des Hefts auf Seite 1 bzw. Seite 2 als [links, oben, rechts, unten],
   jeweils als Anteil von 0.0 bis 1.0 der Bildbreite bzw. -höhe (links oben = 0, 0). Nur das Heft selbst, ohne Hände,
-  Unterlage oder Hintergrund. null, wenn das Heft nicht ganz zu sehen ist.
+  Unterlage oder Hintergrund. null, wenn das Heft nicht ganz zu sehen ist. Der Rahmen gilt für das Bild so, wie du es
+  siehst (ungedreht) und sitzt eng an der Kante des Hefts, nicht an der Unterlage.
+- cover_drehung und rueckseite_drehung: Um wie viel Grad das Bild im Uhrzeigersinn gedreht werden muss, damit der
+  Heftschriftzug aufrecht steht: 0, 90, 180 oder 270. Liegt das Heft auf dem Kopf, ist es 180. Bei Unsicherheit 0.
 """
 
 CONDITION_SCALE_HEADER = "\nZustandsskala (Comicguide-Stufen):\n"
@@ -81,6 +84,9 @@ class Erkennung(BaseModel):
     # where the comic is on each image, used to cut it out when no plain backdrop is visible (ADR-0007)
     cover_rahmen: list[float] | None = Field(default=None, description="[links, oben, rechts, unten] 0.0 bis 1.0")
     rueckseite_rahmen: list[float] | None = Field(default=None, description="[links, oben, rechts, unten] 0.0 bis 1.0")
+    # clockwise degrees (0/90/180/270) that make the comic upright; the shop image is turned after the cut
+    cover_drehung: int | None = Field(default=None, description="0, 90, 180 oder 270, im Uhrzeigersinn")
+    rueckseite_drehung: int | None = Field(default=None, description="0, 90, 180 oder 270, im Uhrzeigersinn")
 
 
 class RecognitionError(Exception):
