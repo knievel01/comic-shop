@@ -14,7 +14,7 @@
    Esc schließt.
 
 Die Canon wird vor jedem Foto auf „Medium Fine JPEG“ gestellt (3088×2056) und auf die SD-Karte; das Foto wird nicht
-mehr umgerechnet. Vertauschte Schalter: `sudo rm /var/lib/comics-pedal/pedals.json && sudo systemctl restart
+mehr umgerechnet, nur verlustfrei um 90° nach rechts gedreht (hochkant; `comics_camera_rotate`). Vertauschte Schalter: `sudo rm /var/lib/comics-pedal/pedals.json && sudo systemctl restart
 comics-pedal`, dann erst den Schalter für „Neues Heft“, danach den für „Foto“ treten.
 
 Das Heft liegt flach auf der **dunklen, einfarbigen Unterlage** und ist ganz im Bild, nicht in der Hand. Dann wird es
