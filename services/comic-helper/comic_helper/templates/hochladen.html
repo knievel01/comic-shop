@@ -145,10 +145,10 @@ startet innerhalb von 2 Minuten.</p>
   }
 
   // every photo of the open comic, any number of them; only new ones are loaded
-  function streifen(name, n, aufnahme) {
+  function streifen(name, n, wartend) {
     const box = $("streifen");
     if (box.dataset.name !== (name || "")) { box.replaceChildren(); box.dataset.name = name || ""; }
-    box.querySelector(".laeuft")?.remove();
+    box.querySelectorAll(".laeuft").forEach(e => e.remove());
     while (box.children.length > n) box.lastChild.remove();
     for (let i = box.children.length + 1; i <= n; i++) {
       const f = document.createElement("figure"), img = new Image();
@@ -161,13 +161,14 @@ startet innerhalb von 2 Minuten.</p>
       f.classList.toggle("rand", i === 0 || i === n - 1);
       f.lastChild.textContent = i === 0 ? "1 Cover" : i === n - 1 ? `${n} Rückseite` : `${i + 1}`;
     });
-    if (aufnahme) box.append(Object.assign(document.createElement("div"), { className: "laeuft", textContent: "📷", title: "Foto wird aufgenommen" }));
+    // one blinking placeholder per press the camera still has to work off
+    for (let i = 0; i < Math.min(wartend, 6); i++) box.append(Object.assign(document.createElement("div"), { className: "laeuft", textContent: "📷", title: "Foto wird aufgenommen" }));
     box.scrollLeft = box.scrollWidth;
   }
 
   function zeigen(s) {
     box.classList.remove("aus");
-    $("fuss-naechstes").textContent = s.aufnahme ? "Foto wird aufgenommen …" : "Als Nächstes: " + s.naechstes;
+    $("fuss-naechstes").textContent = s.aufnahme ? `Foto wird aufgenommen …${s.wartend > 1 ? ` (+${s.wartend - 1} wartend)` : ""}` : "Als Nächstes: " + s.naechstes;
     $("fuss-hinweis").hidden = !s.hinweis;
     $("fuss-hinweis").textContent = s.hinweis || "";
     $("fuss-heft").textContent = s.heft ? `Aktuelles Heft ${s.heft.slice(0, 8)}: ${s.fotos} Foto${s.fotos === 1 ? "" : "s"}` : "Kein Heft offen";
@@ -175,14 +176,14 @@ startet innerhalb von 2 Minuten.</p>
     $("fuss-schalter").textContent = SCHALTER[s.schalter] || s.schalter;
     const ohne = s.schalter !== "bereit";
     $("wie-neu").textContent = $("wie-foto").textContent = ohne ? "hier klicken" : "Fußschalter";
-    tasten.forEach(t => t.disabled = !!s.aufnahme);
+    tasten.forEach(t => t.disabled = false);                 // never blocked: presses queue up behind the camera
     $("taste-neu").classList.toggle("dran", !s.heft);
     $("taste-foto").classList.toggle("dran", !!s.heft);
     if (fotosVorher !== null && s.fotos > fotosVorher) tritt($("taste-foto"));
     fotosVorher = s.fotos;
     bildIn($("bild-cover"), s.heft && s.fotos ? foto(s.heft, 1) : null, "erstes Foto");
     bildIn($("bild-rueck"), s.heft && s.fotos > 1 ? foto(s.heft, s.fotos) : null, "letztes Foto");
-    streifen(s.heft, s.heft ? s.fotos : 0, s.aufnahme);
+    streifen(s.heft, s.heft ? s.fotos : 0, s.heft ? s.wartend || 0 : 0);
     raster(s.hefte || []);
   }
 
@@ -297,12 +298,11 @@ startet innerhalb von 2 Minuten.</p>
     else if (e.key === "ArrowRight") lupeZeigen(lupeName, lupeNr + 1);
   });
 
+  // a press is only handed over (the service answers at once); the camera works off the queue in order
   tasten.forEach(t => t.addEventListener("click", () => {
     tritt(t);
-    t.disabled = true;                                // a photo takes a few seconds; the poll shows progress
     fetch(`${PEDAL}/${t.dataset.aktion}`, { method: "POST", headers: { "X-Comics-Pedal": "1" } })
-      .catch(() => {}).finally(() => { t.disabled = false; holen(); });
-    setTimeout(holen, 150);
+      .then(r => r.ok ? r.json() : null).then(s => s && zeigen(s)).catch(() => {});
   }));
 
   holen();

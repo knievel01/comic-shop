@@ -17,6 +17,7 @@ import glob
 import json
 import logging
 import os
+import queue
 import re
 import select
 import shutil
@@ -53,8 +54,90 @@ class CameraHint(Exception):
     """The camera works but is set up wrong; the message tells the person at the station what to change."""
 
 
+class CanonSession:
+    """Keeps the Canon open between photos (python-gphoto2). Every `gphoto2` call on the command line opens a new
+    USB session and sets the camera up again, that is most of the seconds per photo. Here the session stays open
+    while photos are taken and is released after `idle_s` without one, so the command line (and a camera that went to
+    sleep) keep working. Without python3-gphoto2 `available()` is False and shoot() uses the command line."""
+
+    def __init__(self, idle_s: float = 120.0, clock=time.monotonic):
+        self.idle_s, self.clock = idle_s, clock
+        self.gp = None
+        self.tried = False
+        self.cam = self.ctx = None
+        self.last = 0.0
+
+    def available(self) -> bool:
+        if not self.tried:
+            self.tried = True
+            try:
+                import gphoto2
+                self.gp = gphoto2
+            except ImportError:
+                self.gp = None
+        return self.gp is not None
+
+    def _set(self, cfg, name: str, pick) -> None:
+        gp = self.gp
+        w = gp.check_result(gp.gp_widget_get_child_by_name(cfg, name))
+        choices = [gp.check_result(gp.gp_widget_get_choice(w, i)) for i in range(gp.check_result(gp.gp_widget_count_choices(w)))]
+        gp.check_result(gp.gp_widget_set_value(w, choices[pick(choices)]))
+
+    def _open(self) -> None:
+        gp = self.gp
+        self.ctx = gp.gp_context_new()
+        cam = gp.check_result(gp.gp_camera_new())
+        gp.check_result(gp.gp_camera_init(cam, self.ctx))
+        cfg = gp.check_result(gp.gp_camera_get_config(cam, self.ctx))
+        self._set(cfg, "capturetarget", lambda cs: 1)                              # SD card, not the camera's RAM
+        self._set(cfg, "imageformat", lambda cs: cs.index(CANON_FORMAT))           # the size we need, no conversion
+        gp.check_result(gp.gp_camera_set_config(cam, cfg, self.ctx))
+        self.cam = cam
+
+    def close(self) -> None:
+        if self.cam is not None:
+            try:
+                self.gp.check_result(self.gp.gp_camera_exit(self.cam, self.ctx))
+            except Exception:                                                      # the camera may be gone already
+                pass
+        self.cam = None
+
+    def tick(self) -> None:
+        if self.cam is not None and self.clock() - self.last > self.idle_s:
+            self.close()
+
+    def capture(self, target_dir: str) -> str:
+        """Take a photo and download it as <target_dir>/raw.<ext>; returns the file. One retry with a fresh session
+        (the camera may have gone to sleep). Raises gphoto2.GPhoto2Error-like errors as OSError."""
+        gp = self.gp
+        last_error = None
+        for attempt in (1, 2):
+            try:
+                if self.cam is None:
+                    self._open()
+                path = gp.check_result(gp.gp_camera_capture(self.cam, gp.GP_CAPTURE_IMAGE, self.ctx))
+                ext = os.path.splitext(path.name)[1].lower() or ".jpg"
+                f = gp.check_result(gp.gp_camera_file_get(self.cam, path.folder, path.name, gp.GP_FILE_TYPE_NORMAL, self.ctx))
+                out = os.path.join(target_dir, "raw" + ext)
+                gp.check_result(gp.gp_file_save(f, out))
+                try:
+                    gp.check_result(gp.gp_camera_file_delete(self.cam, path.folder, path.name, self.ctx))
+                except Exception as e:                                             # a full card is worse than this
+                    log.warning("could not delete %s on the camera: %s", path.name, e)
+                self.last = self.clock()
+                return out
+            except Exception as e:
+                last_error = e
+                log.warning("camera session failed (try %d): %s", attempt, e)
+                self.close()
+        raise OSError(f"Canon: {last_error}")
+
+
+CANON = CanonSession()
+
+
 # --- capture ------------------------------------------------------------------------------------------------
-def shoot(path: str, run=subprocess.run) -> str | None:
+def shoot(path: str, run=subprocess.run, canon_session: CanonSession | None = None) -> str | None:
     """One photo to `path`: the Canon if gphoto2 sees one, otherwise the webcam.
 
     Returns "Canon" or "Webcam" for the camera that took it, None if it failed. A Canon that fails is a failure,
@@ -70,14 +153,18 @@ def shoot(path: str, run=subprocess.run) -> str | None:
                 capture_output=True, text=True, timeout=30, check=True)
         else:
             tmp = tempfile.mkdtemp(prefix="comics-pedal-")
+            session = canon_session if canon_session is not None else CANON
             try:
-                # save to the SD card: the 450D's internal RAM target fails now and then
-                # gphoto2 downloads into a temp file in the working directory: the service's cwd (/) is read-only
-                # the right size straight from the camera: no conversion on the laptop, half the USB transfer
-                run(["gphoto2", "--quiet", "--set-config", "capturetarget=1", "--set-config",
-                     f"imageformat={CANON_FORMAT}"], capture_output=True, text=True, timeout=30, cwd=tmp)
-                run(["gphoto2", "--quiet", "--capture-image-and-download", "--filename", f"{tmp}/raw.%C",
-                     "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True, cwd=tmp)
+                if session.available():
+                    session.capture(tmp)                         # open session: no setup, no detect per photo
+                else:
+                    # command line fallback. Save to the SD card (the 450D's RAM target fails now and then) and in
+                    # the size we need, so no conversion is needed. gphoto2 downloads into a temp file in the
+                    # working directory: the service's cwd (/) is read-only.
+                    run(["gphoto2", "--quiet", "--set-config", "capturetarget=1", "--set-config",
+                         f"imageformat={CANON_FORMAT}"], capture_output=True, text=True, timeout=30, cwd=tmp)
+                    run(["gphoto2", "--quiet", "--capture-image-and-download", "--filename", f"{tmp}/raw.%C",
+                         "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True, cwd=tmp)
                 found = sorted(glob.glob(f"{tmp}/raw.*"))
                 if not found:                                    # gphoto2 exits 0 even when the download fails
                     raise CameraHint("Kamera hat ausgelöst, aber das Bild kam nicht an (USB-Kabel prüfen)")
@@ -109,9 +196,12 @@ class Session:
     changing them in place, so a reader always sees a consistent snapshot."""
 
     def __init__(self, base: Path, shoot=shoot, make_pdf=build_pdf, notify=lambda event: None, clock=time.monotonic,
-                 idle_close_s: float = IDLE_CLOSE_S, wall=time.time):
+                 idle_close_s: float = IDLE_CLOSE_S, wall=time.time, on_idle=lambda: None):
         self.base, self.shoot, self.make_pdf, self.notify, self.clock = Path(base), shoot, make_pdf, notify, clock
-        self.wall = wall
+        self.wall, self.on_idle = wall, on_idle
+        self.jobs: queue.Queue = queue.Queue()                  # switch presses, worked off in order by one thread
+        self.queued = 0                                         # presses not finished yet (waiting + running)
+        self.qlock = threading.Lock()
         self.idle = idle_close_s
         self.folder: Path | None = None
         self.photos: list[Path] = []
@@ -128,6 +218,37 @@ class Session:
         d = self.base / name
         d.mkdir(parents=True, exist_ok=True)
         return d
+
+    # --- switch presses never wait for the camera: they are queued and worked off in order ----------------------
+    def start_worker(self) -> None:
+        threading.Thread(target=self._work, daemon=True, name="comics-pedal-worker").start()
+
+    def enqueue(self, kind: str) -> None:
+        """kind: "neu" or "foto". Returns at once; a quick second tap is a second photo right behind the first."""
+        with self.qlock:
+            self.queued += 1
+        self.jobs.put(kind)
+
+    def _work(self) -> None:
+        while True:
+            kind = self.jobs.get()
+            try:
+                {"neu": self.press_new, "foto": self.press_photo}[kind]()
+            except Exception:                                   # one bad press must not stop the worker
+                log.exception("press %s failed", kind)
+                self.notify("fehler")
+            finally:
+                with self.qlock:
+                    self.queued -= 1
+
+    def wait_idle(self, timeout: float = 5.0) -> bool:
+        """Waits until all queued presses are done (tests, shutdown)."""
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            if self.queued == 0:
+                return True
+            time.sleep(0.01)
+        return False
 
     def press_new(self) -> None:
         with self.lock:
@@ -168,9 +289,14 @@ class Session:
                 self.notify("fehler")
 
     def tick(self) -> None:
-        with self.lock:
+        if not self.lock.acquire(blocking=False):               # a photo is being taken: nothing to close now
+            return
+        try:
             if self.folder is not None and self.clock() - self.touched >= self.idle:
                 self.close()
+            self.on_idle()
+        finally:
+            self.lock.release()
 
     def close(self) -> None:
         """Finish the open folder: PDF into neu/, or fehler/ if fewer than two photos."""
@@ -216,6 +342,7 @@ class Session:
             nxt = "Schalter 2: Rückseite (oder weiteres Foto), Schalter 1: nächstes Heft"
         return {"heft": folder.name if folder else None, "fotos": len(photos), "naechstes": nxt,
                 "hefte": list(self.hefte), "hinweis": self.hint, "kamera": self.camera, "aufnahme": self.busy,
+                "wartend": self.queued,
                 "schalter": self.switches}
 
     def photo(self, n: int, name: str | None = None) -> Path | None:
@@ -332,11 +459,11 @@ def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingH
             # on-screen switches; the custom header forces a CORS preflight, so only pages on this LAN may press
             if self.headers.get("X-Comics-Pedal") != "1" or not local_origin(self.headers.get("Origin")):
                 return self._send(403)
-            action = {"/neu": session.press_new, "/foto": session.press_photo}.get(self.path.split("?")[0])
-            if action is None:
+            kind = {"/neu": "neu", "/foto": "foto"}.get(self.path.split("?")[0])
+            if kind is None:
                 return self._send(404)
-            action()
-            self._send(200, json.dumps(session.status(), ensure_ascii=False).encode())
+            session.enqueue(kind)                               # the page does not wait for the camera
+            self._send(202, json.dumps(session.status(), ensure_ascii=False).encode())
 
         def log_message(self, *args):
             pass
@@ -393,7 +520,8 @@ def run() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     if "--einrichten" in sys.argv:
         STATE_FILE.unlink(missing_ok=True)
-    session = Session(SCAN_DIR, notify=play)
+    session = Session(SCAN_DIR, notify=play, on_idle=CANON.tick)
+    session.start_worker()
     start_status_server(session)
     debounce = Debounce()
     while True:
@@ -443,9 +571,9 @@ def run() -> None:
                     if not debounce.ok(k, t):
                         continue
                     if k == cfg["schalter1"]:
-                        session.press_new()
+                        session.enqueue("neu")
                     elif k == cfg["schalter2"]:
-                        session.press_photo()
+                        session.enqueue("foto")
                 session.tick()
         except OSError as e:                                    # unplugged: look again
             log.warning("switch lost: %s", e)

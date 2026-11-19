@@ -8,6 +8,8 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import comics_pedal as cp  # noqa: E402
 
+cp.CANON.tried, cp.CANON.gp = True, None      # tests never touch a real camera: command line path with fakes
+
 
 class Clock:
     def __init__(self):
@@ -375,6 +377,7 @@ def test_status_antwortet_waehrend_die_kamera_ausloest(tmp_path):
 
 def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
     env = make_session(tmp_path)
+    env.s.start_worker()
     server = cp.start_status_server(env.s, port=0)
     url = f"http://127.0.0.1:{server.server_address[1]}"
     try:
@@ -390,8 +393,10 @@ def test_tasten_auf_dem_bildschirm_nur_aus_dem_lan(tmp_path):
         assert post("/neu", "https://boese.example.com") == 403
         assert post("/neu", "http://192.168.40.120", header=False) == 403
         assert post("/neu", None) == 403
-        assert post("/neu", "http://192.168.40.120") == 200 and env.events == ["neu"]
-        assert post("/foto", "http://localhost:8080") == 200 and env.s.status()["fotos"] == 1
+        assert post("/neu", "http://192.168.40.120") == 202       # accepted: the page does not wait for the camera
+        assert env.s.wait_idle() and env.events == ["neu"]
+        assert post("/foto", "http://localhost:8080") == 202
+        assert env.s.wait_idle() and env.s.status()["fotos"] == 1
         img = urllib.request.urlopen(url + "/foto/1.jpg", timeout=5)
         assert img.headers["Content-Type"] == "image/jpeg" and img.read() == b"jpg"
         assert img.headers["Cache-Control"] == "max-age=86400"
@@ -411,3 +416,147 @@ def test_drehung_aus_laesst_das_bild_wie_es_ist(tmp_path, monkeypatch):
     seen = []
     assert cp.shoot(str(tmp_path / "f.jpg"), run=canon_run(seen)) == "Canon"
     assert not any(c[0] == "jpegtran" for c in seen) and (tmp_path / "f.jpg").read_bytes() == b"raw"
+
+
+def test_druecke_werden_der_reihe_nach_abgearbeitet_ohne_zu_warten(tmp_path):
+    import threading
+    env = make_session(tmp_path)
+    release = threading.Event()
+    order = []
+
+    def slow_shoot(path):
+        order.append(Path(path).name)
+        release.wait(5)
+        Path(path).write_bytes(b"jpg")
+        return "Canon"
+
+    env.s.shoot = slow_shoot
+    env.s.start_worker()
+    env.s.enqueue("neu")
+    env.s.enqueue("foto")
+    env.s.enqueue("foto")                                        # a quick second tap
+    env.s.enqueue("neu")                                         # next comic right behind it
+    env.s.enqueue("foto")
+    st = env.s.status()                                          # nothing blocked, the presses are waiting
+    assert st["wartend"] >= 4
+    release.set()
+    assert env.s.wait_idle(5)
+    assert order == ["foto-001.jpg", "foto-002.jpg", "foto-001.jpg"]
+    hefte = env.s.status()["hefte"]
+    assert [h["fotos"] for h in hefte] == [2] and env.s.status()["fotos"] == 1 and env.s.status()["wartend"] == 0
+
+
+class FakeGp:
+    """Just enough of python-gphoto2 (1.x low-level API) to check how the session is used."""
+    GP_CAPTURE_IMAGE, GP_FILE_TYPE_NORMAL = 0, 1
+
+    def __init__(self, ext="jpg", fail_first=0):
+        self.calls, self.ext, self.fail = [], ext, fail_first
+        self.values = {}
+
+    def check_result(self, r):
+        return r
+
+    def gp_context_new(self):
+        return "ctx"
+
+    def gp_camera_new(self):
+        self.calls.append("new")
+        return "cam"
+
+    def gp_camera_init(self, cam, ctx):
+        self.calls.append("init")
+        if self.fail:
+            self.fail -= 1
+            raise OSError("I/O problem")
+
+    def gp_camera_get_config(self, cam, ctx):
+        return "cfg"
+
+    def gp_widget_get_child_by_name(self, cfg, name):
+        return name
+
+    def gp_widget_count_choices(self, w):
+        return 2 if w == "capturetarget" else 3
+
+    def gp_widget_get_choice(self, w, i):
+        return ["intern", "Karte"][i] if w == "capturetarget" else ["Large Fine JPEG", cp.CANON_FORMAT, "RAW"][i]
+
+    def gp_widget_set_value(self, w, v):
+        self.values[w] = v
+
+    def gp_camera_set_config(self, cam, cfg, ctx):
+        self.calls.append("config")
+
+    def gp_camera_capture(self, cam, t, ctx):
+        self.calls.append("capture")
+        return SimpleNamespace(folder="/store", name=f"IMG_1.{self.ext}")
+
+    def gp_camera_file_get(self, cam, folder, name, t, ctx):
+        return "file"
+
+    def gp_file_save(self, f, out):
+        Path(out).write_bytes(b"raw")
+
+    def gp_camera_file_delete(self, cam, folder, name, ctx):
+        self.calls.append("delete")
+
+    def gp_camera_exit(self, cam, ctx):
+        self.calls.append("exit")
+
+
+def fake_session(gp, clock=None, idle_s=120.0):
+    c = cp.CanonSession(idle_s=idle_s, clock=clock or Clock())
+    c.tried, c.gp = True, gp
+    return c
+
+
+def test_offene_kamerasitzung_richtet_die_kamera_nur_einmal_ein(tmp_path):
+    gp = FakeGp()
+    c = fake_session(gp)
+    for n in (1, 2, 3):
+        d = tmp_path / str(n)
+        d.mkdir()
+        assert Path(c.capture(str(d))).name == "raw.jpg"
+    assert gp.calls.count("init") == 1 and gp.calls.count("config") == 1 and gp.calls.count("capture") == 3
+    assert gp.calls.count("delete") == 3                         # the card does not fill up
+    assert gp.values == {"capturetarget": "Karte", "imageformat": cp.CANON_FORMAT}
+
+
+def test_kamerasitzung_wird_im_leerlauf_freigegeben_und_neu_geoeffnet(tmp_path):
+    gp, clock = FakeGp(), Clock()
+    c = fake_session(gp, clock, idle_s=120)
+    c.capture(str(tmp_path))
+    clock.t += 119
+    c.tick()
+    assert "exit" not in gp.calls
+    clock.t += 2
+    c.tick()
+    assert gp.calls.count("exit") == 1 and c.cam is None
+    c.capture(str(tmp_path))                                     # the next comic opens it again
+    assert gp.calls.count("init") == 2
+
+
+def test_kamerasitzung_versucht_es_nach_fehler_einmal_neu_und_meldet_dann_fehler(tmp_path):
+    gp = FakeGp(fail_first=1)                                    # camera asleep: the first open fails
+    c = fake_session(gp)
+    assert Path(c.capture(str(tmp_path))).name == "raw.jpg" and gp.calls.count("init") == 2
+    try:
+        fake_session(FakeGp(fail_first=5)).capture(str(tmp_path))
+        raise AssertionError("expected OSError")
+    except OSError as e:
+        assert "Canon" in str(e)
+
+
+def test_aufnahme_nutzt_die_offene_sitzung_statt_der_kommandozeile(tmp_path):
+    gp, seen = FakeGp(), []
+    out = tmp_path / "f.jpg"
+    assert cp.shoot(str(out), run=canon_run(seen), canon_session=fake_session(gp)) == "Canon"
+    assert [c[0] for c in seen if c[0] != "gphoto2" or "--auto-detect" in c] == ["gphoto2", "jpegtran"]
+    assert gp.calls.count("capture") == 1 and out.exists()
+    # RAW from the open session gives the same clear hint
+    try:
+        cp.shoot(str(tmp_path / "g.jpg"), run=canon_run([]), canon_session=fake_session(FakeGp(ext="cr2")))
+        raise AssertionError("expected CameraHint")
+    except cp.CameraHint as e:
+        assert "JPEG" in str(e)
