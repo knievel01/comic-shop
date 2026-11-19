@@ -65,3 +65,18 @@ def test_fail_clears_step(env):  # noqa: F811
     assert c.post(f"/api/scans/{cid}/fail", headers=H, json={"fehler": "x"}).status_code == 200
     t = tags(env, cid)
     assert t["status"] == "fehler" and "schritt" not in t and "lauf" not in t
+
+
+def test_zeitlimit_macht_haengenden_lauf_zum_fehler(env):  # noqa: F811
+    import time as _t
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    key = env.store.pdf_key("eingang", cid)
+    env.store.update_tags(key, claimed=str(int(_t.time()) - 11 * 60), schritt="erkennung")
+    assert c.get(f"/review/fortschritt?ids={cid}").json()[cid]["status"] == "fehler"
+    assert "Zeitüberschreitung" in c.get(f"/review/{cid}").text
+    # the reviewer starts it again; a fresh claim is within the limit
+    env.store.update_tags(key, status="neu")
+    assert c.post("/api/scans/claim", headers=H).json()["ids"] == [cid]
+    assert c.get(f"/review/fortschritt?ids={cid}").json()[cid]["status"] == "in-arbeit"

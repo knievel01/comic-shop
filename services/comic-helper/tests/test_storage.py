@@ -45,7 +45,23 @@ def test_claim_exactly_once(s3, store):
     first = store.claim_new(limit=10, now=1000)
     assert sorted(first) == sorted([a, b])
     assert store.claim_new(limit=10, now=1100) == []          # already in-arbeit
-    assert sorted(store.claim_new(limit=10, now=1000 + 3600)) == sorted([a, b])  # stale -> reclaimed
+    assert store.claim_new(limit=10, now=1000 + 3600) == []   # stuck ones are not re-claimed (expire_stuck)
+
+
+def test_haengende_laeufe_werden_nach_dem_zeitlimit_fehler(s3, store):
+    ids = {new_id(), new_id()}
+    for i in ids:
+        upload_scan(s3, i)
+    (a,) = store.claim_new(limit=1, now=1000)                  # one in-arbeit since 1000, the other still neu
+    (b,) = ids - {a}
+    store.update_tags(store.pdf_key("eingang", a), schritt="preissuche")
+    assert store.expire_stuck(600, now=1000 + 600) == []       # exactly at the limit: still running
+    assert store.expire_stuck(600, now=1000 + 601) == [a]
+    tags = store.get_tags(store.pdf_key("eingang", a))
+    assert tags["status"] == "fehler" and "claimed" not in tags and "schritt" not in tags
+    grund = store.read_json(store.sidecar_key("eingang", a))["fehler"][-1]["fehler"]
+    assert "Zeitüberschreitung" in grund and "10 min" in grund and "preissuche" in grund
+    assert store.get_tags(store.pdf_key("eingang", b)).get("status", "neu") == "neu"
 
 
 def test_claim_limit_and_skips_other_status(s3, store):

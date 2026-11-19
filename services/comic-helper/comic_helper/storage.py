@@ -178,21 +178,39 @@ class Store:
         raise NotFound(copy_id)
 
     # --- workflow state -------------------------------------------------------
-    def claim_new(self, limit: int, stale_after_s: int = 1800, now: float | None = None) -> list[str]:
-        """Mark up to `limit` new scans as in-arbeit. Also re-claims scans stuck in-arbeit
-        (e.g. crash or n8n restart mid-run), so every scan is processed exactly once in effect."""
+    def claim_new(self, limit: int, now: float | None = None) -> list[str]:
+        """Mark up to `limit` new scans as in-arbeit. Scans stuck in-arbeit are not re-claimed here:
+        expire_stuck turns them into fehler, and the reviewer starts them again."""
         now = now or time.time()
         claimed = []
         for obj in self.list_scans(EINGANG):
             if len(claimed) >= limit:
                 break
-            tags = self.get_tags(obj.key)
-            status = tags.get("status", "neu")
-            stale = status == "in-arbeit" and now - float(tags.get("claimed", 0)) > stale_after_s
-            if status == "neu" or stale:
+            if self.get_tags(obj.key).get("status", "neu") == "neu":
                 self.update_tags(obj.key, status="in-arbeit", claimed=str(int(now)))
                 claimed.append(obj.copy_id)
         return claimed
+
+    def expire_stuck(self, timeout_s: float, now: float | None = None) -> list[str]:
+        """Scans in-arbeit for longer than `timeout_s` (crash, n8n restart, a run that never reported back)
+        become fehler, with the reason in the sidecar. A late result still wins: recognize sets offen."""
+        now = now or time.time()
+        expired = []
+        for obj in self.list_scans(EINGANG):
+            tags = self.get_tags(obj.key)
+            seit = tags.get("claimed", "")
+            if tags.get("status") != "in-arbeit" or not seit.isdigit() or now - int(seit) <= timeout_s:
+                continue
+            side_key = self.sidecar_key(EINGANG, obj.copy_id)
+            side = self.read_json(side_key) if self.exists(side_key) else {"id": obj.copy_id}
+            schritt = f", Schritt {tags['schritt']}" if tags.get("schritt") else ""
+            side.setdefault("fehler", []).append({
+                "am": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+                "fehler": f"Zeitüberschreitung: Workflow lief länger als {round(timeout_s / 60)} min{schritt}"})
+            self.write_json(side_key, side)
+            self.update_tags(obj.key, status="fehler", claimed=None, schritt=None, lauf=None)
+            expired.append(obj.copy_id)
+        return expired
 
     def move(
         self,
