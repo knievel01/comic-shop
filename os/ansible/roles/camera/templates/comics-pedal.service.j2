@@ -7,8 +7,6 @@ User={{ comics_scan_user }}
 SupplementaryGroups=scanner plugdev video
 Environment=COMICS_SCAN_DIR={{ comics_scan_dir }}
 Environment=COMICS_PEDAL_IDLE_CLOSE_S={{ comics_pedal_idle_close_s }}
-Environment=COMICS_MAX_EDGE={{ comics_camera_max_edge }}
-Environment=COMICS_JPEG_QUALITY={{ comics_camera_jpeg_quality }}
 ExecStart=/usr/bin/python3 {{ comics_repo_dir }}/services/comic-pedal/comics_pedal.py
 Restart=always
 RestartSec=5

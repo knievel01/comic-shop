@@ -37,8 +37,8 @@ IDLE_CLOSE_S = float(os.environ.get("COMICS_PEDAL_IDLE_CLOSE_S", "300"))
 DEBOUNCE_S = 0.25        # one press may arrive on the keyboard and the mouse node; a quick second tap still counts
 EV_KEY = 1               # evdev.ecodes.EV_KEY
 STATUS_PORT = int(os.environ.get("COMICS_PEDAL_PORT", "8099"))
-MAX_EDGE = os.environ.get("COMICS_MAX_EDGE", "3000")
-QUALITY = os.environ.get("COMICS_JPEG_QUALITY", "88")
+CANON_FORMAT = "Medium Fine JPEG"   # 3088x2056, about the size the shop and the recognition need: no conversion
+MAX_HEFTE = 200                     # comics kept in the station view since the service started
 WEBCAM = os.environ.get("COMICS_WEBCAM", "/dev/video0")
 VENDOR, PRODUCT = 0x3553, 0xB001          # PCsensor FootSwitch
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -72,8 +72,9 @@ def shoot(path: str, run=subprocess.run) -> str | None:
             try:
                 # save to the SD card: the 450D's internal RAM target fails now and then
                 # gphoto2 downloads into a temp file in the working directory: the service's cwd (/) is read-only
-                run(["gphoto2", "--quiet", "--set-config", "capturetarget=1"], capture_output=True, text=True,
-                    timeout=30, cwd=tmp)
+                # the right size straight from the camera: no conversion on the laptop, half the USB transfer
+                run(["gphoto2", "--quiet", "--set-config", "capturetarget=1", "--set-config",
+                     f"imageformat={CANON_FORMAT}"], capture_output=True, text=True, timeout=30, cwd=tmp)
                 run(["gphoto2", "--quiet", "--capture-image-and-download", "--filename", f"{tmp}/raw.%C",
                      "--force-overwrite"], capture_output=True, text=True, timeout=60, check=True, cwd=tmp)
                 found = sorted(glob.glob(f"{tmp}/raw.*"))
@@ -81,9 +82,8 @@ def shoot(path: str, run=subprocess.run) -> str | None:
                     raise CameraHint("Kamera hat ausgelöst, aber das Bild kam nicht an (USB-Kabel prüfen)")
                 raw = found[0]
                 if not raw.lower().endswith((".jpg", ".jpeg")):
-                    raise CameraHint("Kamera auf JPEG stellen (Menü: Qualität → JPEG L, kein RAW)")
-                run(["convert", raw, "-auto-orient", "-resize", f"{MAX_EDGE}x{MAX_EDGE}>", "-quality", QUALITY, path],
-                    capture_output=True, text=True, timeout=60, check=True)
+                    raise CameraHint("Kamera auf JPEG stellen (Menü: Qualität → JPEG, kein RAW)")
+                shutil.move(raw, path)
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
         return ("Canon" if canon else "Webcam") if os.path.getsize(path) > 0 else None
@@ -99,18 +99,23 @@ def build_pdf(first: str, last: str, out: str, run=subprocess.run) -> None:
 
 # --- session (pure logic, no hardware) ----------------------------------------------------------------------
 class Session:
+    """Readers (status, photo) never take `lock`: a photo holds it for seconds. Writers replace lists instead of
+    changing them in place, so a reader always sees a consistent snapshot."""
+
     def __init__(self, base: Path, shoot=shoot, make_pdf=build_pdf, notify=lambda event: None, clock=time.monotonic,
-                 idle_close_s: float = IDLE_CLOSE_S):
+                 idle_close_s: float = IDLE_CLOSE_S, wall=time.time):
         self.base, self.shoot, self.make_pdf, self.notify, self.clock = Path(base), shoot, make_pdf, notify, clock
+        self.wall = wall
         self.idle = idle_close_s
         self.folder: Path | None = None
         self.photos: list[Path] = []
         self.touched = 0.0
-        self.recent: list[dict] = []
+        self.hefte: list[dict] = []                             # closed comics since start, newest first
+        self.files: dict[str, list[str]] = {}                   # comic -> photo file names, for the station view
         self.hint: str | None = None
         self.camera: str | None = None                          # camera of the last good photo
+        self.busy = False                                       # a photo is being taken right now
         self.switches = "fehlen"                                # fehlen | einrichtung | bereit (set by run())
-        self.shown: tuple[str, list[Path]] | None = None        # last closed comic, shown until the next one starts
         self.lock = threading.RLock()
 
     def _dir(self, name: str) -> Path:
@@ -125,10 +130,9 @@ class Session:
                 self.notify("neu")
                 return
             self.close()
-            self.shown = None
-            self.folder = self._dir("erfassung") / str(uuid.uuid4())
-            self.folder.mkdir()
-            self.photos, self.touched = [], self.clock()
+            folder = self._dir("erfassung") / str(uuid.uuid4())
+            folder.mkdir()
+            self.photos, self.touched, self.folder = [], self.clock(), folder
             self.notify("neu")
 
     def press_photo(self) -> None:
@@ -137,16 +141,20 @@ class Session:
                 self.notify("fehler")                           # first switch 1, else two comics get mixed up
                 return
             target = self.folder / f"foto-{len(self.photos) + 1:03d}.jpg"
+            self.busy = True
             try:
                 ok = self.shoot(str(target))
                 self.hint = None
             except CameraHint as e:
                 ok, self.hint = False, str(e)
                 log.warning("camera: %s", e)
+            finally:
+                self.busy = False
             if ok:
                 if isinstance(ok, str):
                     self.camera = ok
-                self.photos.append(target)
+                self.photos = self.photos + [target]
+                self.files[self.folder.name] = [p.name for p in self.photos]
                 self.touched = self.clock()
                 self.notify("foto")
             else:
@@ -162,14 +170,14 @@ class Session:
         """Finish the open folder: PDF into neu/, or fehler/ if fewer than two photos."""
         if self.folder is None:
             return
-        folder, photos, self.folder, self.photos = self.folder, self.photos, None, []
-        self.shown = (folder.name, photos) if photos else None
+        folder, photos = self.folder, self.photos
+        self.folder, self.photos = None, []
         if not photos:
             shutil.rmtree(folder, ignore_errors=True)
             return
         if len(photos) < 2:
             shutil.move(str(folder), str(self._dir("fehler") / folder.name))
-            self._remember(folder.name, len(photos))
+            self._remember(folder.name, len(photos), "zu_wenig")
             self.notify("fehler")
             return
         out = self._dir("neu") / f"{folder.name}.pdf"
@@ -181,44 +189,44 @@ class Session:
             log.error("pdf for %s failed: %s", folder.name, e)
             part.unlink(missing_ok=True)
             shutil.move(str(folder), str(self._dir("fehler") / folder.name))
+            self._remember(folder.name, len(photos), "pdf_fehler")
             self.notify("fehler")
             return
-        self._remember(folder.name, len(photos))
+        self._remember(folder.name, len(photos), None)
         self.notify("zu")
 
-    def _remember(self, name: str, photos: int) -> None:
-        self.recent = ([{"name": name, "fotos": photos}] + self.recent)[:5]
+    def _remember(self, name: str, photos: int, fehler: str | None) -> None:
+        self.hefte = ([{"name": name, "fotos": photos, "zu": int(self.wall()), "fehler": fehler}]
+                      + self.hefte)[:MAX_HEFTE]
+        self.files = {h["name"]: self.files.get(h["name"], []) for h in self.hefte}
 
     def status(self) -> dict:
-        with self.lock:
-            if self.folder is None:
-                nxt = "Schalter 1: neues Heft"
-            elif not self.photos:
-                nxt = "Schalter 2: Cover fotografieren"
-            else:
-                nxt = "Schalter 2: Rückseite (oder weiteres Foto), Schalter 1: nächstes Heft"
-            if self.folder is not None:
-                view = {"name": self.folder.name, "fotos": len(self.photos), "offen": True}
-            elif self.shown:
-                view = {"name": self.shown[0], "fotos": len(self.shown[1]), "offen": False}
-            else:
-                view = None
-            return {"heft": self.folder.name if self.folder else None, "fotos": len(self.photos), "naechstes": nxt,
-                    "letzte": list(self.recent), "hinweis": self.hint, "kamera": self.camera,
-                    "schalter": self.switches, "ansicht": view}
+        folder, photos = self.folder, self.photos                # one snapshot, see the class docstring
+        if folder is None:
+            nxt = "Schalter 1: neues Heft"
+        elif not photos:
+            nxt = "Schalter 2: Cover fotografieren"
+        else:
+            nxt = "Schalter 2: Rückseite (oder weiteres Foto), Schalter 1: nächstes Heft"
+        return {"heft": folder.name if folder else None, "fotos": len(photos), "naechstes": nxt,
+                "hefte": list(self.hefte), "hinweis": self.hint, "kamera": self.camera, "aufnahme": self.busy,
+                "schalter": self.switches}
 
-    def photo(self, n: int) -> Path | None:
-        """n-th photo (1-based, -1 = last) of the comic on screen; None once it was moved away."""
-        with self.lock:
-            photos = self.photos if self.folder is not None else (self.shown[1] if self.shown else [])
-            try:
-                p = photos[n - 1] if n > 0 else photos[n]
-            except IndexError:
-                return None
-            if p.exists():
-                return p
-            moved = [q for q in self.base.glob(f"*/*/{p.name}") if q.parent.name == p.parent.name]
-            return moved[0] if moved else None
+    def photo(self, n: int, name: str | None = None) -> Path | None:
+        """n-th photo (1-based, -1 = last) of comic `name` (default: the open one), also after it was moved."""
+        folder = self.folder
+        name = name or (folder.name if folder else None)
+        files = [p.name for p in self.photos] if folder is not None and name == folder.name else self.files.get(name)
+        if not files:
+            return None
+        try:
+            fname = files[n - 1] if n > 0 else files[n]
+        except IndexError:
+            return None
+        for d in (self.base / "erfassung" / name, self.base / "fehler" / name, self.base / ".umbenannt" / name):
+            if (d / fname).is_file():                           # .umbenannt/<id> links to hochgeladen/<handle>
+                return d / fname
+        return None
 
 
 # --- switches -----------------------------------------------------------------------------------------------
@@ -283,21 +291,22 @@ def local_origin(origin: str | None) -> bool:
 # --- status server (127.0.0.1 only, read by the upload page on this machine) --------------------------------
 def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingHTTPServer:
     class Handler(BaseHTTPRequestHandler):
-        def _headers(self, code: int, length: int = 0) -> None:
+        def _headers(self, code: int, length: int = 0, cache: bool = False) -> None:
             self.send_response(code)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Private-Network", "true")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "X-Comics-Pedal")
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cache-Control", "max-age=86400" if cache else "no-store")   # photos never change
             self.send_header("Content-Length", str(length))
 
         def do_OPTIONS(self):  # noqa: N802 - http.server API
             self._headers(204)
             self.end_headers()
 
-        def _send(self, code: int, body: bytes = b"", ctype: str = "application/json; charset=utf-8") -> None:
-            self._headers(code, len(body))
+        def _send(self, code: int, body: bytes = b"", ctype: str = "application/json; charset=utf-8",
+                  cache: bool = False) -> None:
+            self._headers(code, len(body), cache)
             if body:
                 self.send_header("Content-Type", ctype)
             self.end_headers()
@@ -307,11 +316,11 @@ def start_status_server(session: Session, port: int = STATUS_PORT) -> ThreadingH
             path = self.path.split("?")[0]
             if path == "/status.json":
                 return self._send(200, json.dumps(session.status(), ensure_ascii=False).encode())
-            m = re.fullmatch(r"/foto/(-?\d+)\.jpg", path)
-            p = session.photo(int(m.group(1))) if m else None
+            m = re.fullmatch(r"(?:/heft/([0-9a-f-]{36}))?/foto/(-?\d+)\.jpg", path)
+            p = session.photo(int(m.group(2)), m.group(1)) if m else None
             if p is None:
                 return self._send(404)
-            self._send(200, p.read_bytes(), "image/jpeg")
+            self._send(200, p.read_bytes(), "image/jpeg", cache=int(m.group(2)) > 0)
 
         def do_POST(self):  # noqa: N802
             # on-screen switches; the custom header forces a CORS preflight, so only pages on this LAN may press

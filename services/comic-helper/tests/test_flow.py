@@ -817,6 +817,7 @@ def test_hochladen_seite_zeigt_das_fussschalter_panel_nur_dort(env):
     page = env.client.get("/review/hochladen").text
     assert 'id="fussschalter"' in page and "127.0.0.1:8099" in page and "/status.json" in page
     assert 'id="taste-neu"' in page and 'id="taste-foto"' in page and 'id="streifen"' in page   # switches + all photos
+    assert 'id="lupe"' in page and 'id="raster"' in page                                   # detail view + grid
     assert "Fußschalter" in page and "von Hand" in page and 'name="rueckseite"' in page   # manual upload stays
     assert 'id="fussschalter"' not in env.client.get("/review/").text                     # not in the list dialog
 
@@ -878,3 +879,26 @@ def test_dunkle_unterlage_wird_ohne_ki_freigestellt(env):
     r = round(0.03 * 1100)
     assert abs(img.width - (720 + 2 * r)) <= 8 and abs(img.height - (1100 + 2 * r)) <= 8
     assert "freigestellt" in env.client.get(f"/review/{cid}").text
+
+
+def test_erfassung_zeigt_wo_die_hefte_der_station_stehen(env):
+    c, cid, unbekannt = env.client, str(uuid.uuid4()), str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    d = c.get(f"/review/erfassung?ids={cid},{unbekannt}").json()
+    assert d[unbekannt]["status"] == "wartet" and d[cid]["status"] == "neu" and d[cid]["titel"] is None
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/recognize", headers=H)
+    d = c.get(f"/review/erfassung?ids={cid}").json()[cid]
+    assert d["status"] == "offen" and d["titel"] == "Asterix" and d["ausgabe"] == "12"
+    assert d["review_url"] == f"/review/{cid}"
+    c.post(f"/review/{cid}", data=review_form())
+    assert c.get(f"/review/erfassung?ids={cid}").json()[cid]["status"] == "bestaetigt"
+    assert c.get("/review/erfassung?ids=../x").status_code == 400
+
+
+def test_erfassung_meldet_fehler(env):
+    c, cid = env.client, str(uuid.uuid4())
+    upload_scan(env.s3, cid)
+    c.post("/api/scans/claim", headers=H)
+    c.post(f"/api/scans/{cid}/fail", headers=H, json={"grund": "kaputt"})
+    assert c.get(f"/review/erfassung?ids={cid}").json()[cid]["status"] == "fehler"

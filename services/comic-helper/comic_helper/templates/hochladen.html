@@ -37,6 +37,37 @@
   .zeile { display:flex; flex-wrap:wrap; gap:.4rem 1.4rem; margin-top:1rem; color:var(--muted); }
   .zeile b { color:var(--ink); }
   #fussschalter ul { margin:.6rem 0 0; padding-left:1.2rem; color:var(--muted); }
+  .platz img, .streifen img { cursor:zoom-in; }
+  .streifen .laeuft { height:4.6rem; width:3.4rem; border:2px dashed var(--accent); display:grid; place-items:center;
+    font-size:1.4rem; animation:blinken 1s steps(2) infinite; }
+  @keyframes blinken { 50% { opacity:.3; } }
+  @media (prefers-reduced-motion:reduce) { .streifen .laeuft { animation:none; } }
+  /* comics captured since the service started: cover tiles with their way through the workflow */
+  #raster-box { max-width:72rem; margin:-.6rem 0 2rem; }
+  #raster-box h2 { font:1.5rem/1.2 var(--display); letter-spacing:.04em; margin:0 0 .6rem; }
+  .raster { display:grid; grid-template-columns:repeat(auto-fill, minmax(9.5rem, 1fr)); gap:1rem; }
+  .kachel { position:relative; display:flex; flex-direction:column; background:var(--paper); border:var(--strich);
+    box-shadow:var(--druck); color:var(--ink); text-decoration:none; overflow:hidden; }
+  a.kachel:hover { box-shadow:var(--schweben); transform:translate(-2px,-2px); }
+  .kachel .cover { aspect-ratio:3/4; background:var(--feld); display:grid; place-items:center; color:var(--muted); }
+  .kachel .cover img { width:100%; height:100%; object-fit:cover; display:block; }
+  .kachel .band { position:absolute; top:.6rem; left:-.2rem; right:-.2rem; padding:.2rem .5rem; font-weight:800;
+    font-size:.95rem; text-align:center; border-block:var(--strich); background:var(--yellow); color:#000; }
+  .kachel .band.ok { background:var(--mint); } .kachel .band.bad { background:var(--red); color:#fff; }
+  .kachel .band.dran { background:#1d4fd8; color:#fff; }
+  .kachel .text { padding:.4rem .6rem .6rem; line-height:1.2; }
+  .kachel .text b { display:block; font-size:1.05rem; overflow-wrap:anywhere; }
+  .kachel .text span { color:var(--muted); font-size:.9rem; }
+  /* detail view: fit to screen, click = 100 % to check sharpness, arrows = next photo */
+  #lupe { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.95); display:flex; flex-direction:column; }
+  #lupe[hidden] { display:none; }
+  #lupe .leiste { background:#000; display:flex; gap:1rem; align-items:center; padding:.5rem 1rem; color:#fff; font-size:1.1rem; }
+  #lupe .leiste span { flex:1; }
+  #lupe button { font:inherit; font-weight:800; padding:.3rem .8rem; border:2px solid #fff; background:#000; color:#fff; cursor:pointer; }
+  #lupe .flaeche { flex:1; overflow:auto; display:grid; place-items:center; cursor:zoom-in; }
+  #lupe .flaeche img { max-width:100%; max-height:100%; display:block; }
+  #lupe.voll .flaeche { place-items:start; cursor:zoom-out; }
+  #lupe.voll .flaeche img { max-width:none; max-height:none; }
   @media (max-width:800px) {
     .station { grid-template-columns:1fr 1fr; }
     .bilder { grid-column:1 / -1; order:-1; }
@@ -53,7 +84,7 @@
   <p class="msg err" id="fuss-hinweis" hidden></p>
   <div class="station">
     <button type="button" class="schalter" id="taste-neu" data-aktion="neu" disabled>
-      <span class="nr">1</span><span class="was">Neues Heft</span><span class="wie" id="wie-neu">linker Fußschalter</span>
+      <span class="nr">1</span><span class="was">Neues Heft</span><span class="wie" id="wie-neu">Fußschalter</span>
     </button>
     <div class="bilder">
       <figure><figcaption>Cover</figcaption><div class="platz" id="bild-cover">erstes Foto</div></figure>
@@ -61,7 +92,7 @@
       <div class="streifen" id="streifen" aria-label="Alle Fotos des Hefts"></div>
     </div>
     <button type="button" class="schalter" id="taste-foto" data-aktion="foto" disabled>
-      <span class="nr">2</span><span class="was">Foto</span><span class="wie" id="wie-foto">rechter Fußschalter</span>
+      <span class="nr">2</span><span class="was">Foto</span><span class="wie" id="wie-foto">Fußschalter</span>
     </button>
   </div>
   <div class="zeile">
@@ -69,7 +100,20 @@
     <span>Kamera: <b id="fuss-kamera">–</b></span>
     <span>Fußschalter: <b id="fuss-schalter">–</b></span>
   </div>
-  <ul id="fuss-letzte" hidden></ul>
+</section>
+<div id="lupe" hidden role="dialog" aria-modal="true" aria-label="Foto im Detail">
+  <div class="leiste">
+    <button type="button" id="lupe-zurueck" aria-label="Voriges Foto">←</button>
+    <span id="lupe-text"></span>
+    <button type="button" id="lupe-zoom">100 %</button>
+    <button type="button" id="lupe-weiter" aria-label="Nächstes Foto">→</button>
+    <button type="button" id="lupe-zu">Schließen (Esc)</button>
+  </div>
+  <div class="flaeche" id="lupe-flaeche"><img id="lupe-bild" alt=""></div>
+</div>
+<section id="raster-box" hidden>
+  <h2>Erfasst seit Start</h2>
+  <div class="raster" id="raster"></div>
 </section>
 <h2 class="reserve">Oder Fotos von Hand hochladen</h2>
 <p>Ein Foto vom Cover und eins von der Rückseite. Daraus entsteht ein Scan wie vom Scanner; die Erkennung
@@ -78,65 +122,38 @@ startet innerhalb von 2 Minuten.</p>
 <script>
 // Footswitch station (comics-pedal on the scan machine, ADR-0007). It answers on 127.0.0.1 only, so this panel
 // works on the scan machine itself; elsewhere it says so and the upload form below stays usable.
-// The two big tiles show which switch is next; without footswitches they are the switches.
+// The two big tiles show which switch is next; without footswitches they are the switches. Photos have stable
+// URLs and are cached, so every photo crosses the wire once. Below: every comic since the service started, with
+// its state from comic-helper and a click into the review.
 (() => {
   const PEDAL = "http://127.0.0.1:8099";
   const $ = id => document.getElementById(id);
   const box = $("fussschalter"), tasten = [$("taste-neu"), $("taste-foto")];
   const SCHALTER = { fehlen: "nicht angeschlossen – Kacheln anklicken", einrichtung: "Einrichtung: erst Schalter 1, dann Schalter 2 treten", bereit: "bereit" };
+  const foto = (name, n) => `${PEDAL}/heft/${name}/foto/${n}.jpg`;
   let fotosVorher = null;
 
-  function bild(platz, name, n, fotos, ersatz) {
-    const key = `${name}:${n}:${fotos}`;
-    if (platz.dataset.key === key) return;
-    platz.dataset.key = key;
-    if (!name || !fotos || (n === -1 && fotos < 2)) {
-      platz.classList.remove("voll");
-      platz.replaceChildren(ersatz);
-      return;
-    }
+  function bildIn(platz, url, ersatz) {
+    if (platz.dataset.url === (url || "")) return;
+    platz.dataset.url = url || "";
+    if (!url) { platz.classList.remove("voll"); platz.replaceChildren(ersatz); return; }
     const img = new Image();
-    img.alt = n === 1 ? "Cover" : "Rückseite";
+    img.alt = ersatz;
     img.onload = () => { platz.classList.add("voll"); platz.replaceChildren(img); };
     img.onerror = () => { platz.classList.remove("voll"); platz.replaceChildren("Bild nicht mehr da"); };
-    img.src = `${PEDAL}/foto/${n}.jpg?k=${encodeURIComponent(key)}`;
+    img.src = url;
   }
 
-  function zeigen(s) {
-    box.classList.remove("aus");
-    $("fuss-naechstes").textContent = "Als Nächstes: " + s.naechstes;
-    $("fuss-hinweis").hidden = !s.hinweis;
-    $("fuss-hinweis").textContent = s.hinweis || "";
-    const v = s.ansicht;
-    $("fuss-heft").textContent = v ? `${v.offen ? "Aktuelles" : "Letztes"} Heft ${v.name.slice(0, 8)}: ${v.fotos} Foto${v.fotos === 1 ? "" : "s"}` : "Kein Heft offen";
-    $("fuss-kamera").textContent = s.kamera || "noch kein Foto";
-    $("fuss-schalter").textContent = SCHALTER[s.schalter] || s.schalter;
-    const ohne = s.schalter !== "bereit";
-    $("wie-neu").textContent = ohne ? "hier klicken" : "linker Fußschalter";
-    $("wie-foto").textContent = ohne ? "hier klicken" : "rechter Fußschalter";
-    tasten.forEach(t => t.disabled = false);
-    $("taste-neu").classList.toggle("dran", !s.heft);
-    $("taste-foto").classList.toggle("dran", !!s.heft);
-    if (fotosVorher !== null && s.fotos > fotosVorher) tritt($("taste-foto"));
-    fotosVorher = s.fotos;
-    bild($("bild-cover"), v && v.name, 1, v ? v.fotos : 0, "erstes Foto");
-    bild($("bild-rueck"), v && v.name, -1, v ? v.fotos : 0, "letztes Foto");
-    streifen(v);
-    $("fuss-letzte").replaceChildren(...s.letzte.map(h => Object.assign(document.createElement("li"),
-      { textContent: `${h.name.slice(0, 8)}: ${h.fotos} Fotos` })));
-    $("fuss-letzte").hidden = !s.letzte.length;
-  }
-
-  // every photo of the comic as a thumbnail, any number of them; only new ones are loaded
-  function streifen(v) {
-    const box = $("streifen"), name = v ? v.name : "", n = v ? v.fotos : 0;
-    if (box.dataset.name !== name) { box.replaceChildren(); box.dataset.name = name; }
+  // every photo of the open comic, any number of them; only new ones are loaded
+  function streifen(name, n, aufnahme) {
+    const box = $("streifen");
+    if (box.dataset.name !== (name || "")) { box.replaceChildren(); box.dataset.name = name || ""; }
+    box.querySelector(".laeuft")?.remove();
     while (box.children.length > n) box.lastChild.remove();
     for (let i = box.children.length + 1; i <= n; i++) {
       const f = document.createElement("figure"), img = new Image();
       img.alt = `Foto ${i}`;
-      img.loading = "lazy";
-      img.src = `${PEDAL}/foto/${i}.jpg?k=${encodeURIComponent(name)}`;
+      img.src = foto(name, i);
       f.append(img, `${i}`);
       box.append(f);
     }
@@ -144,16 +161,91 @@ startet innerhalb von 2 Minuten.</p>
       f.classList.toggle("rand", i === 0 || i === n - 1);
       f.lastChild.textContent = i === 0 ? "1 Cover" : i === n - 1 ? `${n} Rückseite` : `${i + 1}`;
     });
+    if (aufnahme) box.append(Object.assign(document.createElement("div"), { className: "laeuft", textContent: "📷", title: "Foto wird aufgenommen" }));
     box.scrollLeft = box.scrollWidth;
+  }
+
+  function zeigen(s) {
+    box.classList.remove("aus");
+    $("fuss-naechstes").textContent = s.aufnahme ? "Foto wird aufgenommen …" : "Als Nächstes: " + s.naechstes;
+    $("fuss-hinweis").hidden = !s.hinweis;
+    $("fuss-hinweis").textContent = s.hinweis || "";
+    $("fuss-heft").textContent = s.heft ? `Aktuelles Heft ${s.heft.slice(0, 8)}: ${s.fotos} Foto${s.fotos === 1 ? "" : "s"}` : "Kein Heft offen";
+    $("fuss-kamera").textContent = s.kamera || "noch kein Foto";
+    $("fuss-schalter").textContent = SCHALTER[s.schalter] || s.schalter;
+    const ohne = s.schalter !== "bereit";
+    $("wie-neu").textContent = $("wie-foto").textContent = ohne ? "hier klicken" : "Fußschalter";
+    tasten.forEach(t => t.disabled = !!s.aufnahme);
+    $("taste-neu").classList.toggle("dran", !s.heft);
+    $("taste-foto").classList.toggle("dran", !!s.heft);
+    if (fotosVorher !== null && s.fotos > fotosVorher) tritt($("taste-foto"));
+    fotosVorher = s.fotos;
+    bildIn($("bild-cover"), s.heft && s.fotos ? foto(s.heft, 1) : null, "erstes Foto");
+    bildIn($("bild-rueck"), s.heft && s.fotos > 1 ? foto(s.heft, s.fotos) : null, "letztes Foto");
+    streifen(s.heft, s.heft ? s.fotos : 0, s.aufnahme);
+    raster(s.hefte || []);
+  }
+
+  // --- grid of the comics since start ------------------------------------------------------------------------
+  const stand = {};                                   // id -> answer of /review/erfassung
+  const FERTIG = new Set(["bestaetigt", "aktiv"]);
+  function band(h) {
+    if (h.fehler === "zu_wenig") return ["Nur 1 Foto", "bad"];
+    if (h.fehler) return ["PDF-Fehler", "bad"];
+    const st = stand[h.name];
+    if (!st || st.status === "wartet") return ["Lädt hoch …", ""];
+    return {
+      "neu": ["Wartet auf Erkennung", ""], "in-arbeit": [`Erkennung läuft${st.schritt ? ": " + st.schritt : ""}`, ""],
+      "offen": ["Prüfen", "dran"], "fehler": ["Fehler", "bad"], "bestaetigt": ["Bestätigt", "ok"], "aktiv": ["Im Shop", "ok"],
+    }[st.status] || [st.status, ""];
+  }
+  function raster(hefte) {
+    $("raster-box").hidden = !hefte.length;
+    const el = $("raster");
+    const kacheln = hefte.map(h => {
+      const st = stand[h.name], [text, art] = band(h);
+      const klickbar = st && !["wartet", "neu", "in-arbeit"].includes(st.status) && !h.fehler;
+      const key = [h.name, text, st && st.titel, klickbar].join("|");
+      let k = el.querySelector(`[data-id="${h.name}"]`);
+      if (k && k.dataset.key === key) return k;
+      const neu = document.createElement(klickbar ? "a" : "div");
+      neu.className = "kachel";
+      neu.dataset.id = h.name;
+      neu.dataset.key = key;
+      if (klickbar) neu.href = st.review_url;
+      const cover = document.createElement("div");
+      cover.className = "cover";
+      const img = k?.querySelector(".cover img") || Object.assign(new Image(), { alt: "Cover", loading: "lazy", src: foto(h.name, 1) });
+      img.onerror = () => cover.replaceChildren("kein Bild");
+      cover.append(img);
+      const b = Object.assign(document.createElement("div"), { className: `band ${art}`, textContent: text });
+      const t = document.createElement("div");
+      t.className = "text";
+      t.append(Object.assign(document.createElement("b"), { textContent: st && st.titel ? `${st.titel}${st.ausgabe ? " " + st.ausgabe : ""}` : `Heft ${h.name.slice(0, 8)}` }),
+               Object.assign(document.createElement("span"), { textContent: `${h.fotos} Foto${h.fotos === 1 ? "" : "s"} · ${new Date(h.zu * 1000).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` }));
+      neu.append(cover, b, t);
+      return neu;
+    });
+    el.replaceChildren(...kacheln);
+  }
+  async function standHolen(hefte) {
+    const offen = hefte.filter(h => !h.fehler && !FERTIG.has(stand[h.name]?.status)).map(h => h.name).slice(0, 50);
+    if (!offen.length) return;
+    try {
+      const r = await fetch(`/review/erfassung?ids=${offen.join(",")}`, { cache: "no-store" });
+      if (r.ok) Object.assign(stand, await r.json());
+    } catch { /* next round */ }
   }
 
   function tritt(t) { t.classList.add("tritt"); setTimeout(() => t.classList.remove("tritt"), 180); }
 
+  let letzte = null;
   async function holen() {
     try {
       const r = await fetch(`${PEDAL}/status.json`, { cache: "no-store" });
       if (!r.ok) throw new Error(r.status);
-      zeigen(await r.json());
+      letzte = await r.json();
+      zeigen(letzte);
     } catch {
       box.classList.add("aus");
       $("fuss-naechstes").textContent = "Nur am Scan-Rechner sichtbar (dort laufen die Fußschalter).";
@@ -162,18 +254,65 @@ startet innerhalb von 2 Minuten.</p>
     }
   }
 
-  tasten.forEach(t => t.addEventListener("click", async () => {
+  // detail view of the open comic's photos: fit to screen, click or "100 %" shows real pixels (is it sharp?)
+  const lupe = $("lupe"), lupeBild = $("lupe-bild"), flaeche = $("lupe-flaeche");
+  let lupeName = null, lupeNr = 1;
+  function lupeZeigen(name, nr) {
+    const n = name === letzte?.heft ? letzte.fotos : (letzte?.hefte.find(h => h.name === name)?.fotos || 1);
+    lupeName = name;
+    lupeNr = Math.min(Math.max(nr, 1), n);
+    lupeBild.src = foto(name, lupeNr);
+    lupeBild.alt = `Foto ${lupeNr}`;
+    $("lupe-text").textContent = `Heft ${name.slice(0, 8)} · Foto ${lupeNr} von ${n}${lupeNr === 1 ? " (Cover)" : lupeNr === n && n > 1 ? " (Rückseite)" : ""}`;
+    lupe.hidden = false;
+  }
+  function zoom(e) {
+    const voll = !lupe.classList.contains("voll");
+    // keep the clicked spot under the pointer when zooming in
+    const r = lupeBild.getBoundingClientRect(), fx = e ? (e.clientX - r.left) / r.width : .5, fy = e ? (e.clientY - r.top) / r.height : .5;
+    lupe.classList.toggle("voll", voll);
+    $("lupe-zoom").textContent = voll ? "Einpassen" : "100 %";
+    if (voll) {
+      flaeche.scrollLeft = fx * lupeBild.naturalWidth - flaeche.clientWidth / 2;
+      flaeche.scrollTop = fy * lupeBild.naturalHeight - flaeche.clientHeight / 2;
+    }
+  }
+  function lupeZu() { lupe.hidden = true; lupe.classList.remove("voll"); $("lupe-zoom").textContent = "100 %"; }
+  document.addEventListener("click", e => {
+    const img = e.target.closest(".platz img, .streifen img");
+    if (!img || !letzte?.heft) return;
+    const m = img.src.match(/\/foto\/(\d+)\.jpg/);
+    lupeZeigen(letzte.heft, m ? +m[1] : 1);
+  });
+  lupeBild.addEventListener("click", zoom);
+  $("lupe-zoom").addEventListener("click", () => zoom());
+  $("lupe-zu").addEventListener("click", lupeZu);
+  $("lupe-zurueck").addEventListener("click", () => lupeZeigen(lupeName, lupeNr - 1));
+  $("lupe-weiter").addEventListener("click", () => lupeZeigen(lupeName, lupeNr + 1));
+  flaeche.addEventListener("click", e => { if (e.target === flaeche) lupeZu(); });
+  document.addEventListener("keydown", e => {
+    if (lupe.hidden) return;
+    if (e.key === "Escape") lupeZu();
+    else if (e.key === "ArrowLeft") lupeZeigen(lupeName, lupeNr - 1);
+    else if (e.key === "ArrowRight") lupeZeigen(lupeName, lupeNr + 1);
+  });
+
+  tasten.forEach(t => t.addEventListener("click", () => {
     tritt(t);
-    t.disabled = true;                       // a photo takes a few seconds
-    try {
-      const r = await fetch(`${PEDAL}/${t.dataset.aktion}`, { method: "POST", headers: { "X-Comics-Pedal": "1" } });
-      if (r.ok) zeigen(await r.json());
-    } catch { /* the next poll shows the state */ }
-    t.disabled = false;
+    t.disabled = true;                                // a photo takes a few seconds; the poll shows progress
+    fetch(`${PEDAL}/${t.dataset.aktion}`, { method: "POST", headers: { "X-Comics-Pedal": "1" } })
+      .catch(() => {}).finally(() => { t.disabled = false; holen(); });
+    setTimeout(holen, 150);
   }));
 
   holen();
-  setInterval(() => { if (!document.hidden) holen(); }, 1500);
+  setInterval(() => { if (!document.hidden) holen(); }, 1000);
+  setInterval(async () => {
+    if (document.hidden || !letzte || !letzte.hefte.length) return;
+    await standHolen(letzte.hefte);
+    raster(letzte.hefte);
+  }, 5000);
+  setTimeout(async () => { if (letzte) { await standHolen(letzte.hefte); raster(letzte.hefte); } }, 1200);
 })();
 </script>
 {% endblock %}

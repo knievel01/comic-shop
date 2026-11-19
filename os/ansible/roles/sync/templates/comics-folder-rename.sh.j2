@@ -29,5 +29,7 @@ for dir in "$BASE"/erfassung/*/; do
     *) continue ;;
   esac
   mv -- "${dir%/}" "$target"
+  # the footswitch station still shows this comic's photos: .umbenannt/<id> points to its new folder
+  mkdir -p "$BASE/.umbenannt" && ln -sfn "$target" "$BASE/.umbenannt/$id"
   echo "folder $id -> $(basename "$target")"
 done
