@@ -58,6 +58,16 @@
   .kachel .text { padding:.4rem .6rem .6rem; line-height:1.2; }
   .kachel .text b { display:block; font-size:1.05rem; overflow-wrap:anywhere; }
   .kachel .text span { color:var(--muted); font-size:.9rem; }
+  /* detail view: fit to screen, click = 100 % to check sharpness, arrows = next photo */
+  #lupe { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.95); display:flex; flex-direction:column; }
+  #lupe[hidden] { display:none; }
+  #lupe .leiste { background:#000; display:flex; gap:1rem; align-items:center; padding:.5rem 1rem; color:#fff; font-size:1.1rem; }
+  #lupe .leiste span { flex:1; }
+  #lupe button { font:inherit; font-weight:800; padding:.3rem .8rem; border:2px solid #fff; background:#000; color:#fff; cursor:pointer; }
+  #lupe .flaeche { flex:1; overflow:auto; display:grid; place-items:center; cursor:zoom-in; }
+  #lupe .flaeche img { max-width:100%; max-height:100%; display:block; }
+  #lupe.voll .flaeche { place-items:start; cursor:zoom-out; }
+  #lupe.voll .flaeche img { max-width:none; max-height:none; }
   @media (max-width:800px) {
     .station { grid-template-columns:1fr 1fr; }
     .bilder { grid-column:1 / -1; order:-1; }
@@ -91,6 +101,16 @@
     <span>Fußschalter: <b id="fuss-schalter">–</b></span>
   </div>
 </section>
+<div id="lupe" hidden role="dialog" aria-modal="true" aria-label="Foto im Detail">
+  <div class="leiste">
+    <button type="button" id="lupe-zurueck" aria-label="Voriges Foto">←</button>
+    <span id="lupe-text"></span>
+    <button type="button" id="lupe-zoom">100 %</button>
+    <button type="button" id="lupe-weiter" aria-label="Nächstes Foto">→</button>
+    <button type="button" id="lupe-zu">Schließen (Esc)</button>
+  </div>
+  <div class="flaeche" id="lupe-flaeche"><img id="lupe-bild" alt=""></div>
+</div>
 <section id="raster-box" hidden>
   <h2>Erfasst seit Start</h2>
   <div class="raster" id="raster"></div>
@@ -234,10 +254,47 @@ startet innerhalb von 2 Minuten.</p>
     }
   }
 
-  // a click on a photo opens it full size
+  // detail view of the open comic's photos: fit to screen, click or "100 %" shows real pixels (is it sharp?)
+  const lupe = $("lupe"), lupeBild = $("lupe-bild"), flaeche = $("lupe-flaeche");
+  let lupeName = null, lupeNr = 1;
+  function lupeZeigen(name, nr) {
+    const n = name === letzte?.heft ? letzte.fotos : (letzte?.hefte.find(h => h.name === name)?.fotos || 1);
+    lupeName = name;
+    lupeNr = Math.min(Math.max(nr, 1), n);
+    lupeBild.src = foto(name, lupeNr);
+    lupeBild.alt = `Foto ${lupeNr}`;
+    $("lupe-text").textContent = `Heft ${name.slice(0, 8)} · Foto ${lupeNr} von ${n}${lupeNr === 1 ? " (Cover)" : lupeNr === n && n > 1 ? " (Rückseite)" : ""}`;
+    lupe.hidden = false;
+  }
+  function zoom(e) {
+    const voll = !lupe.classList.contains("voll");
+    // keep the clicked spot under the pointer when zooming in
+    const r = lupeBild.getBoundingClientRect(), fx = e ? (e.clientX - r.left) / r.width : .5, fy = e ? (e.clientY - r.top) / r.height : .5;
+    lupe.classList.toggle("voll", voll);
+    $("lupe-zoom").textContent = voll ? "Einpassen" : "100 %";
+    if (voll) {
+      flaeche.scrollLeft = fx * lupeBild.naturalWidth - flaeche.clientWidth / 2;
+      flaeche.scrollTop = fy * lupeBild.naturalHeight - flaeche.clientHeight / 2;
+    }
+  }
+  function lupeZu() { lupe.hidden = true; lupe.classList.remove("voll"); $("lupe-zoom").textContent = "100 %"; }
   document.addEventListener("click", e => {
     const img = e.target.closest(".platz img, .streifen img");
-    if (img) window.open(img.src, "_blank", "noopener");
+    if (!img || !letzte?.heft) return;
+    const m = img.src.match(/\/foto\/(\d+)\.jpg/);
+    lupeZeigen(letzte.heft, m ? +m[1] : 1);
+  });
+  lupeBild.addEventListener("click", zoom);
+  $("lupe-zoom").addEventListener("click", () => zoom());
+  $("lupe-zu").addEventListener("click", lupeZu);
+  $("lupe-zurueck").addEventListener("click", () => lupeZeigen(lupeName, lupeNr - 1));
+  $("lupe-weiter").addEventListener("click", () => lupeZeigen(lupeName, lupeNr + 1));
+  flaeche.addEventListener("click", e => { if (e.target === flaeche) lupeZu(); });
+  document.addEventListener("keydown", e => {
+    if (lupe.hidden) return;
+    if (e.key === "Escape") lupeZu();
+    else if (e.key === "ArrowLeft") lupeZeigen(lupeName, lupeNr - 1);
+    else if (e.key === "ArrowRight") lupeZeigen(lupeName, lupeNr + 1);
   });
 
   tasten.forEach(t => t.addEventListener("click", () => {

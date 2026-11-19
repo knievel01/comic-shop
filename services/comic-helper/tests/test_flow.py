@@ -817,6 +817,7 @@ def test_hochladen_seite_zeigt_das_fussschalter_panel_nur_dort(env):
     page = env.client.get("/review/hochladen").text
     assert 'id="fussschalter"' in page and "127.0.0.1:8099" in page and "/status.json" in page
     assert 'id="taste-neu"' in page and 'id="taste-foto"' in page and 'id="streifen"' in page   # switches + all photos
+    assert 'id="lupe"' in page and 'id="raster"' in page                                   # detail view + grid
     assert "Fußschalter" in page and "von Hand" in page and 'name="rueckseite"' in page   # manual upload stays
     assert 'id="fussschalter"' not in env.client.get("/review/").text                     # not in the list dialog
 

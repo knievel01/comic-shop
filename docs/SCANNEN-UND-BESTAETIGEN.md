@@ -10,6 +10,8 @@
    welche Kamera ausgelöst hat. Sind keine Fußschalter angeschlossen, sind die beiden Kacheln links und rechts die Schalter.
 5. Darunter steht „Erfasst seit Start“: jedes Heft seit dem Start des Fußschalter-Dienstes als Kachel mit Cover und
    Stand (Lädt hoch, Erkennung läuft, Prüfen, Fehler, Bestätigt). Ein Klick öffnet die Prüfseite.
+6. Klick auf ein Foto öffnet es groß; ein Klick ins Bild zeigt es in 100 % (Schärfe prüfen), Pfeiltasten blättern,
+   Esc schließt.
 
 Die Canon wird vor jedem Foto auf „Medium Fine JPEG“ gestellt (3088×2056) und auf die SD-Karte; das Foto wird nicht
 mehr umgerechnet. Vertauschte Schalter: `sudo rm /var/lib/comics-pedal/pedals.json && sudo systemctl restart
