@@ -187,7 +187,8 @@ def healthz():
 
 # --- ingest + recognition -----------------------------------------------------
 @app.post("/api/scans/claim", dependencies=[Depends(require_token)])
-def claim(limit: int = 10, store: Store = Depends(get_store)):
+def claim(limit: int = 10, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
+    _expire(store, cfg)
     return {"ids": store.claim_new(limit)}
 
 
@@ -320,6 +321,15 @@ def write_inhalt(copy_id: str, neu: int = 0, store: Store = Depends(get_store), 
 
 
 BILD_TEXT = {"unterlage": "freigestellt", "ki": "nach KI-Rahmen geschnitten", "keins": "nicht freigestellt"}
+
+
+def _expire(store: Store, cfg: dict) -> list[str]:
+    """Time limit for a workflow run (pricing.yaml workflow.zeitlimit_min): stuck scans become fehler."""
+    minutes = float((cfg.get("workflow") or {}).get("zeitlimit_min", 10))
+    expired = store.expire_stuck(minutes * 60)
+    if expired:
+        log.warning("time limit: %s set to fehler", ", ".join(expired))
+    return expired
 
 
 def _margin_share(cfg: dict) -> float:
@@ -595,7 +605,8 @@ def review_root():
 
 
 @app.get("/review/", response_class=HTMLResponse, dependencies=[Depends(require_reviewer)])
-def review_list(request: Request, store: Store = Depends(get_store)):
+def review_list(request: Request, store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
+    _expire(store, cfg)
     cases = _inbox_cases(store) + _shop_cases(store)
     details = {}
     for c in cases:
@@ -630,9 +641,19 @@ def review_statistics(seite: str, request: Request, store: Store = Depends(get_s
 
 
 @app.get("/review/fortschritt", dependencies=[Depends(require_reviewer)])
-def review_progress(ids: str = "", store: Store = Depends(get_store)):
+def review_progress(ids: str = "", store: Store = Depends(get_store), cfg: dict = Depends(get_cfg)):
     """Status and current workflow step of scans in eingang/, polled by the list page (ADR-0004)."""
     wanted = [i for i in ids.split(",") if i][:50]
+    limit_s = float((cfg.get("workflow") or {}).get("zeitlimit_min", 10)) * 60
+    for copy_id in wanted:                   # an overdue run turns into fehler without reloading the list
+        _check_id(copy_id)
+        try:
+            seit = store.get_tags(store.pdf_key(EINGANG, copy_id)).get("claimed", "")
+        except ClientError:
+            continue
+        if seit.isdigit() and time.time() - int(seit) > limit_s:
+            _expire(store, cfg)
+            break
     out = {}
     for copy_id in wanted:
         _check_id(copy_id)
