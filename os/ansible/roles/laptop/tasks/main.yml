@@ -49,7 +49,7 @@
 - name: Wi-Fi fallback (only with WIFI_SSID in comics.env)
   when: laptop_wifi_ssid | length > 0
   block:
-    - name: Wi-Fi interface name (networkd does not accept match: for Wi-Fi)
+    - name: Wi-Fi interface name (networkd needs the name, no match for Wi-Fi)
       ansible.builtin.set_fact:
         laptop_wifi_iface: "{{ ansible_facts.interfaces | select('match', '^wl') | sort | first }}"
 
