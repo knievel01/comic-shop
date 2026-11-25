@@ -10,9 +10,16 @@ ENV=/etc/comics/comics.env
 
 "${SSH[@]}" true || { echo "Der Rechner antwortet nicht unter $HOST." >&2; exit 1; }
 
-echo "Tailscale-Auth-Key (einmalig, login.tailscale.com/admin/settings/keys)."
-echo "Enter ohne Eingabe: Der Rechner zeigt stattdessen einen Anmeldelink."
-read -rsp "Key: " KEY; echo
+# already in the tailnet (installed and logged in earlier)? Then no key is needed, only the firewall rule is added
+STATE="$("${SSH[@]}" "tailscale status --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"BackendState\",\"\"))'" || true)"
+KEY=""
+if [[ "$STATE" == "Running" ]]; then
+  echo "Der Rechner ist schon im Tailnet, es wird kein Key gebraucht."
+else
+  echo "Tailscale-Auth-Key (einmalig, login.tailscale.com/admin/settings/keys)."
+  echo "Enter ohne Eingabe: Der Rechner zeigt stattdessen einen Anmeldelink."
+  read -rsp "Key: " KEY; echo
+fi
 if [[ -n "$KEY" ]]; then
   [[ "$KEY" =~ ^tskey-[A-Za-z0-9_-]+$ ]] || { echo "Das sieht nicht wie ein Tailscale-Key aus (tskey-…)." >&2; exit 1; }
   # via stdin, so the key never shows up in a process list or shell history

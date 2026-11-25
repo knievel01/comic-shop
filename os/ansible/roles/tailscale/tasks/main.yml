@@ -1,25 +1,33 @@
 ---
 # Tailscale on the comic machine: own address in the tailnet, reachable from anywhere without open router ports
 # (ADR-0025). Joins with TAILSCALE_AUTHKEY from comics.env; without it the machine is only installed.
-- name: Tailscale apt key
-  ansible.builtin.get_url:
-    url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts.distribution_release }}.noarmor.gpg"
-    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
-    mode: "0644"
+- name: Tailscale already installed?
+  ansible.builtin.stat:
+    path: /usr/bin/tailscale
+  register: tailscale_bin
 
-- name: Tailscale apt repository
-  ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/tailscale.list
-    mode: "0644"
-    content: >
-      deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg]
-      https://pkgs.tailscale.com/stable/ubuntu {{ ansible_facts.distribution_release }} main
+- name: Install Tailscale (skipped when it is already on the machine)
+  when: not tailscale_bin.stat.exists
+  block:
+    - name: Tailscale apt key
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts.distribution_release }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: "0644"
 
-- name: Tailscale installed
-  ansible.builtin.apt:
-    name: tailscale
-    state: present
-    update_cache: true
+    - name: Tailscale apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/tailscale.list
+        mode: "0644"
+        content: >
+          deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg]
+          https://pkgs.tailscale.com/stable/ubuntu {{ ansible_facts.distribution_release }} main
+
+    - name: Tailscale installed
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
 
 - name: tailscaled running
   ansible.builtin.systemd:
