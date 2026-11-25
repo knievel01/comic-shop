@@ -38,7 +38,10 @@ SSH_KEYS_FILE=~/.ssh/id_ed25519.pub REPO_URL=https://github.com/<user>/comic-sho
 ## Laptop als Rechner (ADR-0001)
 
 - Erster Lauf von ansible-pull braucht **Kabel-LAN** (Adapter reicht). WLAN als Fallback: `WIFI_SSID` und
-  `WIFI_PASSWORD` in `/etc/comics/comics.env`, dann `sudo comics-update --tags laptop`.
+  `WIFI_PASSWORD` in `/etc/comics/comics.env`, dann `sudo comics-update --tags laptop`. Ein von Hand angelegtes WLAN
+  (`/etc/netplan/60-comics-wifi.yaml`) bleibt unberührt, solange `WIFI_SSID` leer ist.
+- Fernzugriff über Tailscale (ADR-0025), einmal vom Mac aus, Rechner im selben Netz erreichbar:
+  `scripts/tailscale-einrichten.sh <IP des Rechners>`. Danach `ssh comicadmin@<Tailscale-Adresse>` von überall.
 - Deckel zuklappen ist erlaubt, der Rechner schläft nicht. BIOS: „Power on after AC loss“ falls vorhanden,
   Ladelimit 80 %.
 - Scanner ist per Standard aus (`comics_scanner_enabled: false`). Eingang ist die Canon-Kamera per USB:

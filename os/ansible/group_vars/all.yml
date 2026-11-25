@@ -8,6 +8,11 @@ comics_admin_user: comicadmin
 comics_desktop_enabled: true
 # Laptop as host (ADR-0001): lid closed keeps running, optional Wi-Fi fallback from comics.env.
 comics_laptop: true
+# Own address in the tailnet (ADR-0025); joins only when TAILSCALE_AUTHKEY is set in comics.env.
+comics_tailscale_enabled: true
+comics_tailscale_hostname: comic-server
+# true = Tailscale SSH (tailnet identity instead of keys); false = normal SSH over the tailnet address
+comics_tailscale_ssh: false
 # Off until a SANE scanner is connected (ADR-0001).
 comics_scanner_enabled: false
 # Tethered Canon camera via gphoto2 (ADR-0007); the upload via review UI (ADR-0007) stays available.

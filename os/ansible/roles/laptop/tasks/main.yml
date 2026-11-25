@@ -49,6 +49,10 @@
 - name: Wi-Fi fallback (only with WIFI_SSID in comics.env)
   when: laptop_wifi_ssid | length > 0
   block:
+    - name: Wi-Fi interface name (networkd does not accept match: for Wi-Fi)
+      ansible.builtin.set_fact:
+        laptop_wifi_iface: "{{ ansible_facts.interfaces | select('match', '^wl') | sort | first }}"
+
     - name: Netplan Wi-Fi (wired keeps priority via route metric)
       ansible.builtin.copy:
         dest: /etc/netplan/60-comics-wifi.yaml
@@ -59,9 +63,7 @@
           network:
             version: 2
             wifis:
-              any-wifi:
-                match:
-                  name: "w*"
+              {{ laptop_wifi_iface }}:
                 dhcp4: true
                 optional: true
                 dhcp4-overrides:

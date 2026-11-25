@@ -11,8 +11,12 @@ und jede Variante hat Bestand 1, ein Doppelverkauf ist ausgeschlossen. Der Rechn
 wollte keine Anmeldung und kein Zertifikat-Theater.
 
 ## Entscheidung
-- **Kein Weg aus dem Internet zum Rechner:** kein Tunnel, keine Shopify-Webhooks, kein Workflow 03. Der Rechner ruft
-  Shopify nur selbst auf. Firewall (ufw): 80/443 und SSH nur aus privaten Netzen.
+- **Kein Weg aus dem Internet zum Rechner:** kein öffentlicher Tunnel, keine Shopify-Webhooks, kein Workflow 03. Der
+  Rechner ruft Shopify nur selbst auf. Firewall (ufw): 80/443 nur aus privaten Netzen.
+- **Einzige Ausnahme: Tailscale** (Rolle `tailscale`, ausgehende Verbindung, kein Port am Router offen). Der Rechner hat
+  im Tailnet eine eigene Adresse, unabhängig vom Standort. Die Firewall öffnet SSH, 80 und 443 dort nur auf der
+  Schnittstelle `tailscale0`; wer im Tailnet ist, hat denselben Zugriff wie im LAN (nur eigene Geräte, Anmeldung bei
+  Tailscale). Der Beitritt läuft einmalig über `scripts/tailscale-einrichten.sh`.
 - **Verkäufe, Stornos, Retouren gibt es nur in Shopify.** S3 bildet sie nicht ab; ein Exemplar bleibt dauerhaft in
   `aktiv/`. Die Review zeigt „Zuletzt in den Shop“ (letzte 30); Tagesmail und Statistik kennen keine Verkäufe.
 - **LAN-Zugang per http, ohne Anmeldung:** Review-Oberfläche (`/review/`, Upload, Statistik) ohne Passwort
