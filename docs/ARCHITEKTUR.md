@@ -62,6 +62,6 @@ Kurzüberblick:
 | comic-helper vs. n8n, Review-Oberfläche, n8n-Betrieb | [0005](adr/0005-fachlogik-im-dienst-comic-helper-n8n-orchestriert.md), [0006](adr/0006-review-oberflaeche-im-comic-helper-statt-n8n-formular.md), [0008](adr/0008-n8n-als-einzelinstanz-mit-postgres-auf-k3s.md) |
 | Erfassung (Kamera, Scanner, Foto-Upload) | [0007](adr/0007-erfassung-als-pdf-upload-per-sync-skript.md) |
 | Erkennung und Preise | [0010](adr/0010-erkennung-mit-claude-ximilar-nur-nach-vergleichstest.md), [0011](adr/0011-preisfindung-comicguide-skala-booklooker-ohne-scraping.md) |
-| Shopify, SKU, Sammelposten | [0012](adr/0012-shopify-anbindung-variante-je-exemplar.md) |
+| Shopify, SKU, Variante je Zustand | [0012](adr/0012-shopify-anbindung-variante-je-exemplar.md) |
 | Zugriff nur im LAN, kein Rückkanal | [0025](adr/0025-kein-internetzugang-zugriff-nur-im-lan.md) |
 | Sandbox, Rollout, getrennte Daten | [0027](adr/0027-sandbox-zuerst-rollout-per-ssh.md) |
